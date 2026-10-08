@@ -9,14 +9,28 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('inventory');
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-7xl mx-auto pt-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6 no-print">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-7xl mx-auto pt-4 md:pt-8 pb-24 md:pb-8 px-4 md:px-0">
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-8 gap-4 md:gap-6 no-print">
         <div>
-          <h1 className="text-4xl font-serif text-brand-blue font-bold mb-2">Command Center</h1>
-          <p className="text-gray-500 tracking-wide">Manage your bookstore inventory, banners, and orders.</p>
+          <h1 className="text-3xl md:text-4xl font-serif text-brand-blue font-bold mb-1 md:mb-2">Command Center</h1>
+          <p className="text-sm md:text-base text-gray-500 tracking-wide">Manage your bookstore inventory, banners, and orders.</p>
         </div>
         
-        <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-200 shadow-sm">
+        {/* Mobile Navigation */}
+        <div className="flex overflow-x-auto whitespace-nowrap hide-scrollbar space-x-3 pb-2 md:hidden w-full">
+          <button onClick={() => setActiveTab('inventory')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'inventory' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <Plus size={16} /> Inventory
+          </button>
+          <button onClick={() => setActiveTab('banners')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'banners' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <ImageIcon size={16} /> Banners
+          </button>
+          <button onClick={() => setActiveTab('orders')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'orders' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <Package size={16} /> Orders
+          </button>
+        </div>
+
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex bg-slate-50 p-1 rounded-lg border border-slate-200 shadow-sm">
           <button onClick={() => setActiveTab('inventory')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'inventory' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Plus size={18} /> Inventory
           </button>
@@ -306,8 +320,8 @@ function InventoryManagement() {
         <h2 className="text-xl font-bold text-brand-blue mb-6">Add New Book</h2>
         <form onSubmit={handleAddBook} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Book Title" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Book Title" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2.5 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
               
               <div className="flex gap-2">
                 <select name="author" value={formData.author || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
@@ -390,14 +404,16 @@ function InventoryManagement() {
 
       {/* INVENTORY LIST & SEARCH */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+        <div className="p-4 md:p-6 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center bg-gray-50 gap-4 md:gap-0">
           <h2 className="text-xl font-bold text-brand-blue">Inventory</h2>
-          <div className="relative">
+          <div className="relative w-full md:w-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-            <input type="text" placeholder="Search by name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-slate-50 border border-slate-300 focus:bg-white rounded-full py-1.5 pl-9 pr-4 text-sm focus:outline-none focus:border-brand-gold w-64" />
+            <input type="text" placeholder="Search by name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-white border border-slate-300 focus:bg-white rounded-full py-2 md:py-1.5 pl-9 pr-4 text-sm focus:outline-none focus:border-brand-gold w-full md:w-64 shadow-sm" />
           </div>
         </div>
-        <div className="overflow-x-auto">
+        
+        {/* DESKTOP TABLE */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
               <tr><th className="px-6 py-3">Title</th><th className="px-6 py-3">Price</th><th className="px-6 py-3">Stock</th><th className="px-6 py-3 text-right">Action</th></tr>
@@ -418,18 +434,42 @@ function InventoryManagement() {
             </tbody>
           </table>
         </div>
+
+        {/* MOBILE CARDS */}
+        <div className="md:hidden flex flex-col p-4 gap-3 bg-gray-100">
+          {filteredBooks.map(book => (
+            <div key={book.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
+              <div className="font-bold text-brand-blue text-sm">{book.title}</div>
+              <div className="flex justify-between items-center text-xs text-gray-600">
+                <span>Price: <span className="font-bold">{formatPrice(book.price)}</span></span>
+                <span>Stock: <span className={`font-bold ${book.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>{book.stock}</span></span>
+              </div>
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <button 
+                  onClick={() => { setEditingBook(book); setIsEditModalOpen(true); setFile(null); setPreview(book.cover_image_url); }} 
+                  className="w-full flex items-center justify-center gap-2 py-2 bg-slate-50 text-brand-gold hover:bg-slate-100 rounded-lg font-bold uppercase text-xs tracking-wider"
+                >
+                  <Edit2 size={14} /> Edit Book
+                </button>
+              </div>
+            </div>
+          ))}
+          {filteredBooks.length === 0 && (
+            <div className="text-center py-8 text-gray-500 font-medium">No books found.</div>
+          )}
+        </div>
       </div>
 
       {/* EDIT MODAL */}
       <AnimatePresence>
         {isEditModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-24 pb-10 overflow-y-auto bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-[95%] max-w-3xl max-h-[85vh] overflow-y-auto mx-auto bg-slate-50 rounded-2xl p-4 md:p-6 shadow-2xl">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto mx-auto bg-slate-50 rounded-2xl p-5 md:p-6 shadow-2xl">
               <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer z-10"><X size={24} /></button>
-              <h2 className="text-2xl font-bold text-brand-blue mb-6">Edit Book</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-brand-blue mb-4 md:mb-6">Edit Book</h2>
               <form onSubmit={handleEditSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 mb-2">
-                  <input required type="text" name="title" value={editingBook.title} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                  <input required type="text" name="title" value={editingBook.title} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
                   
                   <select name="author" value={editingBook.author || ''} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
                     <option value="">Select Author (Optional)</option>
@@ -861,24 +901,27 @@ function OrderManagement() {
         </div>
 
         {/* CUSTOMER INFO SECTION */}
-        <div className="grid grid-cols-2 gap-8 mb-8 text-black border-y-2 border-black py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-8 text-black border-y-2 border-black py-6">
           <div>
             <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-3">Customer Details</p>
             <p className="font-bold text-lg">{selectedOrder.customer_name || 'Walk-in Customer'}</p>
             <p className="text-sm mt-1"><span className="font-semibold text-gray-600">Email:</span> {selectedOrder.user_email || 'Not Available'}</p>
             <p className="text-sm mt-1"><span className="font-semibold text-gray-600">Contact:</span> {selectedOrder.contact_number || 'Not Available'}</p>
           </div>
-          <div className="text-right">
+          <div className="text-left md:text-right">
             <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-3">Order Details</p>
             <p className="font-bold text-sm">Invoice #{selectedOrder.id.slice(0, 8).toUpperCase()}</p>
             <p className="text-sm mt-1"><span className="font-semibold text-gray-600">Date:</span> {new Date(selectedOrder.created_at).toLocaleString()}</p>
-            <p className="text-sm mt-2 leading-relaxed whitespace-pre-line ml-auto max-w-xs text-right">
+            <p className="text-sm mt-2 leading-relaxed whitespace-pre-line md:ml-auto max-w-xs text-left md:text-right">
               <span className="font-semibold text-gray-600 block mb-1">Shipping Address:</span>
               {selectedOrder.shipping_address || 'Store Pickup'}
             </p>
           </div>
         </div>
-        <table className="w-full text-left mb-8 text-black border-collapse">
+        
+        {/* DESKTOP ORDER ITEMS TABLE */}
+        <div className="hidden md:block">
+          <table className="w-full text-left mb-8 text-black border-collapse">
           <thead className="border-b-2 border-black uppercase text-[10px] tracking-wider">
             <tr>
               <th className="py-3">Book Name</th>
@@ -906,6 +949,35 @@ function OrderManagement() {
             })}
           </tbody>
         </table>
+        </div>
+        
+        {/* MOBILE ORDER ITEMS CARDS */}
+        <div className="md:hidden flex flex-col gap-3 mb-8">
+          <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-1">Items</p>
+          {selectedOrder.order_items.map((item, idx) => {
+            const originalPrice = item.books?.price || item.price;
+            const discount = item.books?.discount_percentage || 0;
+            return (
+              <div key={idx} className="bg-gray-50 border border-gray-200 p-3 rounded-lg flex flex-col gap-2 text-sm">
+                <div className="font-bold">{item.books?.title}</div>
+                <div className="flex justify-between items-center text-xs">
+                  <span>Qty: <span className="font-bold">{item.quantity}</span></span>
+                  <span>Price: <span className="font-bold">{formatPrice(item.price)}</span></span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>Orig: {formatPrice(originalPrice)}</span>
+                    <span className="text-green-600 font-bold">-{discount}%</span>
+                  </div>
+                )}
+                <div className="mt-1 pt-2 border-t border-gray-200 flex justify-between items-center">
+                  <span className="font-semibold">Subtotal</span>
+                  <span className="font-bold">{formatPrice(item.price * item.quantity)}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
         <div className="flex justify-end border-t-2 border-black pt-6 mb-12">
           <div className="text-right">
             <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-1">Total Amount</p>
@@ -924,9 +996,9 @@ function OrderManagement() {
           </button>
         </div>
 
-        <div className="no-print bg-gray-50 border border-gray-300 p-6 rounded-none text-black">
+        <div className="no-print bg-gray-50 border border-gray-300 p-4 md:p-6 rounded-none text-black">
           <h3 className="text-lg font-bold mb-4 border-b border-gray-300 pb-2">Order Management</h3>
-          <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 text-sm">
             <div><p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Method</p><p className="font-bold">{selectedOrder.payment_method}</p></div>
             <div><p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Payment Status</p><span className="font-bold">{selectedOrder.payment_status}</span></div>
             <div><p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Shipping Status</p><span className="font-bold">{selectedOrder.order_status}</span></div>
@@ -958,8 +1030,10 @@ function OrderManagement() {
 
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-       <div className="p-6 border-b border-gray-200 bg-gray-50"><h2 className="text-xl font-bold text-brand-blue">Order History</h2></div>
-       <div className="overflow-x-auto">
+       <div className="p-4 md:p-6 border-b border-gray-200 bg-gray-50"><h2 className="text-xl font-bold text-brand-blue">Order History</h2></div>
+       
+       {/* DESKTOP ORDERS TABLE */}
+       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
             <tr><th className="px-6 py-3">Order ID</th><th className="px-6 py-3">Date</th><th className="px-6 py-3">Total</th><th className="px-6 py-3">Status</th><th className="px-6 py-3 text-right">Actions</th></tr>
@@ -976,6 +1050,35 @@ function OrderManagement() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* MOBILE ORDERS CARDS */}
+      <div className="md:hidden flex flex-col p-4 gap-3 bg-gray-100">
+        {orders.map((order) => (
+          <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-mono text-gray-500 font-bold text-xs">#{order.id.slice(0,8)}</span>
+              <span className="text-xs text-gray-500">{new Date(order.created_at).toLocaleDateString()}</span>
+            </div>
+            <div className="flex justify-between items-center mt-1">
+              <span className="font-bold text-brand-blue">{formatPrice(order.total_amount)}</span>
+              <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${order.order_status === 'Shipped' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                {order.order_status}
+              </span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-gray-100">
+              <button 
+                onClick={() => setSelectedOrder(order)} 
+                className="w-full flex items-center justify-center py-2 bg-slate-50 text-brand-gold hover:bg-slate-100 rounded-lg font-bold uppercase text-xs tracking-wider"
+              >
+                Review Order
+              </button>
+            </div>
+          </div>
+        ))}
+        {orders.length === 0 && (
+          <div className="text-center py-8 text-gray-500 font-medium">No orders found.</div>
+        )}
       </div>
     </div>
   );
