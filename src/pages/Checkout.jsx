@@ -35,12 +35,21 @@ export default function Checkout() {
       const { data: banks } = await supabase.from('bank_accounts').select('*').order('created_at', { ascending: false });
       if (banks) setBankAccounts(banks);
 
-      const { data: files } = await supabase.storage.from('web-assets').list();
-      const qrFile = files?.find(file => file.name.startsWith('PyQR'));
-      if (qrFile) {
-        const { data } = supabase.storage.from('web-assets').getPublicUrl(qrFile.name);
-        if (data) setQrUrl(data.publicUrl);
+      const extensions = ['jpg', 'png', 'jpeg', 'svg', 'webp'];
+      let foundQr = null;
+      for (const ext of extensions) {
+        const { data } = supabase.storage.from('web-assets').getPublicUrl(`PyQR.${ext}`);
+        try {
+          const res = await fetch(data.publicUrl, { method: 'HEAD' });
+          if (res.ok) {
+            foundQr = `${data.publicUrl}?t=${Date.now()}`;
+            break;
+          }
+        } catch (err) {
+          // ignore and try next
+        }
       }
+      if (foundQr) setQrUrl(foundQr);
       setLoadingPaymentInfo(false);
     };
     fetchPaymentInfo();

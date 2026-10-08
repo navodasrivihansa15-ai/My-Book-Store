@@ -1116,11 +1116,18 @@ function AdminPaymentSettings() {
   };
 
   const fetchQrCode = async () => {
-    const { data: files } = await supabase.storage.from('web-assets').list();
-    const qrFile = files?.find(file => file.name.startsWith('PyQR'));
-    if (qrFile) {
-      const { data } = supabase.storage.from('web-assets').getPublicUrl(qrFile.name);
-      if (data) setQrUrl(data.publicUrl);
+    const extensions = ['jpg', 'png', 'jpeg', 'svg', 'webp'];
+    for (const ext of extensions) {
+      const { data } = supabase.storage.from('web-assets').getPublicUrl(`PyQR.${ext}`);
+      try {
+        const res = await fetch(data.publicUrl, { method: 'HEAD' });
+        if (res.ok) {
+          setQrUrl(`${data.publicUrl}?t=${Date.now()}`);
+          return;
+        }
+      } catch (err) {
+        // ignore and try next
+      }
     }
   };
 
@@ -1214,7 +1221,7 @@ function AdminPaymentSettings() {
             <p className="font-semibold text-gray-800 text-base">Current QR Code File</p>
             <p>This QR code is displayed to customers during checkout if they select QR Payment.</p>
             <div className="bg-blue-50 text-brand-blue p-4 rounded-lg border border-blue-100 text-xs mt-4">
-              <strong>To update this QR code:</strong> Go to your Supabase project dashboard, navigate to Storage &gt; <code className="font-mono bg-blue-100 px-1 rounded">web-assets</code>, and upload or replace a file starting with <code className="font-mono bg-blue-100 px-1 rounded">PyQR</code> (e.g. PyQR.png or PyQR.svg).
+              <strong>To update this QR code:</strong> Go to your Supabase project dashboard, navigate to Storage &gt; <code className="font-mono bg-blue-100 px-1 rounded">web-assets</code>, and upload or replace a file starting with <code className="font-mono bg-blue-100 px-1 rounded">PyQR</code> (e.g. PyQR.png, PyQR.jpg, or PyQR.svg).
             </div>
           </div>
         </div>
