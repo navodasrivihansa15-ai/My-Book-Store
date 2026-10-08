@@ -52,15 +52,15 @@ export default function BookDetails() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen pt-4 pb-20 bg-brand-offwhite">
-      <div className="max-w-6xl mx-auto px-4">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 hover:text-brand-blue transition-colors mb-10 text-sm tracking-widest uppercase font-semibold cursor-pointer">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen pb-28 md:pb-12 pt-4 md:pt-8 bg-brand-offwhite px-4 md:px-8">
+      <div className="max-w-6xl mx-auto">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 hover:text-brand-blue transition-colors mb-6 md:mb-10 text-sm tracking-widest uppercase font-semibold cursor-pointer">
           <ArrowLeft size={16} /> Back to Collection
         </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-start">
-          <motion.div initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6 }} className="relative group rounded-xl overflow-hidden shadow-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-center">
-            <img src={book.cover_image_url || fallbackImage} alt={book.title} onError={(e) => { e.target.onerror = null; e.target.src = fallbackImage; }} className="h-[45vh] md:h-[60vh] w-auto max-w-full object-contain mx-auto rounded-xl shadow-sm" />
+        <div className="flex flex-col md:flex-row gap-6 md:gap-12 items-start">
+          <motion.div initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6 }} className="relative group w-2/3 max-w-[240px] mx-auto md:w-full md:max-w-md rounded-lg md:rounded-xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.15)] md:shadow-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-center">
+            <img src={book.cover_image_url || fallbackImage} alt={book.title} onError={(e) => { e.target.onerror = null; e.target.src = fallbackImage; }} className="object-contain h-auto md:h-[60vh] w-full max-w-full mx-auto rounded-lg md:rounded-xl shadow-sm" />
           </motion.div>
 
           <motion.div initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.6, delay: 0.2 }} className="space-y-8 bg-slate-50 p-8 rounded-xl shadow-sm border border-slate-200">
@@ -80,7 +80,7 @@ export default function BookDetails() {
                   )}
                 </div>
               </div>
-              <h1 className="text-4xl md:text-5xl font-serif text-brand-blue mb-6 leading-tight font-bold">{book.title}</h1>
+              <h1 className="text-2xl md:text-4xl font-serif text-brand-blue mb-6 leading-tight font-bold">{book.title}</h1>
               
               <div className="flex flex-col gap-4 mb-8">
                 {/* Author Avatar & Dual Name */}
@@ -123,17 +123,17 @@ export default function BookDetails() {
               </div>
 
               <div className="flex items-center gap-6 border-y border-gray-200 py-6 my-6">
-                <div className="flex flex-col">
+                <div className="flex flex-col mt-2 md:mt-0">
                   {book.discount_percentage > 0 && book.sale_price ? (
                     <>
-                      <span className="text-sm text-slate-400 line-through">{formatPrice(book.price)}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-4xl font-bold text-blue-600">{formatPrice(book.sale_price)}</span>
+                      <div className="flex items-center gap-3 mt-4 md:mt-0">
+                        <span className="text-2xl font-bold text-theme-deep">{formatPrice(book.sale_price)}</span>
                         <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow-md">-{book.discount_percentage}%</span>
                       </div>
+                      <span className="text-sm text-gray-400 line-through mt-1">{formatPrice(book.price)}</span>
                     </>
                   ) : (
-                    <span className="text-4xl font-serif text-brand-blue font-bold">{formatPrice(book.price)}</span>
+                    <span className="text-2xl font-bold text-theme-deep mt-4 md:mt-0">{formatPrice(book.price)}</span>
                   )}
                 </div>
                 <div className="h-10 w-px bg-gray-200"></div>
@@ -155,21 +155,21 @@ export default function BookDetails() {
 
             <div>
               <h3 className="text-sm font-bold uppercase tracking-widest text-brand-blue mb-3 flex items-center gap-2"><Layers size={16}/> Synopsis</h3>
-              <p className="text-gray-600 leading-relaxed text-sm md:text-base whitespace-pre-line">{book.description}</p>
+              <p className="text-gray-600 text-sm md:text-base leading-relaxed mt-6 bg-white/50 p-4 md:p-0 rounded-xl md:bg-transparent whitespace-pre-line shadow-sm md:shadow-none border border-gray-100 md:border-transparent">{book.description}</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 mt-8 w-full">
+            <div className="flex flex-col md:flex-row gap-3 mt-6 w-full">
               <button 
                 onClick={handleBuyNow}
                 disabled={book.stock <= 0 || isStockLimitReached}
-                className="w-full md:w-64 flex items-center justify-center gap-3 bg-theme-deep text-white shadow-md hover:bg-theme-darkest transition-all duration-300 hover:shadow-lg px-8 py-4 rounded-full uppercase tracking-widest font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3.5 rounded-xl bg-theme-deep text-white font-bold text-base shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 uppercase tracking-widest cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Buy Now
               </button>
               <button 
                 onClick={() => addToCart({ ...book, price: book.discount_percentage > 0 && book.sale_price ? book.sale_price : book.price })}
                 disabled={book.stock <= 0 || isStockLimitReached}
-                className="w-full md:w-64 flex items-center justify-center gap-3 border-2 border-theme-deep text-theme-deep hover:bg-theme-deep hover:text-white transition-all duration-300 px-8 py-3.5 rounded-full uppercase tracking-widest font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-transparent"
+                className="w-full py-3.5 rounded-xl border-2 border-theme-deep text-theme-deep font-bold text-base hover:bg-theme-deep hover:text-white transition-all flex items-center justify-center gap-3 uppercase tracking-widest cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-transparent"
               >
                 <ShoppingCart size={20} /> {book.stock <= 0 ? 'Unavailable' : isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
               </button>
