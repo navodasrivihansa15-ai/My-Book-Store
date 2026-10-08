@@ -139,7 +139,7 @@ export default function Home() {
 
         {(!searchQuery && (!selectedCategory || selectedCategory === 'All')) && (
           <>
-            <HeroBanner />
+            <HeroBanner className="w-full aspect-[3/2] md:aspect-[16/5] object-cover rounded-2xl shadow-md mb-12" />
             <div className="flex flex-col gap-6 md:gap-12 mb-8 md:mb-20">
               <BookShelf 
                 title="New Arrivals" 

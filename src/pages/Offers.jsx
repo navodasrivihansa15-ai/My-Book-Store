@@ -46,7 +46,7 @@ export default function Offers() {
 
       {!loading && offerBanners.length > 0 && (
         <div className="w-full">
-          <HeroBanner banners={offerBanners} disableLinks={true} className="w-full h-36 sm:h-48 md:h-64 mb-6" />
+          <HeroBanner banners={offerBanners} disableLinks={true} className="w-full aspect-[3/2] md:aspect-[16/5] object-cover rounded-2xl shadow-md mb-6" />
         </div>
       )}
 

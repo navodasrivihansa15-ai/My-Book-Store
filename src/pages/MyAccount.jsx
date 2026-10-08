@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Package, ShieldCheck, Shield, Phone, Save, Edit2, CheckCircle, XCircle, X, Check } from 'lucide-react';
+import { User, Package, ShieldCheck, Shield, Phone, Save, Edit2, CheckCircle, XCircle, X, Check, ExternalLink, Receipt, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '../lib/utils';
 
@@ -245,6 +245,16 @@ function ProfileSettings({ user }) {
 function UserOrders({ user }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBill, setSelectedBill] = useState(null);
+  const [editDeliveryModalOpen, setEditDeliveryModalOpen] = useState(false);
+  const [selectedOrderForEdit, setSelectedOrderForEdit] = useState(null);
+  const [editDeliveryForm, setEditDeliveryForm] = useState({ shipping_address: '', contact_number: '' });
+  const [toast, setToast] = useState({ show: false, message: '', type: '' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: '' }), 3000);
+  };
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -265,7 +275,22 @@ function UserOrders({ user }) {
   if (loading) return <div className="py-10 text-center font-bold text-gray-500 animate-pulse">Loading your orders...</div>;
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast.show && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className={`fixed top-32 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ${
+              toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+            }`}
+          >
+            {toast.type === 'error' ? <XCircle size={18} /> : <CheckCircle size={18} />}
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <h2 className="hidden md:block text-2xl font-bold text-theme-deep mb-8 border-b border-theme-light/30 pb-4">My Orders</h2>
       
       {orders.length === 0 ? (
@@ -287,12 +312,20 @@ function UserOrders({ user }) {
                   <p className="text-sm font-semibold">{new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                 </div>
                 <div className="text-left sm:text-right">
-                  <p className="text-[10px] md:text-xs text-theme-darkest/50 font-bold uppercase tracking-wider mb-1">Status</p>
-                  <p className={`text-xs md:text-sm font-bold uppercase tracking-wider px-3 py-1.5 rounded-full ${
-                    order.order_status === 'Shipped' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                  <p className="text-[10px] md:text-xs text-theme-darkest/50 font-bold uppercase tracking-wider mb-1">Payment Status</p>
+                  <div className={`inline-flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase tracking-wider px-3 py-1.5 rounded-full ${
+                    order.payment_status === 'Verified' ? 'bg-green-100 text-green-800' : 
+                    order.payment_status === 'Rejected' ? 'bg-red-50 text-red-600 border border-red-200' : 
+                    'bg-orange-50 text-orange-600 border border-orange-200'
                   }`}>
-                    {order.order_status}
-                  </p>
+                    {order.payment_status === 'Verified' && <CheckCircle size={14} />}
+                    {order.payment_status === 'Rejected' && <XCircle size={14} />}
+                    {order.payment_status === 'Verified' ? 'Payment Verified' : order.payment_status === 'Rejected' ? 'Payment Rejected' : 'Payment Pending'}
+                  </div>
+                  <div className="mt-2 flex items-center justify-start sm:justify-end gap-1.5">
+                     <span className="text-[10px] md:text-[11px] font-bold text-gray-500 uppercase tracking-wider">Order Status:</span>
+                     <span className={`text-[10px] md:text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${order.order_status === 'Shipped' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{order.order_status}</span>
+                  </div>
                 </div>
               </div>
               
@@ -315,8 +348,215 @@ function UserOrders({ user }) {
                 <div className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-theme-darkest/50">Total Amount</div>
                 <div className="font-bold text-lg md:text-2xl text-theme-deep">{formatPrice(order.total_amount)}</div>
               </div>
+
+              {order.payment_status === 'Rejected' && order.reject_reason && (
+                <div className="mt-4 bg-red-50 border border-red-200 p-4 rounded-xl flex items-start gap-3">
+                  <XCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <h4 className="text-sm font-bold text-red-700 mb-1">Action Required: Payment Rejected</h4>
+                    <p className="text-sm text-red-600 font-medium">Reason: <span className="font-bold">{order.reject_reason}</span></p>
+                    <p className="text-xs text-red-500 mt-2 font-semibold opacity-80">Please contact support or re-upload your payment proof to resolve this issue.</p>
+                  </div>
+                </div>
+              )}
+
+              {order.order_status === 'Shipped' && order.tracking_number && (
+                <div className="mt-4 bg-blue-50 border border-blue-100 p-4 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+                  <div>
+                    <h4 className="text-sm font-bold text-theme-deep mb-1">Track Your Package</h4>
+                    <p className="text-sm text-gray-700 font-medium">Shipped via {order.tracking_service || 'Courier'} | Tracking No: <span className="font-bold text-black">{order.tracking_number}</span></p>
+                  </div>
+                  {order.tracking_link && (
+                    <a 
+                      href={order.tracking_link} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-full md:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors shadow-sm"
+                    >
+                      Track Order <ExternalLink size={16} />
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {(order.order_status === 'Pending' || order.order_status === 'Processing') && (
+                <div className="mt-4">
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl text-xs flex items-start gap-2 mb-3 shadow-sm">
+                    <span className="text-lg leading-none">⚠️</span>
+                    <p>You can update your delivery address and mobile number anytime before the order is marked as shipped by the store.</p>
+                  </div>
+                  <button onClick={() => {
+                    setSelectedOrderForEdit(order);
+                    setEditDeliveryForm({ shipping_address: order.shipping_address || '', contact_number: order.contact_number || '' });
+                    setEditDeliveryModalOpen(true);
+                  }} className="w-full bg-white border border-gray-300 hover:border-gray-400 text-gray-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm transition-colors shadow-sm cursor-pointer">
+                    <Edit2 size={18} /> Edit Delivery Info
+                  </button>
+                </div>
+              )}
+
+              <button onClick={() => setSelectedBill(order)} className="w-full mt-4 bg-slate-100 hover:bg-slate-200 text-theme-darkest py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm transition-colors border border-slate-200 shadow-sm cursor-pointer">
+                <Receipt size={18} /> View Invoice
+              </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {selectedBill && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-2 sm:p-4 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-[95%] max-w-2xl max-h-[90vh] overflow-y-auto relative print-container text-black">
+            {/* Non-printable header */}
+            <div className="sticky top-0 bg-white/90 backdrop-blur-md p-4 border-b border-gray-100 flex justify-between items-center z-10 no-print rounded-t-2xl">
+              <h2 className="font-bold text-lg text-theme-deep flex items-center gap-2"><Receipt size={20}/> Order Invoice</h2>
+              <div className="flex gap-2">
+                <button onClick={() => window.print()} className="bg-theme-deep text-white p-2 rounded-lg hover:bg-theme-darkest transition-colors shadow-sm cursor-pointer"><Printer size={18}/></button>
+                <button onClick={() => setSelectedBill(null)} className="bg-gray-100 text-gray-600 p-2 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"><X size={18}/></button>
+              </div>
+            </div>
+            
+            {/* Printable Area */}
+            <div className="p-6 sm:p-8">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-6 border-b-2 border-gray-100 gap-4">
+                <div>
+                  <h1 className="text-2xl font-serif font-bold text-theme-deep mb-1">Alexandria Books</h1>
+                  <p className="text-sm text-gray-500">123 Literary Ave, Colombo 03</p>
+                  <p className="text-sm text-gray-500">hello@alexandria.lk | +94 11 234 5678</p>
+                </div>
+                <div className="text-left sm:text-right">
+                  <h2 className="text-xl font-bold text-gray-800 uppercase tracking-wider mb-2">Invoice</h2>
+                  <p className="text-sm text-gray-600"><strong>Order No:</strong> #{selectedBill.id.slice(0,8).toUpperCase()}</p>
+                  <p className="text-sm text-gray-600"><strong>Date:</strong> {new Date(selectedBill.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {/* Customer & Status Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+                <div>
+                  <h3 className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-2">Billed To</h3>
+                  <p className="font-bold text-gray-800">{selectedBill.customer_name || user.email}</p>
+                  <p className="text-sm text-gray-600 mt-1">{selectedBill.shipping_address || 'Store Pickup'}</p>
+                  <p className="text-sm text-gray-600 mt-1">{selectedBill.contact_number}</p>
+                </div>
+                <div className="text-left sm:text-right">
+                  <h3 className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-2">Order Status</h3>
+                  <p className="text-sm text-gray-600 mb-1"><strong>Payment:</strong> <span className={selectedBill.payment_status === 'Verified' ? 'text-green-600 font-bold' : 'text-orange-600 font-bold'}>{selectedBill.payment_status}</span></p>
+                  <p className="text-sm text-gray-600 mb-1"><strong>Fulfillment:</strong> <span className="font-bold">{selectedBill.order_status}</span></p>
+                  {selectedBill.tracking_number && (
+                    <p className="text-sm text-gray-600 mt-2"><strong>Tracking:</strong> {selectedBill.tracking_service} ({selectedBill.tracking_number})</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div className="mb-8 overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[400px]">
+                  <thead>
+                    <tr className="border-b-2 border-gray-800 text-gray-800">
+                      <th className="py-3 text-xs uppercase tracking-wider">Item Description</th>
+                      <th className="py-3 text-xs uppercase tracking-wider text-center">Qty</th>
+                      <th className="py-3 text-xs uppercase tracking-wider text-right">Price</th>
+                      <th className="py-3 text-xs uppercase tracking-wider text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {selectedBill.order_items.map((item, idx) => (
+                      <tr key={idx} className="avoid-break">
+                        <td className="py-4 text-sm font-medium text-gray-800 pr-4">{item.books?.title || 'Unknown Book'}</td>
+                        <td className="py-4 text-sm text-center text-gray-600">{item.quantity}</td>
+                        <td className="py-4 text-sm text-right text-gray-600">{formatPrice(item.price)}</td>
+                        <td className="py-4 text-sm text-right font-bold text-gray-800">{formatPrice(item.price * item.quantity)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totals */}
+              <div className="flex justify-end mb-8">
+                <div className="w-full sm:w-1/2">
+                  <div className="flex justify-between py-2 text-sm text-gray-600">
+                    <span>Subtotal</span>
+                    <span>{formatPrice(selectedBill.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between py-2 text-sm text-gray-600 border-b border-gray-200">
+                    <span>Delivery Fee</span>
+                    <span>Rs. 0.00</span>
+                  </div>
+                  <div className="flex justify-between py-3 text-lg font-bold text-theme-deep">
+                    <span>Grand Total</span>
+                    <span>{formatPrice(selectedBill.total_amount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="text-center mt-12 pt-8 border-t border-gray-100">
+                <p className="text-sm font-bold text-gray-800 mb-1">Thank you for your purchase!</p>
+                <p className="text-xs text-gray-500">If you have any questions about this invoice, please contact us at hello@alexandria.lk</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editDeliveryModalOpen && selectedOrderForEdit && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-[95%] max-w-md p-6 relative">
+            <button onClick={() => setEditDeliveryModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer"><X size={20}/></button>
+            <h2 className="text-xl font-bold text-theme-deep mb-2 flex items-center gap-2"><Edit2 size={20}/> Edit Delivery Details</h2>
+            <p className="text-sm text-gray-600 mb-6">Update where we should deliver Order #{selectedOrderForEdit.id.slice(0,8).toUpperCase()}.</p>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-theme-medium font-bold mb-2">Delivery Address</label>
+                <textarea 
+                  rows="3" 
+                  value={editDeliveryForm.shipping_address} 
+                  onChange={e => setEditDeliveryForm({...editDeliveryForm, shipping_address: e.target.value})} 
+                  className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-none focus:border-theme-medium focus:ring-1 focus:ring-theme-medium resize-none"
+                  placeholder="Enter full delivery address"
+                />
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-theme-medium font-bold mb-2">Mobile Number</label>
+                <input 
+                  type="tel" 
+                  value={editDeliveryForm.contact_number} 
+                  onChange={e => setEditDeliveryForm({...editDeliveryForm, contact_number: e.target.value})} 
+                  className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-none focus:border-theme-medium focus:ring-1 focus:ring-theme-medium"
+                  placeholder="Enter contact number"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setEditDeliveryModalOpen(false)} className="px-4 py-2 text-gray-500 hover:text-gray-800 font-bold text-sm uppercase tracking-wider cursor-pointer">Cancel</button>
+              <button 
+                onClick={async () => {
+                  const { error } = await supabase.from('orders').update({
+                    shipping_address: editDeliveryForm.shipping_address,
+                    contact_number: editDeliveryForm.contact_number
+                  }).eq('id', selectedOrderForEdit.id);
+                  
+                  if (!error) {
+                    setOrders(orders.map(o => o.id === selectedOrderForEdit.id ? { ...o, ...editDeliveryForm } : o));
+                    if (selectedBill && selectedBill.id === selectedOrderForEdit.id) {
+                      setSelectedBill({ ...selectedBill, ...editDeliveryForm });
+                    }
+                    setEditDeliveryModalOpen(false);
+                    showToast('Delivery details updated successfully!', 'success');
+                  } else {
+                    showToast(error.message, 'error');
+                  }
+                }}
+                className="bg-theme-deep text-white px-5 py-2.5 rounded-xl font-bold uppercase text-sm tracking-wider hover:bg-theme-darkest shadow-sm cursor-pointer"
+              >
+                Save Details
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

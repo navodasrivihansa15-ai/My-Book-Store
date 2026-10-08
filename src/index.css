@@ -42,6 +42,15 @@ body {
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 5mm;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+  }
   body * {
     visibility: hidden;
   }
@@ -54,13 +63,62 @@ body {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+    width: 100% !important;
+    max-width: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
     border: none !important;
+  }
+
+  .print-only-packing-sheet {
+    width: 210mm;
+    height: 296mm;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Top Half - Mailing Cover (Landscape) - DO NOT CHANGE CONTENT */
+  .a5-landscape-cover {
+    width: 210mm;
+    height: 148mm;
+    padding: 10mm;
+    box-sizing: border-box;
+    border-bottom: 2px dashed #94a3b8;
+  }
+
+  /* Bottom Half Bounding Box */
+  .a5-portrait-container {
+    width: 210mm;
+    height: 148mm;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* The Bill Inside (Rotated to Portrait) */
+  .a5-portrait-bill {
+    width: 148mm;
+    height: 210mm; /* A5 Portrait Dimensions */
+    transform: rotate(-90deg);
+    transform-origin: center center;
+    padding: 10mm;
+    box-sizing: border-box;
+    background: white;
   }
   
   .no-print, .no-print * {
     display: none !important;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+    break-after: page;
+  }
+  .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
