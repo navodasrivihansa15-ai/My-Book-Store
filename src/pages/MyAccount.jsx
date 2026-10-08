@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Package, ShieldCheck, Phone, Save, Edit2, CheckCircle, XCircle, X, Check } from 'lucide-react';
+import { User, Package, ShieldCheck, Shield, Phone, Save, Edit2, CheckCircle, XCircle, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '../lib/utils';
 
@@ -16,13 +17,51 @@ export default function MyAccount() {
       
       {/* Mobile Top Tabs / Desktop Left Sidebar */}
       <aside className="w-full md:w-64 flex-shrink-0">
-        <div className="flex overflow-x-auto whitespace-nowrap hide-scrollbar p-1.5 bg-gray-100 rounded-xl mb-4 md:bg-slate-50 md:border md:border-slate-200 md:rounded-2xl md:p-4 md:mb-0 md:shadow-sm md:sticky md:top-24 md:flex-col gap-2">
+        
+        {/* MOBILE LAYOUT: GRID & ADMIN BUTTON */}
+        <div className="md:hidden">
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button 
+              onClick={() => setActiveTab('profile')}
+              className={`py-3 px-2 rounded-xl text-center text-[13px] sm:text-sm font-semibold border transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'profile' 
+                  ? 'bg-theme-deep text-white shadow-md border-transparent' 
+                  : 'bg-white/80 backdrop-blur-sm text-gray-600 border-gray-200 shadow-sm'
+              }`}
+            >
+              <User size={16} /> Profile
+            </button>
+            
+            <button 
+              onClick={() => setActiveTab('orders')}
+              className={`py-3 px-2 rounded-xl text-center text-[13px] sm:text-sm font-semibold border transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'orders' 
+                  ? 'bg-theme-deep text-white shadow-md border-transparent' 
+                  : 'bg-white/80 backdrop-blur-sm text-gray-600 border-gray-200 shadow-sm'
+              }`}
+            >
+              <Package size={16} /> Orders
+            </button>
+          </div>
+          
+          {user?.email === 'navodasrivihansa15@gmail.com' && (
+            <Link 
+              to="/admin"
+              className="w-full mb-6 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold text-center flex items-center justify-center gap-2 shadow-lg"
+            >
+              <Shield size={16} /> Admin Dashboard
+            </Link>
+          )}
+        </div>
+
+        {/* DESKTOP LAYOUT: SIDEBAR */}
+        <div className="hidden md:flex bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm sticky top-24 flex-col gap-2">
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`flex items-center justify-center gap-3 px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap flex-1 md:flex-none md:justify-start ${
+            className={`flex items-center justify-start gap-3 px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'profile' 
-                ? 'bg-white md:bg-theme-medium text-theme-deep md:text-white shadow-sm md:shadow-md' 
-                : 'text-slate-500 md:text-theme-darkest/70 hover:bg-white/50 md:hover:bg-slate-100 hover:text-theme-deep'
+                ? 'bg-theme-medium text-white shadow-md' 
+                : 'text-theme-darkest/70 hover:bg-slate-100 hover:text-theme-deep'
             }`}
           >
             <User size={18} /> Profile Settings
@@ -30,10 +69,10 @@ export default function MyAccount() {
           
           <button 
             onClick={() => setActiveTab('orders')}
-            className={`flex items-center justify-center gap-3 px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap flex-1 md:flex-none md:justify-start ${
+            className={`flex items-center justify-start gap-3 px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'orders' 
-                ? 'bg-white md:bg-theme-medium text-theme-deep md:text-white shadow-sm md:shadow-md' 
-                : 'text-slate-500 md:text-theme-darkest/70 hover:bg-white/50 md:hover:bg-slate-100 hover:text-theme-deep'
+                ? 'bg-theme-medium text-white shadow-md' 
+                : 'text-theme-darkest/70 hover:bg-slate-100 hover:text-theme-deep'
             }`}
           >
             <Package size={18} /> My Orders
