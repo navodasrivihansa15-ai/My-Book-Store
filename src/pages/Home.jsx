@@ -144,15 +144,45 @@ export default function Home() {
             )}
           </div>
 
-          {/* FILTERED GRID */}
+          {/* FILTERED GRID OR CATEGORY SHELVES */}
           {filteredBooks.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-              {filteredBooks.map(book => (
-                <div key={book.id} className="w-full flex justify-center min-w-[220px] max-w-[280px] mx-auto md:max-w-none">
-                  <BookCard book={book} addToCart={addToCart} />
-                </div>
-              ))}
-            </div>
+            (!searchQuery && (!selectedCategory || selectedCategory === 'All')) ? (
+              <div className="flex flex-col gap-12">
+                {categories.map(category => {
+                  const categoryBooks = books.filter(book => book.categories && book.categories.includes(category));
+                  if (categoryBooks.length === 0) return null;
+                  
+                  return (
+                    <div key={category} className="flex flex-col gap-4">
+                      <div className="flex justify-between items-end border-b border-theme-medium/20 pb-2">
+                        <h3 className="text-xl font-bold text-theme-darkest">{category}</h3>
+                        <button 
+                          onClick={() => handleCategoryClick(category)} 
+                          className="text-theme-medium hover:underline text-sm font-medium cursor-pointer"
+                        >
+                          View All
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 xl:gap-6">
+                        {categoryBooks.slice(0, 5).map(book => (
+                          <div key={book.id} className="w-full flex justify-center">
+                            <BookCard book={book} addToCart={addToCart} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+                {filteredBooks.map(book => (
+                  <div key={book.id} className="w-full flex justify-center min-w-[220px] max-w-[280px] mx-auto md:max-w-none">
+                    <BookCard book={book} addToCart={addToCart} />
+                  </div>
+                ))}
+              </div>
+            )
           ) : (
             <div className="text-center py-24 bg-white rounded-2xl border border-theme-light/30 shadow-md">
               <p className="text-theme-darkest/70 font-medium text-xl mb-6">No masterpieces found matching your search.</p>
