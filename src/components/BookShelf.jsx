@@ -18,7 +18,7 @@ export default function BookShelf({ title, books, viewAllLink }) {
           View All
         </Link>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 xl:gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
         {books.slice(0, 5).map(book => (
           <div key={book.id} className="w-full flex justify-center">
             <BookCard book={book} addToCart={addToCart} />

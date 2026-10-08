@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X } from 'lucide-react';
+import { formatPrice } from '../lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('inventory');
@@ -404,7 +406,7 @@ function InventoryManagement() {
               {filteredBooks.map(book => (
                 <tr key={book.id} className="hover:bg-gray-50">
                   <td className="px-6 py-3 font-semibold text-brand-blue">{book.title}</td>
-                  <td className="px-6 py-3">LKR {book.price.toFixed(2)}</td>
+                  <td className="px-6 py-3">{formatPrice(book.price)}</td>
                   <td className="px-6 py-3">{book.stock}</td>
                   <td className="px-6 py-3 text-right">
                     <button onClick={() => { setEditingBook(book); setIsEditModalOpen(true); setFile(null); setPreview(book.cover_image_url); }} className="text-brand-gold hover:text-brand-blue font-bold uppercase text-xs tracking-wider flex items-center justify-end gap-1 ml-auto cursor-pointer">
@@ -422,7 +424,7 @@ function InventoryManagement() {
       <AnimatePresence>
         {isEditModalOpen && (
           <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-24 pb-10 overflow-y-auto bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-3xl bg-slate-50 rounded-2xl p-6 shadow-2xl">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-[95%] max-w-3xl max-h-[85vh] overflow-y-auto mx-auto bg-slate-50 rounded-2xl p-4 md:p-6 shadow-2xl">
               <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer z-10"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-brand-blue mb-6">Edit Book</h2>
               <form onSubmit={handleEditSubmit} className="space-y-4">
@@ -499,7 +501,7 @@ function InventoryManagement() {
       <AnimatePresence>
         {isCategoryModalOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-50/90 backdrop-blur-xl border border-slate-200 p-8 rounded-2xl shadow-[0_8px_32px_rgba(26,61,99,0.3)] w-full max-w-md relative">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-50/90 backdrop-blur-xl border border-slate-200 p-4 md:p-6 rounded-2xl shadow-[0_8px_32px_rgba(26,61,99,0.3)] w-[95%] max-w-md mx-auto max-h-[85vh] overflow-y-auto relative">
               <button onClick={() => setIsCategoryModalOpen(false)} className="absolute top-4 right-4 text-theme-medium hover:text-theme-darkest cursor-pointer"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-theme-deep mb-6">Add New Category</h2>
               <form onSubmit={handleAddCategory} className="space-y-6">
@@ -520,7 +522,7 @@ function InventoryManagement() {
       <AnimatePresence>
         {isAddPublisherModalOpen && (
           <div className="fixed inset-0 bg-theme-darkest/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md relative border border-theme-light/30">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-[95%] max-w-md mx-auto max-h-[85vh] overflow-y-auto relative border border-theme-light/30">
               <button onClick={() => setIsAddPublisherModalOpen(false)} className="absolute top-4 right-4 text-theme-medium hover:text-theme-darkest cursor-pointer"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-theme-deep mb-6">Add New Publisher</h2>
               <form onSubmit={handleAddPublisher} className="space-y-6">
@@ -554,7 +556,7 @@ function InventoryManagement() {
       <AnimatePresence>
         {isAuthorModalOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-50/90 backdrop-blur-xl border border-slate-200 p-8 rounded-2xl shadow-[0_8px_32px_rgba(26,61,99,0.3)] w-full max-w-md relative border border-theme-light/30">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-50/90 backdrop-blur-xl border border-slate-200 p-4 md:p-6 rounded-2xl shadow-[0_8px_32px_rgba(26,61,99,0.3)] w-[95%] max-w-md mx-auto max-h-[85vh] overflow-y-auto relative border border-theme-light/30">
               <button onClick={() => setIsAuthorModalOpen(false)} className="absolute top-4 right-4 text-theme-medium hover:text-theme-darkest cursor-pointer"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-theme-deep mb-6">Add New Author</h2>
               <form onSubmit={handleAddAuthor} className="space-y-6">
@@ -579,7 +581,7 @@ function InventoryManagement() {
       <AnimatePresence>
         {isTranslatorModalOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-50/90 backdrop-blur-xl border border-slate-200 p-8 rounded-2xl shadow-[0_8px_32px_rgba(26,61,99,0.3)] w-full max-w-md relative border border-theme-light/30">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-50/90 backdrop-blur-xl border border-slate-200 p-4 md:p-6 rounded-2xl shadow-[0_8px_32px_rgba(26,61,99,0.3)] w-[95%] max-w-md mx-auto max-h-[85vh] overflow-y-auto relative border border-theme-light/30">
               <button onClick={() => setIsTranslatorModalOpen(false)} className="absolute top-4 right-4 text-theme-medium hover:text-theme-darkest cursor-pointer"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-theme-deep mb-6">Add New Translator</h2>
               <form onSubmit={handleAddTranslator} className="space-y-6">
@@ -773,7 +775,7 @@ function BannerManagement() {
       <AnimatePresence>
         {isEditModalOpen && (
           <div className="fixed inset-0 bg-brand-blue/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-2xl relative">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-[95%] max-w-2xl mx-auto max-h-[85vh] overflow-y-auto relative">
               <button onClick={() => { setIsEditModalOpen(false); setDesktopFile(null); setMobileFile(null); }} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-brand-blue mb-6">Edit Ad Campaign</h2>
               <form onSubmit={handleEditSubmit} className="space-y-4">
@@ -821,9 +823,10 @@ function OrderManagement() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [billLogoExt, setBillLogoExt] = useState('png');
   const [imgTimestamp] = useState(Date.now());
+  const navigate = useNavigate();
   
   const fetchOrders = async () => {
-    const { data } = await supabase.from('orders').select('*, order_items (quantity, price, books (title))').order('created_at', { ascending: false });
+    const { data } = await supabase.from('orders').select('*, order_items (quantity, price, books (title, price, discount_percentage))').order('created_at', { ascending: false });
     if (data) setOrders(data);
   };
   useEffect(() => { fetchOrders(); }, []);
@@ -856,37 +859,69 @@ function OrderManagement() {
           <p className="italic text-sm text-gray-700 font-serif">"Tota est scientia (All is knowledge)."</p>
           <p className="text-black uppercase tracking-widest text-xs font-bold mt-4">Official Invoice</p>
         </div>
-        <div className="flex justify-between mb-8 text-black">
+
+        {/* CUSTOMER INFO SECTION */}
+        <div className="grid grid-cols-2 gap-8 mb-8 text-black border-y-2 border-black py-6">
           <div>
-            <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-1">Order Details</p>
-            <p className="font-bold text-lg">ID: #{selectedOrder.id.slice(0, 8)}</p>
-            <p className="text-gray-600">{new Date(selectedOrder.created_at).toLocaleString()}</p>
+            <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-3">Customer Details</p>
+            <p className="font-bold text-lg">{selectedOrder.customer_name || 'Walk-in Customer'}</p>
+            <p className="text-sm mt-1"><span className="font-semibold text-gray-600">Email:</span> {selectedOrder.user_email || 'Not Available'}</p>
+            <p className="text-sm mt-1"><span className="font-semibold text-gray-600">Contact:</span> {selectedOrder.contact_number || 'Not Available'}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-1">Shipping Address</p>
-            <p className="font-medium whitespace-pre-line leading-relaxed max-w-xs">{selectedOrder.shipping_address}</p>
+            <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-3">Order Details</p>
+            <p className="font-bold text-sm">Invoice #{selectedOrder.id.slice(0, 8).toUpperCase()}</p>
+            <p className="text-sm mt-1"><span className="font-semibold text-gray-600">Date:</span> {new Date(selectedOrder.created_at).toLocaleString()}</p>
+            <p className="text-sm mt-2 leading-relaxed whitespace-pre-line ml-auto max-w-xs text-right">
+              <span className="font-semibold text-gray-600 block mb-1">Shipping Address:</span>
+              {selectedOrder.shipping_address || 'Store Pickup'}
+            </p>
           </div>
         </div>
         <table className="w-full text-left mb-8 text-black border-collapse">
-          <thead className="border-b-2 border-black uppercase text-xs">
-            <tr><th className="py-3">Item</th><th className="py-3 text-center">Qty</th><th className="py-3 text-right">Unit Price</th><th className="py-3 text-right">Total</th></tr>
+          <thead className="border-b-2 border-black uppercase text-[10px] tracking-wider">
+            <tr>
+              <th className="py-3">Book Name</th>
+              <th className="py-3 text-center">Qty</th>
+              <th className="py-3 text-right">Original Price</th>
+              <th className="py-3 text-center">Discount</th>
+              <th className="py-3 text-right">Final Price</th>
+              <th className="py-3 text-right">Total</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-gray-300">
-            {selectedOrder.order_items.map((item, idx) => (
-              <tr key={idx}>
-                <td className="py-3 font-medium">{item.books?.title}</td>
-                <td className="py-3 text-center">{item.quantity}</td>
-                <td className="py-3 text-right text-gray-600">${item.price.toFixed(2)}</td>
-                <td className="py-3 text-right font-bold">${(item.price * item.quantity).toFixed(2)}</td>
-              </tr>
-            ))}
+            {selectedOrder.order_items.map((item, idx) => {
+              const originalPrice = item.books?.price || item.price;
+              const discount = item.books?.discount_percentage || 0;
+              return (
+                <tr key={idx} className="text-sm">
+                  <td className="py-4 font-medium pr-4">{item.books?.title}</td>
+                  <td className="py-4 text-center font-semibold">{item.quantity}</td>
+                  <td className="py-4 text-right text-gray-600">{discount > 0 ? formatPrice(originalPrice) : '-'}</td>
+                  <td className="py-4 text-center">{discount > 0 ? `${discount}%` : '-'}</td>
+                  <td className="py-4 text-right font-medium">{formatPrice(item.price)}</td>
+                  <td className="py-4 text-right font-bold">{formatPrice(item.price * item.quantity)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         <div className="flex justify-end border-t-2 border-black pt-6 mb-12">
           <div className="text-right">
             <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-1">Total Amount</p>
-            <p className="text-3xl font-bold text-black">${selectedOrder.total_amount.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-black">{formatPrice(selectedOrder.total_amount)}</p>
           </div>
+        </div>
+
+        {/* ELEGANT RE-ORDER CTA (FOOTER) */}
+        <div className="mt-16 text-center border-t border-black pt-12 pb-8">
+          <p className="italic text-gray-600 mb-6 font-serif">Thank you for your purchase.</p>
+          <button 
+            onClick={() => navigate('/')} 
+            className="border border-black text-black font-serif italic hover:bg-black hover:text-white px-8 py-3 rounded-full transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md"
+          >
+            Embark on Another Literary Journey
+          </button>
         </div>
 
         <div className="no-print bg-gray-50 border border-gray-300 p-6 rounded-none text-black">
@@ -934,7 +969,7 @@ function OrderManagement() {
               <tr key={order.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 font-mono text-gray-500">#{order.id.slice(0,8)}</td>
                 <td className="px-6 py-4">{new Date(order.created_at).toLocaleDateString()}</td>
-                <td className="px-6 py-4 font-bold text-brand-blue">${order.total_amount?.toFixed(2)}</td>
+                <td className="px-6 py-4 font-bold text-brand-blue">{formatPrice(order.total_amount)}</td>
                 <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${order.order_status === 'Shipped' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>{order.order_status}</span></td>
                 <td className="px-6 py-4 text-right"><button onClick={() => setSelectedOrder(order)} className="text-brand-gold hover:text-brand-blue font-bold uppercase text-xs tracking-wider cursor-pointer">Review</button></td>
               </tr>

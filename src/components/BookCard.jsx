@@ -1,7 +1,8 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { formatPrice } from '../lib/utils';
 
 const fallbackImage = 'https://placehold.co/400x600/e2e8f0/0b1d3a?text=No+Cover';
 
@@ -11,6 +12,13 @@ export default function BookCard({ book, addToCart }) {
   
   const cartItem = cart.find(item => item.id === book.id);
   const isStockLimitReached = cartItem && cartItem.quantity >= book.stock;
+  const navigate = useNavigate();
+
+  const handleBuyNow = () => {
+    if (book.stock <= 0 || isStockLimitReached) return;
+    addToCart({ ...book, price: hasDiscount ? book.sale_price : book.price });
+    navigate('/checkout');
+  };
 
   return (
     <motion.div
@@ -49,33 +57,42 @@ export default function BookCard({ book, addToCart }) {
         )}
       </Link>
       
-      <div className="p-5 flex flex-col flex-grow bg-slate-50 relative z-20">
+      <div className="p-3 md:p-5 flex flex-col flex-grow bg-slate-50 relative z-20">
         <Link to={`/book/${book.id}`}>
-          <h2 className="text-lg font-bold text-theme-darkest line-clamp-1 hover:text-theme-medium transition-colors">
+          <h2 className="text-sm md:text-lg font-bold text-theme-darkest line-clamp-1 hover:text-theme-medium transition-colors">
             {book.title}
           </h2>
         </Link>
-        <p className="text-sm text-slate-500 font-medium tracking-wide mt-1 line-clamp-2 whitespace-normal h-10">{book.author}</p>
+        <p className="text-xs md:text-sm text-slate-500 font-medium tracking-wide mt-1 line-clamp-2 whitespace-normal h-8 md:h-10">{book.author}</p>
         
-        <div className="mt-4 flex flex-col gap-3 justify-end h-full">
+        <div className="mt-2 md:mt-4 flex flex-col gap-2 md:gap-3 justify-end h-full">
           <div className="flex flex-col">
             {hasDiscount ? (
               <>
-                <span className="text-xs text-theme-darkest/50 line-through">LKR {book.price?.toFixed(2)}</span>
-                <span className="text-xl font-bold text-theme-medium">LKR {book.sale_price?.toFixed(2)}</span>
+                <span className="text-[10px] md:text-xs text-theme-darkest/50 line-through">{formatPrice(book.price)}</span>
+                <span className="text-base md:text-xl font-bold text-theme-medium">{formatPrice(book.sale_price)}</span>
               </>
             ) : (
-              <span className="text-xl font-bold text-theme-darkest">LKR {book.price?.toFixed(2)}</span>
+              <span className="text-base md:text-xl font-bold text-theme-darkest">{formatPrice(book.price)}</span>
             )}
           </div>
           
-          <button 
-            onClick={() => addToCart({ ...book, price: hasDiscount ? book.sale_price : book.price })} 
-            disabled={book.stock <= 0 || isStockLimitReached}
-            className="w-full bg-theme-deep/85 backdrop-blur-md border border-white/20 shadow-[0_4px_12px_rgba(26,61,99,0.3)] hover:bg-theme-darkest transition-all duration-300 hover:shadow-[0_6px_16px_rgba(26,61,99,0.4)] text-theme-bg py-2.5 rounded-full text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ShoppingCart size={16} /> {isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
-          </button>
+          <div className="flex flex-col gap-2 mt-1">
+            <button 
+              onClick={handleBuyNow} 
+              disabled={book.stock <= 0 || isStockLimitReached}
+              className="w-full bg-theme-deep text-white hover:bg-theme-darkest shadow-md rounded-full py-2 text-xs md:text-sm font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Buy Now
+            </button>
+            <button 
+              onClick={() => addToCart({ ...book, price: hasDiscount ? book.sale_price : book.price })} 
+              disabled={book.stock <= 0 || isStockLimitReached}
+              className="w-full border-2 border-theme-deep text-theme-deep hover:bg-theme-deep hover:text-white rounded-full py-1.5 md:py-2 text-xs md:text-sm font-semibold flex items-center justify-center gap-1 md:gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-transparent"
+            >
+              <ShoppingCart size={16} className="w-4 h-4 md:w-5 md:h-5" /> {isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>

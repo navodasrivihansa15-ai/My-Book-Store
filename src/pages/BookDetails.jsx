@@ -4,12 +4,14 @@ import { supabase } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
 import { motion } from 'framer-motion';
 import { ShoppingCart, ArrowLeft, Tag, Layers, CheckCircle2 } from 'lucide-react';
+import { formatPrice } from '../lib/utils';
 
 export default function BookDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart, cart } = useCart();
   const [book, setBook] = useState(null);
+  
   const [authorInfo, setAuthorInfo] = useState(null);
   const [translatorInfo, setTranslatorInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,12 @@ export default function BookDetails() {
   
   const cartItem = cart.find(item => item.id === book.id);
   const isStockLimitReached = cartItem && cartItem.quantity >= book.stock;
+
+  const handleBuyNow = () => {
+    if (!book || book.stock <= 0 || isStockLimitReached) return;
+    addToCart({ ...book, price: book.discount_percentage > 0 && book.sale_price ? book.sale_price : book.price });
+    navigate('/checkout');
+  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen pt-4 pb-20 bg-brand-offwhite">
@@ -118,14 +126,14 @@ export default function BookDetails() {
                 <div className="flex flex-col">
                   {book.discount_percentage > 0 && book.sale_price ? (
                     <>
-                      <span className="text-sm text-slate-400 line-through">LKR {book.price?.toFixed(2)}</span>
+                      <span className="text-sm text-slate-400 line-through">{formatPrice(book.price)}</span>
                       <div className="flex items-center gap-3">
-                        <span className="text-4xl font-bold text-blue-600">LKR {book.sale_price?.toFixed(2)}</span>
+                        <span className="text-4xl font-bold text-blue-600">{formatPrice(book.sale_price)}</span>
                         <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow-md">-{book.discount_percentage}%</span>
                       </div>
                     </>
                   ) : (
-                    <span className="text-4xl font-serif text-brand-blue font-bold">LKR {book.price?.toFixed(2)}</span>
+                    <span className="text-4xl font-serif text-brand-blue font-bold">{formatPrice(book.price)}</span>
                   )}
                 </div>
                 <div className="h-10 w-px bg-gray-200"></div>
@@ -150,13 +158,22 @@ export default function BookDetails() {
               <p className="text-gray-600 leading-relaxed text-sm md:text-base whitespace-pre-line">{book.description}</p>
             </div>
 
-            <button 
-              onClick={() => addToCart({ ...book, price: book.discount_percentage > 0 && book.sale_price ? book.sale_price : book.price })}
-              disabled={book.stock <= 0 || isStockLimitReached}
-              className="w-full md:w-auto flex items-center justify-center gap-3 bg-theme-deep/85 backdrop-blur-md border border-white/20 shadow-[0_4px_12px_rgba(26,61,99,0.3)] hover:bg-theme-darkest transition-all duration-300 hover:shadow-[0_6px_16px_rgba(26,61,99,0.4)] text-theme-bg px-10 py-4 rounded-full uppercase tracking-widest font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ShoppingCart size={20} /> {book.stock <= 0 ? 'Unavailable' : isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4 mt-8 w-full">
+              <button 
+                onClick={handleBuyNow}
+                disabled={book.stock <= 0 || isStockLimitReached}
+                className="w-full md:w-64 flex items-center justify-center gap-3 bg-theme-deep text-white shadow-md hover:bg-theme-darkest transition-all duration-300 hover:shadow-lg px-8 py-4 rounded-full uppercase tracking-widest font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Buy Now
+              </button>
+              <button 
+                onClick={() => addToCart({ ...book, price: book.discount_percentage > 0 && book.sale_price ? book.sale_price : book.price })}
+                disabled={book.stock <= 0 || isStockLimitReached}
+                className="w-full md:w-64 flex items-center justify-center gap-3 border-2 border-theme-deep text-theme-deep hover:bg-theme-deep hover:text-white transition-all duration-300 px-8 py-3.5 rounded-full uppercase tracking-widest font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-transparent"
+              >
+                <ShoppingCart size={20} /> {book.stock <= 0 ? 'Unavailable' : isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
+              </button>
+            </div>
           </motion.div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { Trash2, Plus, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatPrice } from '../lib/utils';
 
 export default function Cart() {
   const { cart, removeFromCart, updateQuantity, total } = useCart();
@@ -60,7 +61,7 @@ export default function Cart() {
                   </div>
                   
                   <div className="flex items-end justify-between mt-4">
-                    <p className="font-serif text-2xl text-brand-gold">${item.price.toFixed(2)}</p>
+                    <p className="font-serif text-2xl text-brand-gold">{formatPrice(item.price)}</p>
                     
                     <div className="flex items-center gap-6">
                       <div className="flex items-center border border-white/10 rounded-md bg-brand-black/50 overflow-hidden">
@@ -86,7 +87,7 @@ export default function Cart() {
             <div className="space-y-4 mb-8 text-sm tracking-wide text-gray-400 border-b border-white/10 pb-6">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span className="text-brand-offwhite">${total.toFixed(2)}</span>
+                <span className="text-brand-offwhite">{formatPrice(total)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Shipping</span>
@@ -100,7 +101,7 @@ export default function Cart() {
             
             <div className="flex justify-between items-end mb-8">
               <span className="uppercase tracking-widest text-xs text-gray-400">Total</span>
-              <span className="font-serif text-3xl text-brand-gold">${total.toFixed(2)}</span>
+              <span className="font-serif text-3xl text-brand-gold">{formatPrice(total)}</span>
             </div>
             
             <Link to="/checkout" className="block w-full bg-brand-gold text-brand-black text-center font-semibold tracking-widest uppercase py-4 rounded-lg hover:bg-brand-gold-light transition-all shadow-[0_0_15px_rgba(212,175,55,0.3)] hover:shadow-[0_0_25px_rgba(212,175,55,0.5)] cursor-pointer">

@@ -78,7 +78,7 @@ export default function Home() {
     <div className="flex flex-col md:flex-row gap-8 w-full">
       
       {/* LEFT SIDEBAR */}
-      <aside className="w-full md:w-64 flex-shrink-0 z-10">
+      <aside className="hidden md:block w-64 flex-shrink-0 z-10">
         <div className="sticky top-40 bg-theme-bg/60 backdrop-blur-lg border-r border-theme-light/30 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[calc(100vh-10rem)] overflow-y-auto scrollbar-hide p-6 rounded-2xl text-theme-darkest">
           <h3 className="font-bold tracking-tight mb-4 flex items-center gap-2">
             <LayoutGrid size={18} className="text-theme-medium" />
@@ -114,6 +114,33 @@ export default function Home() {
 
       {/* MAIN CONTENT */}
       <main className="flex-grow min-w-0">
+        {/* Mobile Categories (Horizontal Scroll) */}
+        <div className="md:hidden flex overflow-x-auto whitespace-nowrap hide-scrollbar gap-2 mb-6 pb-2 -mx-2 px-2">
+          <button
+            onClick={() => handleCategoryClick('All')}
+            className={`px-4 py-2 text-sm font-semibold rounded-full transition-all flex-shrink-0 ${
+              selectedCategory === 'All' || !selectedCategory
+                ? 'bg-theme-deep text-white shadow-md'
+                : 'bg-white text-theme-darkest/70 border border-theme-light/30'
+            }`}
+          >
+            All Books
+          </button>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => handleCategoryClick(cat)}
+              className={`px-4 py-2 text-sm font-semibold rounded-full transition-all flex-shrink-0 ${
+                selectedCategory === cat
+                  ? 'bg-theme-deep text-white shadow-md'
+                  : 'bg-white text-theme-darkest/70 border border-theme-light/30'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
         {(!searchQuery && (!selectedCategory || selectedCategory === 'All')) && (
           <>
             <HeroBanner />
@@ -162,7 +189,7 @@ export default function Home() {
             </div>
 
             {filteredBooks.length > 0 ? (
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
                 {filteredBooks.map(book => (
                   <div key={book.id} className="w-full flex justify-center min-w-[220px] max-w-[280px] mx-auto md:max-w-none">
                     <BookCard book={book} addToCart={addToCart} />

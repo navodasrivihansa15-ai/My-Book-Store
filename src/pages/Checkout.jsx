@@ -1,23 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, CheckCircle2 } from 'lucide-react';
+import { formatPrice } from '../lib/utils';
 
 export default function Checkout() {
   const { cart, total, clearCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [address, setAddress] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [billingAddress, setBillingAddress] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [sameAsShipping, setSameAsShipping] = useState(true);
+
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      const { data } = await supabase.from('user_profiles').select('*').eq('id', user.id).single();
+      if (data) {
+        if (data.full_name) setCustomerName(data.full_name);
+        if (data.home_address) {
+          setShippingAddress(data.home_address);
+          setBillingAddress(data.home_address);
+        }
+        if (data.contact_number) setContactNumber(data.contact_number);
+      }
+    };
+    fetchProfile();
+  }, [user]);
 
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
@@ -55,8 +77,11 @@ export default function Checkout() {
 
       const { data: order, error: orderError } = await supabase.from('orders').insert({
         user_id: user.id,
+        customer_name: customerName,
+        shipping_address: shippingAddress,
+        billing_address: sameAsShipping ? shippingAddress : billingAddress,
+        contact_number: contactNumber,
         total_amount: total,
-        shipping_address: address,
         payment_method: paymentMethod,
         payment_status: paymentMethod === 'COD' ? 'Pending' : 'Pending Verification',
         payment_slip_url,
@@ -105,7 +130,7 @@ export default function Checkout() {
   if (cart.length === 0) return <div className="text-center py-20 text-theme-darkest/50 font-bold text-xl">Your cart is empty.</div>;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-4xl mx-auto pt-8 pb-20">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-4xl mx-auto pt-8 pb-20 px-4 md:px-0">
       <h1 className="text-4xl font-bold text-theme-deep mb-10 border-b border-theme-light/30 pb-6">Secure Checkout</h1>
       
       {error && (
@@ -118,15 +143,35 @@ export default function Checkout() {
         <div className="space-y-8">
           <section className="bg-slate-50 border border-slate-200 p-8 rounded-xl shadow-sm relative overflow-hidden">
              <h2 className="text-xl font-bold text-theme-deep mb-6">1. Shipping Details</h2>
-             <label className="block text-xs uppercase tracking-widest text-theme-medium mb-2 font-bold">Delivery Address</label>
-             <textarea
-               required
-               rows="4"
-               className="w-full bg-slate-50 border border-slate-300 px-4 py-3 rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-theme-medium transition-all text-theme-darkest resize-none"
-               placeholder="Street, City, Zip Code, Country"
-               value={address}
-               onChange={(e) => setAddress(e.target.value)}
-             ></textarea>
+             
+             <div className="space-y-4">
+               <div>
+                 <label className="block text-xs uppercase tracking-widest text-theme-medium mb-2 font-bold">Full Name</label>
+                 <input type="text" required value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-medium" placeholder="John Doe" />
+               </div>
+               
+               <div>
+                 <label className="block text-xs uppercase tracking-widest text-theme-medium mb-2 font-bold">Contact Number</label>
+                 <input type="tel" required value={contactNumber} onChange={e => setContactNumber(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-medium" placeholder="+94 77 123 4567" />
+               </div>
+
+               <div>
+                 <label className="block text-xs uppercase tracking-widest text-theme-medium mb-2 font-bold">Delivery Address</label>
+                 <textarea required rows="3" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-medium resize-none" placeholder="Street, City, Zip Code, Country"></textarea>
+               </div>
+
+               <div className="flex items-center gap-2 mt-2">
+                 <input type="checkbox" id="sameAsShipping" checked={sameAsShipping} onChange={(e) => setSameAsShipping(e.target.checked)} className="w-4 h-4 accent-theme-medium cursor-pointer" />
+                 <label htmlFor="sameAsShipping" className="text-sm font-semibold text-theme-darkest cursor-pointer">Billing Address is same as Delivery Address</label>
+               </div>
+
+               {!sameAsShipping && (
+                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                   <label className="block text-xs uppercase tracking-widest text-theme-medium mb-2 mt-4 font-bold">Billing Address</label>
+                   <textarea required rows="3" value={billingAddress} onChange={e => setBillingAddress(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-medium resize-none" placeholder="Billing Street, City, Zip Code, Country"></textarea>
+                 </motion.div>
+               )}
+             </div>
           </section>
 
           <section className="bg-slate-50 border border-slate-200 p-8 rounded-xl shadow-sm relative overflow-hidden">
@@ -191,13 +236,13 @@ export default function Checkout() {
                     <span className="text-theme-medium font-bold">{item.quantity}x</span>
                     <span className="text-theme-darkest font-semibold line-clamp-1">{item.title}</span>
                   </div>
-                  <span className="text-theme-deep font-bold">LKR {(item.price * item.quantity).toFixed(2)}</span>
+                  <span className="text-theme-deep font-bold">{formatPrice(item.price * item.quantity)}</span>
                 </div>
               ))}
             </div>
             <div className="border-t border-theme-light/30 pt-6 mb-8 flex justify-between items-end">
               <span className="uppercase tracking-widest text-sm font-bold text-theme-medium">Total Payable</span>
-              <span className="font-bold text-3xl text-theme-deep">LKR {total.toFixed(2)}</span>
+              <span className="font-bold text-3xl text-theme-deep">{formatPrice(total)}</span>
             </div>
             
             <button
