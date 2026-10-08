@@ -819,6 +819,8 @@ function BannerManagement() {
 function OrderManagement() {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [billLogoExt, setBillLogoExt] = useState('png');
+  const [imgTimestamp] = useState(Date.now());
   
   const fetchOrders = async () => {
     const { data } = await supabase.from('orders').select('*, order_items (quantity, price, books (title))').order('created_at', { ascending: false });
@@ -843,7 +845,14 @@ function OrderManagement() {
           </button>
         </div>
         <div className="mb-10 text-center flex flex-col items-center">
-          <img src="/logo.png" alt="Alexandria Books Logo" className="h-16 w-auto object-contain mb-2 mx-auto md:mx-0 grayscale" />
+          <img 
+            src={`${supabase.storage.from('web-assets').getPublicUrl(`Bill Logo.${billLogoExt}`).data.publicUrl}?t=${imgTimestamp}`} 
+            onError={() => {
+              if (billLogoExt === 'png') setBillLogoExt('svg');
+            }}
+            alt="Alexandria Books Logo" 
+            className="h-16 w-auto object-contain mb-2 mx-auto md:mx-0 grayscale" 
+          />
           <p className="italic text-sm text-gray-700 font-serif">"Tota est scientia (All is knowledge)."</p>
           <p className="text-black uppercase tracking-widest text-xs font-bold mt-4">Official Invoice</p>
         </div>
