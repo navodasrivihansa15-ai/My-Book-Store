@@ -124,7 +124,7 @@ export default function Home() {
       {/* MAIN CONTENT */}
       <main className="flex-grow min-w-0">
         {/* Mobile Search Bar */}
-        <div className="w-[95%] mx-auto mt-4 mb-2 md:hidden relative group">
+        <div className="w-[95%] mx-auto mt-0 mb-3 block md:hidden relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-darkest/50 transition-colors" size={18} />
           <input 
             type="text" 
@@ -136,7 +136,7 @@ export default function Home() {
         </div>
 
         {/* Mobile Categories (Horizontal Scroll) */}
-        <div className="md:hidden flex overflow-x-auto whitespace-nowrap hide-scrollbar gap-2 mb-6 pb-2 -mx-2 px-2">
+        <div className="md:hidden flex overflow-x-auto whitespace-nowrap hide-scrollbar gap-2 mb-3 pb-1 md:mb-6 md:pb-2 -mx-2 px-2">
           <button
             onClick={() => handleCategoryClick('All')}
             className={`px-4 py-2 text-sm font-semibold rounded-full transition-all flex-shrink-0 ${
@@ -165,7 +165,7 @@ export default function Home() {
         {(!searchQuery && (!selectedCategory || selectedCategory === 'All')) && (
           <>
             <HeroBanner />
-            <div className="flex flex-col gap-12 mb-20">
+            <div className="flex flex-col gap-6 md:gap-12 mb-8 md:mb-20">
               <BookShelf 
                 title="New Arrivals" 
                 books={books} 
@@ -193,8 +193,8 @@ export default function Home() {
 
         {/* FULL COLLECTION & FILTERING */}
         {(searchQuery || (selectedCategory && selectedCategory !== 'All')) && (
-          <div id="collection" className="mb-16">
-            <div className="flex justify-between items-center mb-8 border-b border-theme-medium/20 pb-4">
+          <div id="collection" className="mb-8 md:mb-16">
+            <div className="flex justify-between items-center mb-4 md:mb-8 border-b border-theme-medium/20 pb-4">
               <h2 className="text-3xl font-bold text-theme-darkest tracking-tight">
                 {selectedCategory === 'new-arrivals' ? 'New Arrivals' : 
                  selectedCategory === 'best-sellers' ? 'Best Sellers' : 
