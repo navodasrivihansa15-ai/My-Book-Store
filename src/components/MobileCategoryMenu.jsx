@@ -13,8 +13,8 @@ export default function MobileCategoryMenu({ isOpen, setIsOpen, categories }) {
 
       {/* Menu Box */}
       <div 
-        className={`fixed top-[75px] bottom-[85px] left-3 w-[85%] max-w-[320px] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)] z-[9999] flex flex-col overflow-hidden transform transition-transform duration-300 ease-in-out md:hidden ${
-          isOpen ? 'translate-x-0' : '-translate-x-[120%]'
+        className={`fixed top-[75px] bottom-[85px] left-3 w-[85%] max-w-[320px] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)] z-[9999] flex flex-col overflow-hidden transform transition-all duration-300 ease-in-out md:hidden ${
+          isOpen ? 'translate-x-0 opacity-100 pointer-events-auto' : '-translate-x-full opacity-0 pointer-events-none'
         }`}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">

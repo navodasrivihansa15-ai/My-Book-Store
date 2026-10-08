@@ -48,12 +48,13 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <motion.nav 
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      className="fixed top-2 md:top-0 w-[95%] left-[2.5%] md:w-full md:left-0 z-50 bg-gradient-to-br from-blue-400/20 via-theme-deep/40 to-blue-800/30 md:bg-none md:bg-theme-deep/70 backdrop-blur-xl border border-white/30 md:border-x-0 md:border-t-0 md:border-b md:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] md:shadow-lg text-theme-bg rounded-3xl md:rounded-none"
-    >
+    <>
+      <motion.nav 
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="fixed top-2 md:top-0 w-[95%] left-[2.5%] md:w-full md:left-0 z-50 bg-gradient-to-br from-blue-400/20 via-theme-deep/40 to-blue-800/30 md:bg-none md:bg-theme-deep/70 backdrop-blur-xl border border-white/30 md:border-x-0 md:border-t-0 md:border-b md:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] md:shadow-lg text-theme-bg rounded-3xl md:rounded-none"
+      >
       <div className="max-w-[1440px] mx-auto px-3 py-2 md:py-0 md:px-6">
         
         {/* --- MOBILE NAVBAR --- */}
@@ -143,6 +144,7 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+      </motion.nav>
 
       {/* --- MOBILE SIDE DRAWER --- */}
       <MobileCategoryMenu 
@@ -150,6 +152,6 @@ export default function Navbar() {
         setIsOpen={setIsMobileMenuOpen} 
         categories={categories} 
       />
-    </motion.nav>
+    </>
   );
 }
