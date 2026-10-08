@@ -29,6 +29,106 @@ export default function Checkout() {
   const [qrUrl, setQrUrl] = useState(null);
   const [loadingPaymentInfo, setLoadingPaymentInfo] = useState(false);
 
+  const [shippingMethod, setShippingMethod] = useState('normal');
+  const [shippingRates, setShippingRates] = useState({ speed: null, normal: null, sl_post_cod: null });
+  const [shippingCost, setShippingCost] = useState(0);
+  const [codBreakdown, setCodBreakdown] = useState(null);
+
+  useEffect(() => {
+    const fetchRates = async () => {
+      const { data } = await supabase.from('shipping_rates').select('*');
+      if (data) {
+        const rates = { speed: null, normal: null, sl_post_cod: null };
+        data.forEach(rate => {
+          if (rate.method_key === 'speed') rates.speed = rate.config;
+          if (rate.method_key === 'normal') rates.normal = rate.config;
+          if (rate.method_key === 'sl_post_cod') rates.sl_post_cod = rate.config;
+        });
+        setShippingRates(rates);
+      }
+    };
+    fetchRates();
+  }, []);
+
+  useEffect(() => {
+    let cost = 0;
+    setCodBreakdown(null);
+    const weight = cart.reduce((totalWeight, item) => totalWeight + ((item.weight || item.weight_g || 250) * item.quantity), 0);
+
+    if (paymentMethod === 'COD') {
+      if (shippingMethod !== 'sl_post_cod') {
+        setShippingMethod('sl_post_cod');
+      }
+      const config = shippingRates.sl_post_cod;
+      if (!config) return;
+
+      // Part 1: Weight Charge
+      let weightCharge = 0;
+      if (config.weight_tiers && config.weight_tiers.length > 0) {
+        const sortedWeightTiers = [...config.weight_tiers].sort((a, b) => a.max_weight - b.max_weight);
+        let wTier = sortedWeightTiers.find(t => weight <= t.max_weight);
+        if (wTier) {
+          weightCharge = wTier.price;
+        } else {
+          const maxWTier = sortedWeightTiers[sortedWeightTiers.length - 1];
+          const extraWCost = Math.ceil((weight - maxWTier.max_weight) / config.extra_weight) * config.extra_price;
+          weightCharge = maxWTier.price + extraWCost;
+        }
+      }
+
+      // Part 2: Value Charge
+      let valueCharge = 0;
+      if (config.value_tiers && config.value_tiers.length > 0) {
+        const cartTotal = total;
+        const sortedValueTiers = [...config.value_tiers].sort((a, b) => a.max_value - b.max_value);
+        let vTier = sortedValueTiers.find(t => cartTotal <= t.max_value);
+        if (vTier) {
+          valueCharge = vTier.price;
+        } else {
+          valueCharge = config.max_value_price;
+        }
+      }
+
+      // Part 3: Service Charge
+      const serviceCharge = config.service_charge || 0;
+
+      cost = weightCharge + valueCharge + serviceCharge;
+      setCodBreakdown({ weightCharge, valueCharge, serviceCharge });
+      setShippingCost(cost);
+      return;
+    }
+
+    if (!shippingRates.speed || !shippingRates.normal) return;
+
+    if (shippingMethod === 'sl_post_cod') {
+       setShippingMethod('normal');
+       return;
+    }
+
+    if (shippingMethod === 'speed') {
+      const config = shippingRates.speed;
+      if (weight <= config.base_weight) {
+        cost = config.base_price;
+      } else {
+        const extraCost = Math.ceil((weight - config.base_weight) / config.extra_weight) * config.extra_price;
+        cost = config.base_price + extraCost;
+      }
+    } else if (shippingMethod === 'normal') {
+      const config = shippingRates.normal;
+      const sortedTiers = [...config.tiers].sort((a, b) => a.max_weight - b.max_weight);
+      let tierFound = sortedTiers.find(t => weight <= t.max_weight);
+      
+      if (tierFound) {
+        cost = tierFound.price;
+      } else {
+        const maxTier = sortedTiers[sortedTiers.length - 1];
+        const extraCost = Math.ceil((weight - maxTier.max_weight) / config.extra_weight) * config.extra_price;
+        cost = maxTier.price + extraCost;
+      }
+    }
+    setShippingCost(cost);
+  }, [shippingMethod, paymentMethod, cart, shippingRates, total]);
+
   useEffect(() => {
     const fetchPaymentInfo = async () => {
       setLoadingPaymentInfo(true);
@@ -111,7 +211,7 @@ export default function Checkout() {
         shipping_address: shippingAddress,
         billing_address: sameAsShipping ? shippingAddress : billingAddress,
         contact_number: contactNumber,
-        total_amount: total,
+        total_amount: total + shippingCost,
         payment_method: paymentMethod,
         payment_status: paymentMethod === 'COD' ? 'Pending' : 'Pending Verification',
         payment_slip_url,
@@ -220,6 +320,44 @@ export default function Checkout() {
              </div>
 
              <AnimatePresence mode="wait">
+               {paymentMethod !== 'COD' && (
+                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-6 pt-6 border-t border-theme-light/30">
+                   <h3 className="text-sm font-bold text-theme-deep mb-4 uppercase tracking-widest">Select Shipping Method</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <label className={`relative border-2 rounded-xl p-4 cursor-pointer transition-all ${shippingMethod === 'normal' ? 'border-theme-deep bg-theme-bg shadow-md' : 'border-slate-200 hover:border-theme-light'}`}>
+                        <input type="radio" name="shipping" value="normal" checked={shippingMethod === 'normal'} onChange={(e) => setShippingMethod(e.target.value)} className="absolute opacity-0" />
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-bold text-theme-deep flex items-center gap-2">Normal Post {shippingMethod === 'normal' && <CheckCircle2 size={16} className="text-theme-medium" />}</span>
+                        </div>
+                        <p className="text-xs text-theme-darkest/70">Estimated 3-5 business days</p>
+                      </label>
+                      <label className={`relative border-2 rounded-xl p-4 cursor-pointer transition-all ${shippingMethod === 'speed' ? 'border-theme-deep bg-theme-bg shadow-md' : 'border-slate-200 hover:border-theme-light'}`}>
+                        <input type="radio" name="shipping" value="speed" checked={shippingMethod === 'speed'} onChange={(e) => setShippingMethod(e.target.value)} className="absolute opacity-0" />
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-bold text-theme-deep flex items-center gap-2">Speed Post {shippingMethod === 'speed' && <CheckCircle2 size={16} className="text-theme-medium" />}</span>
+                        </div>
+                        <p className="text-xs text-theme-darkest/70">Estimated 1-2 business days</p>
+                      </label>
+                   </div>
+                 </motion.div>
+               )}
+               {paymentMethod === 'COD' && (
+                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-6 pt-6 border-t border-theme-light/30">
+                   <h3 className="text-sm font-bold text-theme-deep mb-4 uppercase tracking-widest">Shipping Method</h3>
+                   <div className="grid grid-cols-1 gap-4 mb-4">
+                      <label className="relative border-2 rounded-xl p-4 cursor-pointer transition-all border-theme-deep bg-theme-bg shadow-md">
+                        <input type="radio" name="shipping" value="sl_post_cod" checked={true} readOnly className="absolute opacity-0" />
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-bold text-theme-deep flex items-center gap-2">SL Post COD <CheckCircle2 size={16} className="text-theme-medium" /></span>
+                        </div>
+                        <p className="text-xs text-theme-darkest/70">Estimated 3-5 business days. Payment collected at delivery.</p>
+                      </label>
+                   </div>
+                 </motion.div>
+               )}
+             </AnimatePresence>
+
+             <AnimatePresence mode="wait">
                {paymentMethod === 'Bank Transfer' && (
                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                    <div className="bg-theme-bg p-5 rounded-lg border border-theme-light/30 mb-4 shadow-inner max-h-64 overflow-y-auto custom-scrollbar">
@@ -291,9 +429,24 @@ export default function Checkout() {
                 </div>
               ))}
             </div>
-            <div className="border-t border-theme-light/30 pt-6 mb-8 flex justify-between items-end">
+            <div className="border-t border-theme-light/30 pt-4 mt-2 space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-theme-darkest font-semibold tracking-wide">Subtotal</span>
+                <span className="font-bold text-theme-deep">{formatPrice(total)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-theme-darkest font-semibold tracking-wide">Shipping Fee</span>
+                <span className="font-bold text-theme-deep">{formatPrice(shippingCost)}</span>
+              </div>
+              {paymentMethod === 'COD' && codBreakdown && (
+                <div className="text-[10px] text-theme-darkest/60 text-right uppercase tracking-wider font-bold">
+                  (Weight: {formatPrice(codBreakdown.weightCharge)} + Value: {formatPrice(codBreakdown.valueCharge)} + Service: {formatPrice(codBreakdown.serviceCharge)})
+                </div>
+              )}
+            </div>
+            <div className="border-t border-theme-light/30 pt-4 mb-8 flex justify-between items-end">
               <span className="uppercase tracking-widest text-sm font-bold text-theme-medium">Total Payable</span>
-              <span className="font-bold text-3xl text-theme-deep">{formatPrice(total)}</span>
+              <span className="font-bold text-3xl text-theme-deep">{formatPrice(total + shippingCost)}</span>
             </div>
             
             <button

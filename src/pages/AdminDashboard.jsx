@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings } from 'lucide-react';
+import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 
@@ -33,6 +33,9 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('store')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'store' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Settings size={16} /> Store
           </button>
+          <button onClick={() => setActiveTab('shipping')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'shipping' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <Truck size={16} /> Shipping
+          </button>
         </div>
 
         {/* Desktop Navigation */}
@@ -52,6 +55,9 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('store')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'store' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Settings size={18} /> Store
           </button>
+          <button onClick={() => setActiveTab('shipping')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'shipping' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+            <Truck size={18} /> Shipping
+          </button>
         </div>
       </div>
 
@@ -61,6 +67,7 @@ export default function AdminDashboard() {
         {activeTab === 'orders' && <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><OrderManagement /></motion.div>}
         {activeTab === 'payment' && <motion.div key="payment" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><AdminPaymentSettings /></motion.div>}
         {activeTab === 'store' && <motion.div key="store" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><StoreSettings /></motion.div>}
+        {activeTab === 'shipping' && <motion.div key="shipping" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><ShippingSettings /></motion.div>}
       </AnimatePresence>
 
       <style>{`
@@ -1109,10 +1116,20 @@ function OrderManagement() {
                 <div className="flex gap-4 items-end">
                   <div className="border border-black p-1 w-16 h-16 flex items-center justify-center shrink-0">
                     <img 
-                      src={`${supabase.storage.from('web-assets').getPublicUrl(`WhGrpQR.${waQrExt}`).data.publicUrl}?t=${imgTimestamp}`} 
-                      onError={() => {
-                        if (waQrExt === 'png') setWaQrExt('jpg');
-                        else if (waQrExt === 'jpg') setWaQrExt('svg');
+                      src={supabase.storage.from('web-assets').getPublicUrl('WhGrpQR.png').data.publicUrl} 
+                      onError={(e) => {
+                        const fallbacks = [
+                          'WhGrpQR.jpg', 'WhGrpQR.jpeg', 'WhGrpQR.PNG', 'WhGrpQR.JPG',
+                          'whgrpqr.png', 'whgrpqr.jpg', 'WHGrpQR.png', 'WHGrpQR.jpg',
+                          'WhgrpQR.png', 'WhgrpQR.jpg'
+                        ];
+                        let idx = Number(e.target.dataset.idx || 0);
+                        if (idx < fallbacks.length) {
+                          e.target.dataset.idx = idx + 1;
+                          e.target.src = supabase.storage.from('web-assets').getPublicUrl(fallbacks[idx]).data.publicUrl;
+                        } else {
+                          e.target.style.display = 'none';
+                        }
                       }}
                       alt="WhatsApp QR" className="w-full h-full object-contain" 
                     />
@@ -1129,7 +1146,6 @@ function OrderManagement() {
                   <p className="font-bold mb-1 uppercase tracking-widest text-gray-500 text-xs">Payment Status: <span className="text-black">{selectedOrder.payment_status}</span></p>
                   <p className="text-xs uppercase font-bold text-gray-500 mb-1">Grand Total</p>
                   <p className="text-2xl font-bold">{formatPrice(selectedOrder.total_amount)}</p>
-                  <p className="text-gray-600 italic text-[10px] mt-1">"{storeSettings.slogan || 'Tota est scientia'}"</p>
                 </div>
               </div>
             </div>
@@ -1630,6 +1646,174 @@ function StoreSettings() {
             {submitting ? 'Saving...' : 'Save Settings'}
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function ShippingSettings() {
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [speedConfig, setSpeedConfig] = useState({ base_weight: 250, base_price: 200, extra_weight: 250, extra_price: 50 });
+  const [normalConfig, setNormalConfig] = useState({ tiers: [{max_weight: 250, price: 150}, {max_weight: 500, price: 200}, {max_weight: 1000, price: 250}], extra_weight: 1000, extra_price: 50 });
+  const [slPostCodConfig, setSlPostCodConfig] = useState({
+    service_charge: 50, max_value_price: 130, extra_weight: 1000, extra_price: 50,
+    weight_tiers: [{max_weight: 250, price: 150}, {max_weight: 500, price: 200}, {max_weight: 1000, price: 350}],
+    value_tiers: [{max_value: 1000, price: 40}, {max_value: 2000, price: 50}, {max_value: 3000, price: 60}, {max_value: 4000, price: 70}, {max_value: 5000, price: 80}, {max_value: 10000, price: 130}]
+  });
+  const [notification, setNotification] = useState({ type: '', message: '' });
+
+  useEffect(() => {
+    fetchRates();
+  }, []);
+
+  const fetchRates = async () => {
+    const { data } = await supabase.from('shipping_rates').select('*');
+    if (data && data.length > 0) {
+      data.forEach(rate => {
+        if (rate.method_key === 'speed') setSpeedConfig(rate.config);
+        if (rate.method_key === 'normal') setNormalConfig(rate.config);
+        if (rate.method_key === 'sl_post_cod') setSlPostCodConfig(rate.config);
+      });
+    } else {
+      // Create initial rows if empty
+      await supabase.from('shipping_rates').insert([
+        { method_key: 'speed', method_name: 'Speed Post', config: { base_weight: 250, base_price: 200, extra_weight: 250, extra_price: 50 } },
+        { method_key: 'normal', method_name: 'Normal Post', config: { tiers: [{max_weight: 250, price: 150}, {max_weight: 500, price: 200}, {max_weight: 1000, price: 250}], extra_weight: 1000, extra_price: 50 } },
+        { method_key: 'sl_post_cod', method_name: 'SL Post COD', config: { service_charge: 50, max_value_price: 130, extra_weight: 1000, extra_price: 50, weight_tiers: [{max_weight: 250, price: 150}, {max_weight: 500, price: 200}, {max_weight: 1000, price: 350}], value_tiers: [{max_value: 1000, price: 40}, {max_value: 2000, price: 50}, {max_value: 3000, price: 60}, {max_value: 4000, price: 70}, {max_value: 5000, price: 80}, {max_value: 10000, price: 130}] } }
+      ]);
+    }
+    setLoading(false);
+  };
+
+  const showNotification = (type, message) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification({ type: '', message: '' }), 5000);
+  };
+
+  const handleSave = async (methodKey, config) => {
+    setSubmitting(true);
+    const { error } = await supabase
+      .from('shipping_rates')
+      .update({ config })
+      .eq('method_key', methodKey);
+    if (error) showNotification('error', error.message);
+    else showNotification('success', `${methodKey} rates updated!`);
+    setSubmitting(false);
+  };
+
+  if (loading) return <div className="text-center py-10">Loading shipping settings...</div>;
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="p-4 md:p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+        <h2 className="text-xl font-bold text-brand-blue">Shipping Rates Configuration</h2>
+      </div>
+      
+      {notification.message && (
+        <div className={`p-4 ${notification.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+          {notification.message}
+        </div>
+      )}
+
+      <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Speed Post */}
+        <div className="border rounded-lg p-6 bg-slate-50">
+          <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-theme-deep">Speed Post</h3>
+          <div className="space-y-4">
+            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Base Weight (g)</label><input type="number" value={speedConfig.base_weight} onChange={e => setSpeedConfig({...speedConfig, base_weight: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Base Price (Rs)</label><input type="number" value={speedConfig.base_price} onChange={e => setSpeedConfig({...speedConfig, base_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Weight Step (g)</label><input type="number" value={speedConfig.extra_weight} onChange={e => setSpeedConfig({...speedConfig, extra_weight: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Price (Rs)</label><input type="number" value={speedConfig.extra_price} onChange={e => setSpeedConfig({...speedConfig, extra_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+            <button onClick={() => handleSave('speed', speedConfig)} disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-2 rounded mt-4 hover:bg-theme-darkest uppercase tracking-widest text-sm">Save Speed Post</button>
+          </div>
+        </div>
+
+        {/* Normal Post */}
+        <div className="border rounded-lg p-6 bg-slate-50">
+          <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-theme-deep">Normal Post</h3>
+          <div className="space-y-4">
+            {normalConfig.tiers.map((tier, idx) => (
+              <div key={idx} className="flex gap-4 items-end bg-white p-3 rounded border">
+                <div className="flex-1"><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Max Weight (g)</label><input type="number" value={tier.max_weight} onChange={e => {
+                  const newTiers = [...normalConfig.tiers];
+                  newTiers[idx].max_weight = Number(e.target.value);
+                  setNormalConfig({...normalConfig, tiers: newTiers});
+                }} className="w-full border border-gray-300 p-2 rounded" /></div>
+                <div className="flex-1"><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Price (Rs)</label><input type="number" value={tier.price} onChange={e => {
+                  const newTiers = [...normalConfig.tiers];
+                  newTiers[idx].price = Number(e.target.value);
+                  setNormalConfig({...normalConfig, tiers: newTiers});
+                }} className="w-full border border-gray-300 p-2 rounded" /></div>
+              </div>
+            ))}
+            <div className="pt-4 border-t border-gray-200">
+              <h4 className="font-bold text-sm mb-2 text-gray-600 uppercase tracking-widest">Beyond Max Tier</h4>
+              <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Weight Step (g)</label><input type="number" value={normalConfig.extra_weight} onChange={e => setNormalConfig({...normalConfig, extra_weight: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+              <div className="mt-4"><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Price (Rs)</label><input type="number" value={normalConfig.extra_price} onChange={e => setNormalConfig({...normalConfig, extra_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+            </div>
+            <button onClick={() => handleSave('normal', normalConfig)} disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-2 rounded mt-4 hover:bg-theme-darkest uppercase tracking-widest text-sm">Save Normal Post</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 md:p-6 border-t border-gray-200">
+        <div className="border rounded-lg p-6 bg-slate-50">
+          <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-theme-deep">SL Post COD</h3>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+             {/* General */}
+             <div className="space-y-4">
+                <h4 className="font-bold text-sm text-gray-600 uppercase tracking-widest">Base Fees & Limits</h4>
+                <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Service Charge (Rs)</label><input type="number" value={slPostCodConfig.service_charge} onChange={e => setSlPostCodConfig({...slPostCodConfig, service_charge: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+                <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Max Value Price (Rs) {'>'}10k</label><input type="number" value={slPostCodConfig.max_value_price} onChange={e => setSlPostCodConfig({...slPostCodConfig, max_value_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+                <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Wt Step (g)</label><input type="number" value={slPostCodConfig.extra_weight} onChange={e => setSlPostCodConfig({...slPostCodConfig, extra_weight: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+                <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Wt Price (Rs)</label><input type="number" value={slPostCodConfig.extra_price} onChange={e => setSlPostCodConfig({...slPostCodConfig, extra_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+             </div>
+
+             {/* Weight Tiers */}
+             <div className="space-y-4">
+                <div className="flex justify-between items-center"><h4 className="font-bold text-sm text-gray-600 uppercase tracking-widest">Weight Tiers</h4>
+                <button onClick={() => setSlPostCodConfig({...slPostCodConfig, weight_tiers: [...slPostCodConfig.weight_tiers, {max_weight: 0, price: 0}]})} className="text-xs bg-theme-medium text-white px-3 py-1 rounded font-bold hover:bg-theme-darkest transition-colors">+ Add</button></div>
+                <div className="space-y-2">
+                  {slPostCodConfig.weight_tiers.map((tier, idx) => (
+                    <div key={`w-${idx}`} className="flex gap-2 items-end bg-white p-2 rounded border shadow-sm">
+                      <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Max Wt (g)</label><input type="number" value={tier.max_weight} onChange={e => {
+                        const nt = [...slPostCodConfig.weight_tiers]; nt[idx].max_weight = Number(e.target.value); setSlPostCodConfig({...slPostCodConfig, weight_tiers: nt});
+                      }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
+                      <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Price (Rs)</label><input type="number" value={tier.price} onChange={e => {
+                        const nt = [...slPostCodConfig.weight_tiers]; nt[idx].price = Number(e.target.value); setSlPostCodConfig({...slPostCodConfig, weight_tiers: nt});
+                      }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
+                      <button onClick={() => {
+                        const nt = [...slPostCodConfig.weight_tiers]; nt.splice(idx, 1); setSlPostCodConfig({...slPostCodConfig, weight_tiers: nt});
+                      }} className="text-red-500 font-bold px-2 py-1.5 hover:bg-red-50 rounded transition-colors" title="Remove">X</button>
+                    </div>
+                  ))}
+                </div>
+             </div>
+
+             {/* Value Tiers */}
+             <div className="space-y-4">
+                <div className="flex justify-between items-center"><h4 className="font-bold text-sm text-gray-600 uppercase tracking-widest">Value Tiers</h4>
+                <button onClick={() => setSlPostCodConfig({...slPostCodConfig, value_tiers: [...slPostCodConfig.value_tiers, {max_value: 0, price: 0}]})} className="text-xs bg-theme-medium text-white px-3 py-1 rounded font-bold hover:bg-theme-darkest transition-colors">+ Add</button></div>
+                <div className="max-h-64 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+                  {slPostCodConfig.value_tiers.map((tier, idx) => (
+                    <div key={`v-${idx}`} className="flex gap-2 items-end bg-white p-2 rounded border shadow-sm">
+                      <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Max Val (Rs)</label><input type="number" value={tier.max_value} onChange={e => {
+                        const nt = [...slPostCodConfig.value_tiers]; nt[idx].max_value = Number(e.target.value); setSlPostCodConfig({...slPostCodConfig, value_tiers: nt});
+                      }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
+                      <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Price (Rs)</label><input type="number" value={tier.price} onChange={e => {
+                        const nt = [...slPostCodConfig.value_tiers]; nt[idx].price = Number(e.target.value); setSlPostCodConfig({...slPostCodConfig, value_tiers: nt});
+                      }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
+                      <button onClick={() => {
+                        const nt = [...slPostCodConfig.value_tiers]; nt.splice(idx, 1); setSlPostCodConfig({...slPostCodConfig, value_tiers: nt});
+                      }} className="text-red-500 font-bold px-2 py-1.5 hover:bg-red-50 rounded transition-colors" title="Remove">X</button>
+                    </div>
+                  ))}
+                </div>
+             </div>
+          </div>
+          <button onClick={() => handleSave('sl_post_cod', slPostCodConfig)} disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-3 rounded mt-6 hover:bg-theme-darkest uppercase tracking-widest text-sm transition-colors shadow-sm">Save SL Post COD</button>
+        </div>
       </div>
     </div>
   );
