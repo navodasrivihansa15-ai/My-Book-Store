@@ -25,6 +25,27 @@ export default function Checkout() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [qrUrl, setQrUrl] = useState(null);
+  const [loadingPaymentInfo, setLoadingPaymentInfo] = useState(false);
+
+  useEffect(() => {
+    const fetchPaymentInfo = async () => {
+      setLoadingPaymentInfo(true);
+      const { data: banks } = await supabase.from('bank_accounts').select('*').order('created_at', { ascending: false });
+      if (banks) setBankAccounts(banks);
+
+      const { data: files } = await supabase.storage.from('web-assets').list();
+      const qrFile = files?.find(file => file.name.startsWith('PyQR'));
+      if (qrFile) {
+        const { data } = supabase.storage.from('web-assets').getPublicUrl(qrFile.name);
+        if (data) setQrUrl(data.publicUrl);
+      }
+      setLoadingPaymentInfo(false);
+    };
+    fetchPaymentInfo();
+  }, []);
+
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
@@ -192,11 +213,26 @@ export default function Checkout() {
              <AnimatePresence mode="wait">
                {paymentMethod === 'Bank Transfer' && (
                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                   <div className="bg-theme-bg p-5 rounded-lg border border-theme-light/30 mb-4 shadow-inner">
-                     <p className="text-xs uppercase tracking-widest text-theme-medium mb-2 font-bold">Account Details</p>
-                     <p className="font-bold text-theme-deep text-lg">Lumina Heritage Bank</p>
-                     <p className="text-theme-darkest font-mono tracking-widest my-1 text-xl">9876 5432 1000 0000</p>
-                     <p className="text-sm text-theme-darkest/70">Account Name: Lumina Books Inc.</p>
+                   <div className="bg-theme-bg p-5 rounded-lg border border-theme-light/30 mb-4 shadow-inner max-h-64 overflow-y-auto custom-scrollbar">
+                     <p className="text-xs uppercase tracking-widest text-theme-medium mb-3 font-bold">Available Accounts</p>
+                     {loadingPaymentInfo ? (
+                       <div className="text-center py-4 text-theme-medium/70 text-sm animate-pulse">Loading bank details...</div>
+                     ) : bankAccounts.length > 0 ? (
+                       <div className="space-y-3">
+                         {bankAccounts.map(account => (
+                           <div key={account.id} className="bg-white p-4 rounded-lg border border-theme-light shadow-sm">
+                             <div className="flex justify-between items-start mb-2">
+                               <p className="font-bold text-theme-deep text-sm">{account.bank_name}</p>
+                               <span className="text-[10px] uppercase font-bold text-theme-medium bg-theme-bg px-2 py-1 rounded">{account.branch}</span>
+                             </div>
+                             <p className="text-theme-darkest font-mono font-bold text-lg mb-1">{account.account_number}</p>
+                             <p className="text-xs font-semibold text-theme-darkest/80 uppercase tracking-wide">Acc Name: {account.account_name}</p>
+                           </div>
+                         ))}
+                       </div>
+                     ) : (
+                       <div className="text-sm text-red-500 font-semibold p-4 bg-red-50 rounded border border-red-100 text-center">No bank accounts configured. Please contact support or use COD.</div>
+                     )}
                    </div>
                    <label className="block text-xs uppercase tracking-widest text-theme-medium mb-2 font-bold">Upload Bank Slip</label>
                    <FileInput file={file} preview={preview} setFile={setFile} setPreview={setPreview} />
@@ -207,8 +243,14 @@ export default function Checkout() {
                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                    <div className="bg-theme-bg p-6 rounded-lg border border-theme-light/30 mb-4 flex flex-col items-center shadow-inner">
                      <p className="text-xs uppercase tracking-widest text-theme-medium mb-4 font-bold">Scan to Pay</p>
-                     <div className="w-48 h-48 bg-white p-2 rounded-xl mb-3 shadow-md border border-slate-200">
-                       <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=LuminaBookshopPayment" alt="QR Code" className="w-full h-full object-cover" />
+                     <div className="w-48 h-48 bg-white p-2 rounded-xl mb-3 shadow-md border border-slate-200 overflow-hidden">
+                       {loadingPaymentInfo ? (
+                         <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-400 text-xs text-center animate-pulse">Loading QR...</div>
+                       ) : qrUrl ? (
+                         <img src={qrUrl} alt="QR Code" className="w-full h-full object-contain" />
+                       ) : (
+                         <div className="w-full h-full flex items-center justify-center bg-gray-50 text-red-400 text-xs text-center border border-dashed border-red-200">QR Unavailable</div>
+                       )}
                      </div>
                      <p className="text-xs font-semibold text-theme-medium">Scan using any supported banking app</p>
                    </div>

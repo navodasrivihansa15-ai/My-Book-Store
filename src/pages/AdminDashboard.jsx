@@ -1090,3 +1090,234 @@ function OrderManagement() {
     </div>
   );
 }
+
+// ==========================================
+// PAYMENT SETTINGS
+// ==========================================
+function AdminPaymentSettings() {
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [qrUrl, setQrUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({ bank_name: '', account_name: '', account_number: '', branch: '' });
+  const [notification, setNotification] = useState({ type: '', message: '' });
+  
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editData, setEditData] = useState({});
+
+  const showNotification = (type, message) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification({ type: '', message: '' }), 5000);
+  };
+
+  const fetchBankAccounts = async () => {
+    const { data } = await supabase.from('bank_accounts').select('*').order('created_at', { ascending: false });
+    if (data) setBankAccounts(data);
+  };
+
+  const fetchQrCode = async () => {
+    const { data: files } = await supabase.storage.from('web-assets').list();
+    const qrFile = files?.find(file => file.name.startsWith('PyQR'));
+    if (qrFile) {
+      const { data } = supabase.storage.from('web-assets').getPublicUrl(qrFile.name);
+      if (data) setQrUrl(data.publicUrl);
+    }
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchBankAccounts(), fetchQrCode()]);
+      setLoading(false);
+    };
+    loadData();
+  }, []);
+
+  const handleAddBankAccount = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.from('bank_accounts').insert([formData]).select().single();
+      if (error) throw new Error(error.message);
+      setBankAccounts([data, ...bankAccounts]);
+      setFormData({ bank_name: '', account_name: '', account_number: '', branch: '' });
+      showNotification('success', 'Bank account added successfully.');
+    } catch (err) {
+      showNotification('error', err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from('bank_accounts').update({
+        bank_name: editData.bank_name,
+        account_name: editData.account_name,
+        account_number: editData.account_number,
+        branch: editData.branch
+      }).eq('id', editData.id);
+      
+      if (error) throw new Error(error.message);
+      
+      setBankAccounts(bankAccounts.map(b => b.id === editData.id ? editData : b));
+      setIsEditModalOpen(false);
+      showNotification('success', 'Bank account updated.');
+    } catch (err) {
+      showNotification('error', err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this bank account?')) return;
+    try {
+      const { error } = await supabase.from('bank_accounts').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+      setBankAccounts(bankAccounts.filter(b => b.id !== id));
+      showNotification('success', 'Bank account deleted.');
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-8 text-center text-gray-500 animate-pulse">Loading Payment Settings...</div>;
+  }
+
+  return (
+    <div className="space-y-8">
+      {notification.message && (
+        <div className={`p-4 rounded-lg border flex items-center gap-3 ${notification.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          {notification.type === 'success' ? <Check size={20} /> : <AlertCircle size={20} />}
+          <span className="font-medium">{notification.message}</span>
+        </div>
+      )}
+
+      {/* QR Code Section */}
+      <div className="bg-slate-50 border border-slate-200 p-8 rounded-xl shadow-md">
+        <h2 className="text-xl font-bold text-brand-blue mb-4 border-b border-gray-200 pb-2">QR Code Payment Configuration</h2>
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex-shrink-0 relative overflow-hidden">
+            {qrUrl ? (
+              <img src={qrUrl} alt="Payment QR Code" className="w-48 h-48 object-contain" />
+            ) : (
+              <div className="w-48 h-48 bg-gray-100 flex items-center justify-center text-gray-400 text-sm text-center p-4 rounded-xl border border-dashed border-gray-300">
+                No QR Code found (PyQR.*)
+              </div>
+            )}
+          </div>
+          <div className="text-sm text-gray-600 space-y-2 max-w-lg">
+            <p className="font-semibold text-gray-800 text-base">Current QR Code File</p>
+            <p>This QR code is displayed to customers during checkout if they select QR Payment.</p>
+            <div className="bg-blue-50 text-brand-blue p-4 rounded-lg border border-blue-100 text-xs mt-4">
+              <strong>To update this QR code:</strong> Go to your Supabase project dashboard, navigate to Storage &gt; <code className="font-mono bg-blue-100 px-1 rounded">web-assets</code>, and upload or replace a file starting with <code className="font-mono bg-blue-100 px-1 rounded">PyQR</code> (e.g. PyQR.png or PyQR.svg).
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Add Bank Account Form */}
+      <div className="bg-slate-50 border border-slate-200 p-8 rounded-xl shadow-md">
+        <h2 className="text-xl font-bold text-brand-blue mb-6 border-b border-gray-200 pb-2">Add New Bank Account</h2>
+        <form onSubmit={handleAddBankAccount} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input required type="text" placeholder="Bank Name (e.g. Commercial Bank)" value={formData.bank_name} onChange={e => setFormData({...formData, bank_name: e.target.value})} className="w-full bg-white border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors" />
+          <input required type="text" placeholder="Account Name (e.g. N. Srivihansa)" value={formData.account_name} onChange={e => setFormData({...formData, account_name: e.target.value})} className="w-full bg-white border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors" />
+          <input required type="text" placeholder="Account Number" value={formData.account_number} onChange={e => setFormData({...formData, account_number: e.target.value})} className="w-full bg-white border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors font-mono" />
+          <input required type="text" placeholder="Branch Name" value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value})} className="w-full bg-white border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors" />
+          <div className="md:col-span-2 mt-2">
+            <button type="submit" disabled={submitting} className="w-full md:w-auto bg-theme-deep text-white px-8 py-3 rounded hover:bg-theme-darkest transition-colors shadow font-bold tracking-widest uppercase text-sm cursor-pointer disabled:opacity-50">
+              {submitting ? 'Adding...' : 'Add Bank Account'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Bank Accounts List */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="p-4 md:p-6 border-b border-gray-200 bg-gray-50"><h2 className="text-xl font-bold text-brand-blue">Configured Bank Accounts</h2></div>
+        
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
+              <tr><th className="px-6 py-3">Bank</th><th className="px-6 py-3">Account Name</th><th className="px-6 py-3">Account No</th><th className="px-6 py-3">Branch</th><th className="px-6 py-3 text-right">Actions</th></tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {bankAccounts.map((account) => (
+                <tr key={account.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 font-bold text-gray-800">{account.bank_name}</td>
+                  <td className="px-6 py-4">{account.account_name}</td>
+                  <td className="px-6 py-4 font-mono text-gray-600">{account.account_number}</td>
+                  <td className="px-6 py-4 text-gray-500">{account.branch}</td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => { setEditData(account); setIsEditModalOpen(true); }} className="text-brand-gold hover:text-brand-blue font-bold uppercase text-[10px] tracking-wider px-2 py-1 rounded border border-gray-200 cursor-pointer">Edit</button>
+                      <button onClick={() => handleDelete(account.id)} className="text-red-500 hover:text-red-700 p-1 cursor-pointer"><Trash2 size={16}/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {bankAccounts.length === 0 && <tr><td colSpan="5" className="px-6 py-8 text-center text-gray-500">No bank accounts configured.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden flex flex-col p-4 gap-3 bg-gray-100">
+          {bankAccounts.map((account) => (
+            <div key={account.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative">
+              <div className="absolute top-4 right-4 flex gap-2">
+                <button onClick={() => { setEditData(account); setIsEditModalOpen(true); }} className="text-brand-gold hover:text-brand-blue cursor-pointer p-1.5 bg-brand-gold/10 rounded-full"><Edit2 size={14}/></button>
+                <button onClick={() => handleDelete(account.id)} className="text-red-500 hover:text-red-700 cursor-pointer p-1.5 bg-red-50 rounded-full"><Trash2 size={14}/></button>
+              </div>
+              <h3 className="font-bold text-gray-800 mb-1 pr-16">{account.bank_name}</h3>
+              <p className="text-sm text-gray-600 mb-2">{account.account_name}</p>
+              <div className="bg-gray-50 p-2 rounded text-xs font-mono text-gray-700 flex justify-between border border-gray-100">
+                <span>Acc No:</span> <span className="font-bold text-brand-blue">{account.account_number}</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 font-medium">Branch: {account.branch}</p>
+            </div>
+          ))}
+          {bankAccounts.length === 0 && <div className="text-center py-6 text-gray-500 text-sm">No bank accounts configured.</div>}
+        </div>
+      </div>
+
+      {/* EDIT MODAL */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-lg bg-slate-50 rounded-2xl p-6 shadow-2xl">
+              <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer z-10"><X size={24} /></button>
+              <h2 className="text-xl font-bold text-brand-blue mb-6">Edit Bank Account</h2>
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-theme-medium mb-1">Bank Name</label>
+                  <input required type="text" value={editData.bank_name || ''} onChange={e => setEditData({...editData, bank_name: e.target.value})} className="w-full bg-white border border-slate-300 px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium" />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-theme-medium mb-1">Account Name</label>
+                  <input required type="text" value={editData.account_name || ''} onChange={e => setEditData({...editData, account_name: e.target.value})} className="w-full bg-white border border-slate-300 px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium" />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-theme-medium mb-1">Account Number</label>
+                  <input required type="text" value={editData.account_number || ''} onChange={e => setEditData({...editData, account_number: e.target.value})} className="w-full bg-white border border-slate-300 px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium font-mono" />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-theme-medium mb-1">Branch Name</label>
+                  <input required type="text" value={editData.branch || ''} onChange={e => setEditData({...editData, branch: e.target.value})} className="w-full bg-white border border-slate-300 px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium" />
+                </div>
+                <button type="submit" disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-3 rounded mt-4 hover:bg-theme-darkest transition-colors cursor-pointer">
+                  {submitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
