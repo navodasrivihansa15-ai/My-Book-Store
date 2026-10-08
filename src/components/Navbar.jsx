@@ -22,7 +22,7 @@ export default function Navbar() {
   useEffect(() => {
     const fetchCategories = async () => {
       const { data } = await supabase.from('categories').select('*').order('name');
-      if (data) setCategories(data.map(c => c.name));
+      if (data) setCategories(data);
     };
     fetchCategories();
   }, []);
@@ -154,37 +154,33 @@ export default function Navbar() {
             />
             <motion.div
               initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'tween', duration: 0.3 }}
-              className="fixed top-0 left-0 h-full w-[85%] max-w-sm bg-white/95 backdrop-blur-xl z-[1000] md:hidden flex flex-col shadow-2xl border-r border-theme-light/30"
+              className="fixed top-0 left-0 h-full w-[85%] max-w-sm bg-gradient-to-br from-white/40 via-white/60 to-white/40 backdrop-blur-2xl z-[1000] md:hidden flex flex-col shadow-[10px_0_30px_rgba(0,0,0,0.1)] border-r border-white/50"
             >
-              <div className="flex items-center justify-between p-5 border-b border-slate-200 bg-slate-50/50">
-                <span className="font-bold text-xl text-theme-deep tracking-tight">Categories</span>
-                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-theme-darkest/70 hover:text-theme-darkest bg-slate-200/50 hover:bg-slate-200 rounded-full transition-colors">
+              <div className="flex items-center justify-between p-5 border-b border-white/30">
+                <span className="font-bold text-xl text-gray-800 tracking-tight">Categories</span>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-gray-600 hover:text-gray-900 bg-white/30 hover:bg-white/50 rounded-full transition-colors">
                   <X size={20} />
                 </button>
               </div>
-              <div className="flex-grow overflow-y-auto py-4 px-3 space-y-1 hide-scrollbar">
-                <button
-                  onClick={() => {
-                    navigate('/?category=All');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 rounded-xl font-bold text-theme-darkest/80 hover:bg-theme-light/20 hover:text-theme-deep transition-colors"
+              <ul className="flex-grow overflow-y-auto py-4 px-3 flex flex-col gap-1 hide-scrollbar">
+                <Link
+                  to="/?category=All"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-4 py-3 text-lg font-medium text-gray-800 hover:bg-white/40 rounded-xl transition"
                 >
                   All Books
-                </button>
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                      navigate(`/?category=${encodeURIComponent(cat)}`);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-3 rounded-xl font-bold text-theme-darkest/80 hover:bg-theme-light/20 hover:text-theme-deep transition-colors"
+                </Link>
+                {categories.map(category => (
+                  <Link
+                    key={category.id || category.name}
+                    to={`/?category=${encodeURIComponent(category.name)}`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block px-4 py-3 text-lg font-medium text-gray-800 hover:bg-white/40 rounded-xl transition"
                   >
-                    {cat}
-                  </button>
+                    {category.name}
+                  </Link>
                 ))}
-              </div>
+              </ul>
             </motion.div>
           </>
         )}
