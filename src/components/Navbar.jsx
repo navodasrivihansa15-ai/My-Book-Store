@@ -153,21 +153,24 @@ export default function Navbar() {
               className="fixed inset-0 bg-black/60 z-[999] md:hidden backdrop-blur-sm"
             />
             <motion.div
-              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'tween', duration: 0.3 }}
-              className="fixed top-0 left-0 h-full w-[85%] max-w-sm bg-gradient-to-br from-white/40 via-white/60 to-white/40 backdrop-blur-2xl z-[1000] md:hidden flex flex-col shadow-[10px_0_30px_rgba(0,0,0,0.1)] border-r border-white/50"
+              initial={{ x: '-150%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '-150%', opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-[70px] bottom-[80px] left-3 w-[85%] max-w-[320px] z-[10000] md:hidden flex flex-col overflow-hidden bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)]"
             >
-              <div className="flex items-center justify-between p-5 border-b border-white/30">
-                <span className="font-bold text-xl text-gray-800 tracking-tight">Categories</span>
-                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-gray-600 hover:text-gray-900 bg-white/30 hover:bg-white/50 rounded-full transition-colors">
-                  <X size={20} />
+              {/* Header / Title */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
+                <span className="font-bold text-lg text-theme-deep tracking-tight">Categories</span>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors">
+                  <X size={18} />
                 </button>
               </div>
-              <div className="flex flex-col mt-4 overflow-y-auto pb-20 hide-scrollbar px-3">
+              
+              {/* Scrollable Category List */}
+              <div className="flex-1 overflow-y-auto overscroll-contain hide-scrollbar">
                 {/* Default All Books Link */}
                 <Link 
                   to="/?category=All"
                   onClick={() => setIsMobileMenuOpen(false)} 
-                  className="py-3 px-5 border-b border-white/20 text-gray-800 font-semibold text-lg hover:bg-white/40 transition-colors rounded-xl mb-1"
+                  className="block py-3.5 px-5 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
                 >
                   All Books
                 </Link>
@@ -179,13 +182,13 @@ export default function Navbar() {
                       key={category.id || category.name}
                       to={`/?category=${encodeURIComponent(category.name)}`}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="py-3 px-5 border-b border-white/20 text-gray-800 font-semibold text-lg hover:bg-white/40 transition-colors rounded-xl mb-1"
+                      className="block py-3.5 px-5 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
                     >
                       {category.name}
                     </Link>
                   ))
                 ) : (
-                  <div className="py-3 px-5 text-gray-500 font-medium">No categories found</div>
+                  <div className="py-4 px-5 text-gray-400 font-medium text-sm text-center">No categories found</div>
                 )}
               </div>
             </motion.div>
