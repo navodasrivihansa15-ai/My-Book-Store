@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export default function HeroBanner({ banners: externalBanners = null, disableLinks = false }) {
+export default function HeroBanner({ banners: externalBanners = null, disableLinks = false, className = "" }) {
   const [internalBanners, setInternalBanners] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(!externalBanners);
@@ -67,7 +67,7 @@ export default function HeroBanner({ banners: externalBanners = null, disableLin
 
   if (loading) {
     return (
-      <div className="w-full h-[40vh] md:h-[60vh] max-w-7xl mx-auto rounded-2xl bg-gray-200 animate-pulse flex items-center justify-center mb-12 shadow-sm">
+      <div className={`w-full max-w-7xl mx-auto rounded-2xl bg-gray-200 animate-pulse flex items-center justify-center shadow-sm ${className || 'h-[40vh] md:h-[60vh] mb-12'}`}>
         <span className="text-gray-400 font-bold tracking-widest uppercase text-sm">Loading Advertisements...</span>
       </div>
     );
@@ -77,7 +77,7 @@ export default function HeroBanner({ banners: externalBanners = null, disableLin
 
   return (
     <div 
-      className="relative w-full h-[40vh] md:h-[60vh] max-w-7xl mx-auto rounded-2xl overflow-hidden bg-brand-blue group mb-12 shadow-md"
+      className={`relative w-full max-w-7xl mx-auto rounded-2xl overflow-hidden bg-brand-blue group shadow-md ${className || 'h-[40vh] md:h-[60vh] mb-12'}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

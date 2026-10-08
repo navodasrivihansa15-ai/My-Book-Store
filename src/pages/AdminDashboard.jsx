@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X } from 'lucide-react';
+import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2 } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,6 +27,9 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('orders')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'orders' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Package size={16} /> Orders
           </button>
+          <button onClick={() => setActiveTab('payment')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'payment' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <CreditCard size={16} /> Payment
+          </button>
         </div>
 
         {/* Desktop Navigation */}
@@ -40,6 +43,9 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('orders')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'orders' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Package size={18} /> Orders
           </button>
+          <button onClick={() => setActiveTab('payment')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'payment' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+            <CreditCard size={18} /> Payment
+          </button>
         </div>
       </div>
 
@@ -47,6 +53,7 @@ export default function AdminDashboard() {
         {activeTab === 'inventory' && <motion.div key="inventory" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><InventoryManagement /></motion.div>}
         {activeTab === 'banners' && <motion.div key="banners" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><BannerManagement /></motion.div>}
         {activeTab === 'orders' && <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><OrderManagement /></motion.div>}
+        {activeTab === 'payment' && <motion.div key="payment" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><AdminPaymentSettings /></motion.div>}
       </AnimatePresence>
 
       <style>{`

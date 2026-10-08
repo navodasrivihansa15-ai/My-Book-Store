@@ -38,24 +38,24 @@ export default function Offers() {
   }, []);
 
   return (
-    <div className="w-full mt-4">
+    <div className="w-full min-h-screen pb-28 pt-24 md:pb-12 md:pt-32 px-3 md:px-8">
       <div className="mb-8">
-        <h2 className="text-4xl font-bold text-brand-blue font-serif mb-2">Special Offers</h2>
+        <h2 className="text-2xl md:text-4xl font-extrabold text-brand-blue font-serif mb-2 leading-tight">Special Offers</h2>
         <p className="text-slate-500 font-medium">Exclusive deals and discounts for our readers.</p>
       </div>
 
       {!loading && offerBanners.length > 0 && (
-        <div className="mb-12">
-          <HeroBanner banners={offerBanners} disableLinks={true} />
+        <div className="w-full">
+          <HeroBanner banners={offerBanners} disableLinks={true} className="w-full h-36 sm:h-48 md:h-64 mb-6" />
         </div>
       )}
 
       {loading ? (
         <div className="text-center py-20 text-slate-500 font-medium animate-pulse">Loading offers...</div>
       ) : offerBooks.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8 mb-16">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 md:gap-6 mb-16">
           {offerBooks.map(book => (
-            <div key={book.id} className="w-full flex justify-center min-w-[220px] max-w-[280px] mx-auto md:max-w-none">
+            <div key={book.id} className="w-full flex justify-center mx-auto">
               <BookCard book={book} addToCart={addToCart} />
             </div>
           ))}

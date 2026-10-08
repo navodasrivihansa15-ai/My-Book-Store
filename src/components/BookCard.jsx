@@ -51,7 +51,7 @@ export default function BookCard({ book, addToCart }) {
         </div>
 
         {hasDiscount && (
-          <div className="absolute bottom-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow-md z-10">
+          <div className="absolute top-2 right-2 md:bottom-3 md:right-3 md:top-auto bg-red-500 text-white text-[10px] md:text-xs font-bold px-2 py-1 rounded shadow-md z-10">
             -{book.discount_percentage}%
           </div>
         )}
@@ -81,14 +81,14 @@ export default function BookCard({ book, addToCart }) {
             <button 
               onClick={handleBuyNow} 
               disabled={book.stock <= 0 || isStockLimitReached}
-              className="w-full bg-theme-deep text-white hover:bg-theme-darkest shadow-md rounded-full py-2 text-xs md:text-sm font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full bg-theme-deep text-white hover:bg-theme-darkest shadow-md rounded-lg py-2 text-xs md:text-sm font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               Buy Now
             </button>
             <button 
               onClick={() => addToCart({ ...book, price: hasDiscount ? book.sale_price : book.price })} 
               disabled={book.stock <= 0 || isStockLimitReached}
-              className="w-full border-2 border-theme-deep text-theme-deep hover:bg-theme-deep hover:text-white rounded-full py-1.5 md:py-2 text-xs md:text-sm font-semibold flex items-center justify-center gap-1 md:gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-transparent"
+              className="w-full border-2 border-theme-deep text-theme-deep hover:bg-theme-deep hover:text-white rounded-lg py-2 text-xs md:text-sm font-semibold flex items-center justify-center gap-1 md:gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-transparent"
             >
               <ShoppingCart size={16} className="w-4 h-4 md:w-5 md:h-5" /> {isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
             </button>
