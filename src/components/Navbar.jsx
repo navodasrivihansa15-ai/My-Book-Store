@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
+import MobileCategoryMenu from './MobileCategoryMenu';
 
 export default function Navbar() {
   const [logoExt, setLogoExt] = useState('png');
@@ -144,57 +145,11 @@ export default function Navbar() {
       </div>
 
       {/* --- MOBILE SIDE DRAWER --- */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[999] md:hidden backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ x: '-150%', opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: '-150%', opacity: 0 }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-[70px] bottom-[80px] left-3 w-[85%] max-w-[320px] z-[10000] md:hidden flex flex-col overflow-hidden bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)]"
-            >
-              {/* Header / Title */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
-                <span className="font-bold text-lg text-theme-deep tracking-tight">Categories</span>
-                <button onClick={() => setIsMobileMenuOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors">
-                  <X size={18} />
-                </button>
-              </div>
-              
-              {/* Scrollable Category List */}
-              <div className="flex-1 overflow-y-auto overscroll-contain hide-scrollbar">
-                {/* Default All Books Link */}
-                <Link 
-                  to="/?category=All"
-                  onClick={() => setIsMobileMenuOpen(false)} 
-                  className="block py-3.5 px-5 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                >
-                  All Books
-                </Link>
-                
-                {/* Dynamic Categories */}
-                {categories && categories.length > 0 ? (
-                  categories.map((category) => (
-                    <Link
-                      key={category.id || category.name}
-                      to={`/?category=${encodeURIComponent(category.name)}`}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="block py-3.5 px-5 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                    >
-                      {category.name}
-                    </Link>
-                  ))
-                ) : (
-                  <div className="py-4 px-5 text-gray-400 font-medium text-sm text-center">No categories found</div>
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <MobileCategoryMenu 
+        isOpen={isMobileMenuOpen} 
+        setIsOpen={setIsMobileMenuOpen} 
+        categories={categories} 
+      />
     </motion.nav>
   );
 }
