@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AnimatePresence } from 'framer-motion';
 import Navbar from './components/Navbar';
 import SubNavbar from './components/SubNavbar';
+import BottomNav from './components/BottomNav';
+import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
 import AllBooks from './pages/AllBooks';
 import Publishers from './pages/Publishers';
@@ -65,13 +67,15 @@ function AnimatedRoutes() {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <div className="relative min-h-screen flex flex-col w-full">
         <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-slate-900 via-slate-800 to-transparent -z-10 pointer-events-none"></div>
         <Navbar />
         <SubNavbar />
-        <main className="flex-grow pt-36 pb-12 px-2 md:px-4 w-[96%] max-w-[1440px] mx-auto relative z-0">
+        <main className="flex-grow pt-36 pb-20 md:pb-12 px-2 md:px-4 w-[96%] max-w-[1440px] mx-auto relative z-0">
           <AnimatedRoutes />
         </main>
+        <BottomNav />
       </div>
     </BrowserRouter>
   );

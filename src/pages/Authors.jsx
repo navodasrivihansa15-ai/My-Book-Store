@@ -69,7 +69,7 @@ export default function Authors() {
 
       <AnimatePresence mode="wait">
         {!selectedPerson ? (
-          <motion.div key="grid" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+          <motion.div key="grid" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
             {authors.map(person => (
               <div 
                 key={person.id} 
@@ -107,7 +107,7 @@ export default function Authors() {
             {booksLoading ? (
               <div className="text-center py-20 text-theme-darkest/70 font-medium bg-white/40 backdrop-blur-md rounded-2xl border border-white/30">Loading books...</div>
             ) : personBooks.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-6">
                 {personBooks.map(book => (
                   <BookCard key={book.id} book={book} />
                 ))}

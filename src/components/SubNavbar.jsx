@@ -10,7 +10,7 @@ export default function SubNavbar() {
   ];
 
   return (
-    <div className="fixed w-full z-40 top-20 bg-theme-deep/70 backdrop-blur-xl border-b border-white/10 shadow-lg text-theme-bg">
+    <div className="hidden md:block fixed w-full z-40 top-20 bg-theme-deep/70 backdrop-blur-xl border-b border-white/10 shadow-lg text-theme-bg">
       <div className="w-[96%] max-w-[1440px] mx-auto px-2 md:px-4">
         <ul className="flex items-center gap-8 overflow-x-auto custom-scrollbar">
           {navItems.map((item) => (

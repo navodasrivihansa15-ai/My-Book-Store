@@ -191,7 +191,7 @@ export default function Home() {
             {filteredBooks.length > 0 ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
                 {filteredBooks.map(book => (
-                  <div key={book.id} className="w-full flex justify-center min-w-[220px] max-w-[280px] mx-auto md:max-w-none">
+                  <div key={book.id} className="w-full flex justify-center">
                     <BookCard book={book} addToCart={addToCart} />
                   </div>
                 ))}
