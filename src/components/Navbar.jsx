@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, User, Shield, Search, Menu, X } from 'lucide-react';
+import { ShoppingCart, User, Shield, Search, Menu, X, LogOut, LogIn } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -57,8 +57,8 @@ export default function Navbar() {
             />
           </Link>
 
-          {/* Search (Desktop & Mobile) */}
-          <div className="flex flex-grow max-w-xl ml-4 md:mx-8 lg:mx-12 relative group">
+          {/* Search (Desktop Only) */}
+          <div className="hidden md:flex flex-grow max-w-xl mx-8 lg:mx-12 relative group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-darkest/50 group-focus-within:text-theme-medium transition-colors" size={20} />
             <input 
               type="text" 
@@ -106,6 +106,27 @@ export default function Navbar() {
             ) : (
               <Link to="/login" className="bg-theme-medium text-theme-bg px-6 py-2.5 rounded-full text-sm font-bold tracking-wide hover:bg-theme-deep transition-all shadow-md cursor-pointer border border-theme-medium/50">
                 Sign In
+              </Link>
+            )}
+          </div>
+
+          {/* Mobile Right Icons (Auth Only) */}
+          <div className="flex items-center md:hidden">
+            {user ? (
+              <button 
+                onClick={handleLogout} 
+                className="text-theme-bg/80 hover:text-white transition-colors cursor-pointer p-2"
+                aria-label="Sign Out"
+              >
+                <LogOut size={22} />
+              </button>
+            ) : (
+              <Link 
+                to="/login" 
+                className="text-theme-bg/80 hover:text-white transition-colors cursor-pointer p-2"
+                aria-label="Sign In"
+              >
+                <LogIn size={22} />
               </Link>
             )}
           </div>

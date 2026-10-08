@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
 import { motion } from 'framer-motion';
-import { LayoutGrid } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { LayoutGrid, Search } from 'lucide-react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import HeroBanner from '../components/HeroBanner';
 import BookCard from '../components/BookCard';
 import BookShelf from '../components/BookShelf';
@@ -24,6 +24,15 @@ export default function Home() {
     setSearchParams(prev => {
       if (cat === 'All') prev.delete('category');
       else prev.set('category', cat);
+      return prev;
+    });
+  };
+
+  const handleSearch = (e) => {
+    const value = e.target.value;
+    setSearchParams(prev => {
+      if (value) prev.set('search', value);
+      else prev.delete('search');
       return prev;
     });
   };
@@ -114,6 +123,18 @@ export default function Home() {
 
       {/* MAIN CONTENT */}
       <main className="flex-grow min-w-0">
+        {/* Mobile Search Bar */}
+        <div className="w-[95%] mx-auto mt-4 mb-2 md:hidden relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-darkest/50 transition-colors" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search books, authors, ISBN..." 
+            value={searchQuery}
+            onChange={handleSearch}
+            className="w-full pl-11 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-full focus:outline-none focus:bg-white focus:ring-2 focus:ring-theme-medium transition-all text-sm text-theme-darkest placeholder-theme-darkest/50 shadow-inner"
+          />
+        </div>
+
         {/* Mobile Categories (Horizontal Scroll) */}
         <div className="md:hidden flex overflow-x-auto whitespace-nowrap hide-scrollbar gap-2 mb-6 pb-2 -mx-2 px-2">
           <button
