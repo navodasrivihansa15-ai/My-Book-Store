@@ -162,25 +162,32 @@ export default function Navbar() {
                   <X size={20} />
                 </button>
               </div>
-              <ul className="flex-grow overflow-y-auto py-4 px-3 flex flex-col gap-1 hide-scrollbar">
-                <Link
+              <div className="flex flex-col mt-4 overflow-y-auto pb-20 hide-scrollbar px-3">
+                {/* Default All Books Link */}
+                <Link 
                   to="/?category=All"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-lg font-medium text-gray-800 hover:bg-white/40 rounded-xl transition"
+                  onClick={() => setIsMobileMenuOpen(false)} 
+                  className="py-3 px-5 border-b border-white/20 text-gray-800 font-semibold text-lg hover:bg-white/40 transition-colors rounded-xl mb-1"
                 >
                   All Books
                 </Link>
-                {categories.map(category => (
-                  <Link
-                    key={category.id || category.name}
-                    to={`/?category=${encodeURIComponent(category.name)}`}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="block px-4 py-3 text-lg font-medium text-gray-800 hover:bg-white/40 rounded-xl transition"
-                  >
-                    {category.name}
-                  </Link>
-                ))}
-              </ul>
+                
+                {/* Dynamic Categories */}
+                {categories && categories.length > 0 ? (
+                  categories.map((category) => (
+                    <Link
+                      key={category.id || category.name}
+                      to={`/?category=${encodeURIComponent(category.name)}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="py-3 px-5 border-b border-white/20 text-gray-800 font-semibold text-lg hover:bg-white/40 transition-colors rounded-xl mb-1"
+                    >
+                      {category.name}
+                    </Link>
+                  ))
+                ) : (
+                  <div className="py-3 px-5 text-gray-500 font-medium">No categories found</div>
+                )}
+              </div>
             </motion.div>
           </>
         )}
