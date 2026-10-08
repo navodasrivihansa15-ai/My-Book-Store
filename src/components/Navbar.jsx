@@ -53,13 +53,13 @@ export default function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="fixed top-2 md:top-0 w-[95%] left-[2.5%] md:w-full md:left-0 z-50 bg-gradient-to-br from-blue-400/20 via-theme-deep/40 to-blue-800/30 md:bg-none md:bg-theme-deep/70 backdrop-blur-xl border border-white/30 md:border-x-0 md:border-t-0 md:border-b md:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] md:shadow-lg text-theme-bg rounded-3xl md:rounded-none"
+        className="fixed top-0 left-0 w-full z-[9990] bg-gradient-to-r from-gray-900/85 via-blue-900/75 to-slate-400/65 backdrop-blur-lg border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)] text-white"
       >
       <div className="max-w-[1440px] mx-auto px-3 py-2 md:py-0 md:px-6">
         
         {/* --- MOBILE NAVBAR --- */}
         <div className="flex items-center justify-between h-14 md:hidden">
-          <button onClick={() => setIsMobileMenuOpen(true)} className="text-theme-bg p-1 hover:text-white transition-colors cursor-pointer">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="text-white p-1 hover:text-gray-200 transition-colors cursor-pointer">
             <Menu size={28} />
           </button>
           
@@ -105,12 +105,12 @@ export default function Navbar() {
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
             <Link to="/cart" className="relative group cursor-pointer">
-              <ShoppingCart size={24} className={`transition-colors ${isActive('/cart') ? 'text-theme-light' : 'text-theme-bg/80 hover:text-theme-light'}`} />
+              <ShoppingCart size={24} className={`transition-colors ${isActive('/cart') ? 'text-white' : 'text-white/80 hover:text-white'}`} />
               <AnimatePresence>
                 {cartItemCount > 0 && (
                   <motion.span 
                     initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                    className="absolute -top-2 -right-2 bg-theme-medium text-theme-bg text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center shadow-md"
+                    className="absolute -top-2 -right-2 bg-white text-blue-900 text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center shadow-md"
                   >
                     {cartItemCount}
                   </motion.span>
@@ -121,23 +121,23 @@ export default function Navbar() {
             {user ? (
               <div className="flex items-center gap-6">
                 {user.email === 'navodasrivihansa15@gmail.com' && (
-                  <Link to="/admin" className={`relative group flex items-center gap-1.5 text-sm font-semibold tracking-wide transition-colors ${isActive('/admin') ? 'text-theme-light' : 'text-theme-bg hover:text-theme-light'}`}>
+                  <Link to="/admin" className={`relative group flex items-center gap-1.5 text-sm font-semibold tracking-wide transition-colors ${isActive('/admin') ? 'text-white' : 'text-white/90 hover:text-white'}`}>
                     <Shield size={16} />
                     <span className="hidden sm:inline">Admin</span>
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-theme-light transition-all group-hover:w-full"></span>
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white transition-all group-hover:w-full"></span>
                   </Link>
                 )}
-                <Link to="/account" className={`relative group flex items-center gap-1.5 text-sm font-semibold tracking-wide transition-colors ${isActive('/account') ? 'text-theme-light' : 'text-theme-bg hover:text-theme-light'}`}>
+                <Link to="/account" className={`relative group flex items-center gap-1.5 text-sm font-semibold tracking-wide transition-colors ${isActive('/account') ? 'text-white' : 'text-white/90 hover:text-white'}`}>
                   <User size={18} />
                   <span className="hidden sm:inline">Account</span>
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-theme-light transition-all group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white transition-all group-hover:w-full"></span>
                 </Link>
-                <button onClick={handleLogout} className="text-xs uppercase tracking-widest text-theme-bg/80 hover:text-theme-bg border border-theme-medium/50 px-4 py-2 rounded-full transition-colors hover:border-theme-light cursor-pointer font-semibold">
+                <button onClick={handleLogout} className="text-xs uppercase tracking-widest text-white/80 hover:text-white border border-white/30 px-4 py-2 rounded-full transition-colors hover:border-white cursor-pointer font-semibold">
                   Sign Out
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="bg-theme-medium text-theme-bg px-6 py-2.5 rounded-full text-sm font-bold tracking-wide hover:bg-theme-deep transition-all shadow-md cursor-pointer border border-theme-medium/50">
+              <Link to="/login" className="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-full text-sm font-bold tracking-wide transition-all shadow-md cursor-pointer border border-white/20 backdrop-blur-md">
                 Sign In
               </Link>
             )}

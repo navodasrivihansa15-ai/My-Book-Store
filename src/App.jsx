@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import BookDetails from './pages/BookDetails';
 import ProfilePage from './pages/ProfilePage';
+import MobileExplore from './pages/MobileExplore';
 import { useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -59,6 +60,7 @@ function AnimatedRoutes() {
         <Route path="/translator/:name" element={<ProfilePage type="translator" />} />
         <Route path="/publishers/:name" element={<ProfilePage type="publisher" />} />
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/explore" element={<MobileExplore />} />
       </Routes>
     </AnimatePresence>
   );

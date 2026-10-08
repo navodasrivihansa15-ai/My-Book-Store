@@ -1,5 +1,5 @@
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Home, Search, ShoppingCart, User } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Compass, ShoppingCart, User } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -11,19 +11,7 @@ export default function BottomNav() {
 
   const isActive = (path) => location.pathname === path;
 
-  // We map search to navigate to the search box or just go to /books if needed.
-  // Actually, opening search might just focus the top navbar search.
-  // We can just link it to /books for "Categories/Search".
-  const handleSearchClick = () => {
-    // If not on home or books, navigate to books
-    if (location.pathname !== '/' && location.pathname !== '/books') {
-      navigate('/books');
-    } else {
-      // Focus search input
-      const searchInput = document.querySelector('input[type="text"]');
-      if (searchInput) searchInput.focus();
-    }
-  };
+
 
   return (
     <div className="fixed bottom-0 left-0 w-full z-[9999] bg-white/90 backdrop-blur-lg border-t border-gray-200 flex justify-around items-center h-16 md:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
@@ -32,10 +20,10 @@ export default function BottomNav() {
         <span className="text-[10px] mt-1 font-semibold">Home</span>
       </Link>
       
-      <button onClick={handleSearchClick} className={`flex flex-col items-center justify-center w-full h-full ${isActive('/books') ? 'text-theme-deep' : 'text-gray-500'}`}>
-        <Search size={24} className={isActive('/books') ? 'text-theme-deep' : 'text-gray-500'} />
-        <span className="text-[10px] mt-1 font-semibold">Search</span>
-      </button>
+      <Link to="/explore" className={`flex flex-col items-center justify-center w-full h-full ${isActive('/explore') ? 'text-theme-deep' : 'text-gray-500'}`}>
+        <Compass size={24} className={isActive('/explore') ? 'text-theme-deep fill-theme-deep/10' : 'text-gray-500'} />
+        <span className="text-[10px] mt-1 font-semibold">Explore</span>
+      </Link>
       
       <Link to="/cart" className={`flex flex-col items-center justify-center w-full h-full relative ${isActive('/cart') ? 'text-theme-deep' : 'text-gray-500'}`}>
         <div className="relative">
