@@ -833,67 +833,79 @@ function OrderManagement() {
 
   if (selectedOrder) {
     return (
-      <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-sm p-8 print-container">
-        <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200 no-print">
-          <button onClick={() => setSelectedOrder(null)} className="flex items-center gap-2 text-theme-medium hover:text-theme-deep font-bold uppercase text-xs tracking-wider cursor-pointer">
+      <div className="bg-white text-black border border-black rounded-none shadow-none p-8 print-container">
+        <div className="flex justify-between items-center mb-8 pb-4 border-b border-black no-print">
+          <button onClick={() => setSelectedOrder(null)} className="flex items-center gap-2 text-black hover:text-gray-600 font-bold uppercase text-xs tracking-wider cursor-pointer">
             <ChevronLeft size={16} /> Back to Orders
           </button>
-          <button onClick={() => window.print()} className="flex items-center gap-2 bg-brand-gold text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wider hover:bg-brand-blue transition-colors cursor-pointer shadow-sm">
+          <button onClick={() => window.print()} className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-800 transition-colors cursor-pointer border border-black">
             <Printer size={16} /> Print Invoice
           </button>
         </div>
-        <div className="mb-10 text-center">
-          <h2 className="text-4xl font-combina text-brand-blue font-bold uppercase tracking-widest">ALEXANDRIA BOOKS</h2>
-          <p className="text-gray-500 uppercase tracking-widest text-xs font-semibold mt-1">Official Invoice</p>
+        <div className="mb-10 text-center flex flex-col items-center">
+          <img src="/logo.png" alt="Alexandria Books Logo" className="h-16 w-auto object-contain mb-2 mx-auto md:mx-0 grayscale" />
+          <p className="italic text-sm text-gray-700 font-serif">"Tota est scientia (All is knowledge)."</p>
+          <p className="text-black uppercase tracking-widest text-xs font-bold mt-4">Official Invoice</p>
         </div>
-        <div className="flex justify-between mb-8">
+        <div className="flex justify-between mb-8 text-black">
           <div>
-            <p className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-1">Order Details</p>
-            <p className="font-bold text-gray-800 text-lg">ID: #{selectedOrder.id.slice(0, 8)}</p>
-            <p className="text-gray-500">{new Date(selectedOrder.created_at).toLocaleString()}</p>
+            <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-1">Order Details</p>
+            <p className="font-bold text-lg">ID: #{selectedOrder.id.slice(0, 8)}</p>
+            <p className="text-gray-600">{new Date(selectedOrder.created_at).toLocaleString()}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-1">Shipping Address</p>
-            <p className="text-gray-800 font-medium whitespace-pre-line leading-relaxed max-w-xs">{selectedOrder.shipping_address}</p>
+            <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-1">Shipping Address</p>
+            <p className="font-medium whitespace-pre-line leading-relaxed max-w-xs">{selectedOrder.shipping_address}</p>
           </div>
         </div>
-        <table className="w-full text-left mb-8">
-          <thead className="border-b border-gray-300 text-gray-500 uppercase text-xs">
+        <table className="w-full text-left mb-8 text-black border-collapse">
+          <thead className="border-b-2 border-black uppercase text-xs">
             <tr><th className="py-3">Item</th><th className="py-3 text-center">Qty</th><th className="py-3 text-right">Unit Price</th><th className="py-3 text-right">Total</th></tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-300">
             {selectedOrder.order_items.map((item, idx) => (
               <tr key={idx}>
                 <td className="py-3 font-medium">{item.books?.title}</td>
                 <td className="py-3 text-center">{item.quantity}</td>
-                <td className="py-3 text-right text-gray-500">${item.price.toFixed(2)}</td>
+                <td className="py-3 text-right text-gray-600">${item.price.toFixed(2)}</td>
                 <td className="py-3 text-right font-bold">${(item.price * item.quantity).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div className="flex justify-end border-t border-gray-300 pt-6 mb-12">
+        <div className="flex justify-end border-t-2 border-black pt-6 mb-12">
           <div className="text-right">
-            <p className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-1">Total Amount</p>
-            <p className="text-3xl font-bold text-brand-blue">${selectedOrder.total_amount.toFixed(2)}</p>
+            <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-1">Total Amount</p>
+            <p className="text-3xl font-bold text-black">${selectedOrder.total_amount.toFixed(2)}</p>
           </div>
         </div>
 
-        <div className="no-print bg-gray-50 border border-gray-200 p-6 rounded-xl">
-          <h3 className="text-lg font-bold text-brand-blue mb-4 border-b border-gray-200 pb-2">Payment Verification</h3>
+        <div className="no-print bg-gray-50 border border-gray-300 p-6 rounded-none text-black">
+          <h3 className="text-lg font-bold mb-4 border-b border-gray-300 pb-2">Order Management</h3>
           <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-            <div><p className="text-gray-500 uppercase tracking-wider text-xs font-bold mb-1">Method</p><p className="font-bold">{selectedOrder.payment_method}</p></div>
-            <div><p className="text-gray-500 uppercase tracking-wider text-xs font-bold mb-1">Status</p><span className="font-bold text-brand-gold">{selectedOrder.payment_status}</span></div>
+            <div><p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Method</p><p className="font-bold">{selectedOrder.payment_method}</p></div>
+            <div><p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Payment Status</p><span className="font-bold">{selectedOrder.payment_status}</span></div>
+            <div><p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Shipping Status</p><span className="font-bold">{selectedOrder.order_status}</span></div>
           </div>
           {selectedOrder.payment_slip_url && (
             <div className="mb-6">
-              <p className="text-gray-500 uppercase tracking-wider text-xs font-bold mb-2">Proof of Payment</p>
-              <a href={selectedOrder.payment_slip_url} target="_blank" rel="noopener noreferrer"><img src={selectedOrder.payment_slip_url} className="w-64 border rounded shadow-sm" /></a>
+              <p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-2">Proof of Payment</p>
+              <a href={selectedOrder.payment_slip_url} target="_blank" rel="noopener noreferrer"><img src={selectedOrder.payment_slip_url} className="w-64 border border-black grayscale" /></a>
             </div>
           )}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
-            {selectedOrder.payment_status !== 'Verified' && <button onClick={() => updateStatus(selectedOrder.id, 'payment_status', 'Verified')} className="bg-brand-blue text-white px-5 py-2 rounded font-bold uppercase text-xs tracking-wider hover:bg-brand-blue-light cursor-pointer shadow">Verify Payment</button>}
-            {selectedOrder.order_status !== 'Shipped' && <button onClick={() => updateStatus(selectedOrder.id, 'order_status', 'Shipped')} className="bg-green-600 text-white px-5 py-2 rounded font-bold uppercase text-xs tracking-wider hover:bg-green-700 cursor-pointer shadow">Mark as Shipped</button>}
+          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-300">
+            {selectedOrder.payment_status !== 'Verified' && (
+              <button onClick={() => updateStatus(selectedOrder.id, 'payment_status', 'Verified')} className="bg-black text-white px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-800 cursor-pointer border border-black">Verify Payment</button>
+            )}
+            {selectedOrder.payment_status === 'Verified' && (
+              <button onClick={() => updateStatus(selectedOrder.id, 'payment_status', 'Pending')} className="bg-white text-black px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-100 cursor-pointer border border-black">Mark as Unpaid (Reverse)</button>
+            )}
+            {selectedOrder.order_status !== 'Shipped' && (
+              <button onClick={() => updateStatus(selectedOrder.id, 'order_status', 'Shipped')} className="bg-black text-white px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-800 cursor-pointer border border-black">Mark as Shipped</button>
+            )}
+            {selectedOrder.order_status === 'Shipped' && (
+              <button onClick={() => updateStatus(selectedOrder.id, 'order_status', 'Pending')} className="bg-white text-black px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-100 cursor-pointer border border-black">Undo Shipping</button>
+            )}
           </div>
         </div>
       </div>
