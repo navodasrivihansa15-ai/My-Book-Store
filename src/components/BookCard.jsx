@@ -59,11 +59,11 @@ export default function BookCard({ book, addToCart }) {
       
       <div className="p-3 md:p-5 flex flex-col flex-grow bg-slate-50 relative z-20">
         <Link to={`/book/${book.id}`}>
-          <h2 className="text-sm md:text-base font-bold text-theme-darkest line-clamp-2 hover:text-theme-medium transition-colors">
+          <h2 className="text-sm md:text-base font-bold text-theme-darkest line-clamp-2 min-h-[2.5rem] md:min-h-[3rem] hover:text-theme-medium transition-colors">
             {book.title}
           </h2>
         </Link>
-        <p className="text-xs md:text-sm text-slate-500 font-medium tracking-wide mt-1 line-clamp-2 whitespace-normal h-8 md:h-10">{book.author}</p>
+        <p className="text-xs md:text-sm text-slate-500 font-medium tracking-wide mt-1 line-clamp-1 md:line-clamp-2 min-h-[1rem] md:min-h-[2.5rem]">{book.author}</p>
         
         <div className="mt-2 md:mt-4 flex flex-col gap-2 md:gap-3 justify-end h-full">
           <div className="flex flex-col">

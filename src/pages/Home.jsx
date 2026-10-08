@@ -135,32 +135,7 @@ export default function Home() {
           />
         </div>
 
-        {/* Mobile Categories (Horizontal Scroll) */}
-        <div className="md:hidden flex overflow-x-auto whitespace-nowrap hide-scrollbar gap-2 mb-3 pb-1 md:mb-6 md:pb-2 -mx-2 px-2">
-          <button
-            onClick={() => handleCategoryClick('All')}
-            className={`px-4 py-2 text-sm font-semibold rounded-full transition-all flex-shrink-0 ${
-              selectedCategory === 'All' || !selectedCategory
-                ? 'bg-theme-deep text-white shadow-md'
-                : 'bg-white text-theme-darkest/70 border border-theme-light/30'
-            }`}
-          >
-            All Books
-          </button>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => handleCategoryClick(cat)}
-              className={`px-4 py-2 text-sm font-semibold rounded-full transition-all flex-shrink-0 ${
-                selectedCategory === cat
-                  ? 'bg-theme-deep text-white shadow-md'
-                  : 'bg-white text-theme-darkest/70 border border-theme-light/30'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+
 
         {(!searchQuery && (!selectedCategory || selectedCategory === 'All')) && (
           <>

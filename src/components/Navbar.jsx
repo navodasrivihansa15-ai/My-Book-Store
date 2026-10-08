@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, User, Shield, Search, Menu, X, LogOut, LogIn } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -10,6 +10,7 @@ export default function Navbar() {
   const [logoExt, setLogoExt] = useState('png');
   const [imgTimestamp] = useState(Date.now());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
   const { cart } = useCart();
   const { user } = useAuth();
   const location = useLocation();
@@ -17,6 +18,14 @@ export default function Navbar() {
   const [searchParams, setSearchParams] = useSearchParams();
   const cartItemCount = cart.reduce((total, item) => total + item.quantity, 0);
   const searchQuery = searchParams.get('search') || '';
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase.from('categories').select('*').order('name');
+      if (data) setCategories(data.map(c => c.name));
+    };
+    fetchCategories();
+  }, []);
 
   const handleSearch = (e) => {
     const value = e.target.value;
@@ -42,10 +51,32 @@ export default function Navbar() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="fixed top-2 md:top-0 w-[95%] left-[2.5%] md:w-full md:left-0 z-50 bg-theme-deep/90 md:bg-theme-deep/70 backdrop-blur-xl border border-white/10 md:border-b md:border-white/10 shadow-lg text-theme-bg rounded-2xl md:rounded-none"
+      className="fixed top-2 md:top-0 w-[95%] left-[2.5%] md:w-full md:left-0 z-50 bg-gradient-to-br from-blue-400/20 via-theme-deep/40 to-blue-800/30 md:bg-none md:bg-theme-deep/70 backdrop-blur-xl border border-white/30 md:border-x-0 md:border-t-0 md:border-b md:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] md:shadow-lg text-theme-bg rounded-3xl md:rounded-none"
     >
       <div className="max-w-[1440px] mx-auto px-3 py-2 md:py-0 md:px-6">
-        <div className="flex justify-between items-center h-14 md:h-20">
+        
+        {/* --- MOBILE NAVBAR --- */}
+        <div className="flex items-center justify-between h-14 md:hidden">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="text-theme-bg p-1 hover:text-white transition-colors cursor-pointer">
+            <Menu size={28} />
+          </button>
+          
+          <Link to="/" className="flex-grow flex justify-center">
+            <img 
+              src={`${supabase.storage.from('web-assets').getPublicUrl(`Logo Top Nav Bar.${logoExt}`).data.publicUrl}?t=${imgTimestamp}`} 
+              onError={() => {
+                if (logoExt === 'png') setLogoExt('svg');
+              }}
+              alt="Alexandria Books" 
+              className="h-8 w-auto object-contain hover:opacity-80 transition-opacity" 
+            />
+          </Link>
+          
+          <div className="w-[36px]"></div> {/* Spacer for perfect centering */}
+        </div>
+
+        {/* --- DESKTOP NAVBAR --- */}
+        <div className="hidden md:flex justify-between items-center h-20">
           <Link to="/" className="flex items-center gap-2 group">
             <img 
               src={`${supabase.storage.from('web-assets').getPublicUrl(`Logo Top Nav Bar.${logoExt}`).data.publicUrl}?t=${imgTimestamp}`} 
@@ -53,7 +84,7 @@ export default function Navbar() {
                 if (logoExt === 'png') setLogoExt('svg');
               }}
               alt="Alexandria Books" 
-              className="h-8 md:h-16 hover:opacity-80 transition-opacity" 
+              className="h-16 hover:opacity-80 transition-opacity" 
             />
           </Link>
 
@@ -109,30 +140,55 @@ export default function Navbar() {
               </Link>
             )}
           </div>
-
-          {/* Mobile Right Icons (Auth Only) */}
-          <div className="flex items-center md:hidden">
-            {user ? (
-              <button 
-                onClick={handleLogout} 
-                className="text-theme-bg/80 hover:text-white transition-colors cursor-pointer p-2"
-                aria-label="Sign Out"
-              >
-                <LogOut size={22} />
-              </button>
-            ) : (
-              <Link 
-                to="/login" 
-                className="text-theme-bg/80 hover:text-white transition-colors cursor-pointer p-2"
-                aria-label="Sign In"
-              >
-                <LogIn size={22} />
-              </Link>
-            )}
-          </div>
-          
         </div>
       </div>
+
+      {/* --- MOBILE SIDE DRAWER --- */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/60 z-[999] md:hidden backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'tween', duration: 0.3 }}
+              className="fixed top-0 left-0 h-full w-[85%] max-w-sm bg-white/95 backdrop-blur-xl z-[1000] md:hidden flex flex-col shadow-2xl border-r border-theme-light/30"
+            >
+              <div className="flex items-center justify-between p-5 border-b border-slate-200 bg-slate-50/50">
+                <span className="font-bold text-xl text-theme-deep tracking-tight">Categories</span>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-theme-darkest/70 hover:text-theme-darkest bg-slate-200/50 hover:bg-slate-200 rounded-full transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-grow overflow-y-auto py-4 px-3 space-y-1 hide-scrollbar">
+                <button
+                  onClick={() => {
+                    navigate('/?category=All');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-xl font-bold text-theme-darkest/80 hover:bg-theme-light/20 hover:text-theme-deep transition-colors"
+                >
+                  All Books
+                </button>
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      navigate(`/?category=${encodeURIComponent(cat)}`);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-xl font-bold text-theme-darkest/80 hover:bg-theme-light/20 hover:text-theme-deep transition-colors"
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.nav>
   );
 }
