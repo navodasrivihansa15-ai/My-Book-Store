@@ -13,13 +13,26 @@ export default function AdminUsers() {
   const [notification, setNotification] = useState({ type: '', message: '' });
 
   useEffect(() => {
-    if (userRole === 'STAFF') {
-      // Redirect STAFF instantly
+    if (userRole === 'STAFF' || userRole === 'USER') {
       navigate('/admin/pos');
       return;
     }
 
+    // Initial fetch
     fetchUsers();
+
+    // Realtime listener
+    const rolesChannel = supabase
+      .channel('public:user_roles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, (payload) => {
+        console.log("Live update received:", payload);
+        fetchUsers(); // Re-fetch the list when any role changes
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(rolesChannel);
+    };
   }, [userRole, navigate]);
 
   const fetchUsers = async () => {
@@ -43,16 +56,29 @@ export default function AdminUsers() {
     setTimeout(() => setNotification({ type: '', message: '' }), 3000);
   };
 
-  const updateUserRole = async (targetUserId, newRole) => {
+  const updateRole = async (targetUserId, newRole) => {
     try {
-      const { error } = await supabase.from('user_roles').update({ role: newRole }).eq('id', targetUserId);
-      if (error) throw error;
-      
+      // Execute the update query
+      const { data, error } = await supabase
+        .from('user_roles')
+        .update({ role: newRole })
+        .eq('id', targetUserId)
+        .select();
+
+      if (error) {
+        console.error("🔥 Supabase Update Error:", error);
+        showNotification('error', `Failed to update role: ${error.message}`);
+        return;
+      }
+
+      console.log("Role updated successfully:", data);
       showNotification('success', `User successfully updated to ${newRole}`);
-      fetchUsers();
-    } catch (error) {
-      console.error("Error updating role:", error);
-      showNotification('error', error.message || "Failed to update user role");
+      // Optional fallback: call fetchUsers() here just in case Realtime is slow
+      fetchUsers(); 
+      
+    } catch (err) {
+      console.error("Unexpected error during update:", err);
+      showNotification('error', "Unexpected error occurred");
     }
   };
 
@@ -62,13 +88,15 @@ export default function AdminUsers() {
         return <span className="flex items-center gap-1 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase"><ShieldAlert size={14}/> OWNER</span>;
       case 'ADMIN':
         return <span className="flex items-center gap-1 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase"><ShieldCheck size={14}/> ADMIN</span>;
+      case 'STAFF':
+        return <span className="flex items-center gap-1 bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase"><User size={14}/> STAFF</span>;
       default:
-        return <span className="flex items-center gap-1 bg-gray-500 text-white px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase"><User size={14}/> STAFF</span>;
+        return <span className="flex items-center gap-1 bg-slate-500 text-white px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase"><User size={14}/> USER</span>;
     }
   };
 
-  // Block rendering if STAFF somehow bypassed redirect
-  if (userRole === 'STAFF') {
+  // Block rendering if STAFF or USER somehow bypassed redirect
+  if (userRole === 'STAFF' || userRole === 'USER') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <div className="text-center">
@@ -130,18 +158,22 @@ export default function AdminUsers() {
                     
                     // RBAC Logics
                     let canPromoteToAdmin = false;
+                    let canPromoteToStaff = false;
                     let canDemoteToStaff = false;
+                    let canDemoteToUser = false;
+
+                    const tRole = targetUser.role || 'USER';
 
                     if (userRole === 'OWNER') {
                       if (!isSelf) {
-                        canPromoteToAdmin = targetUser.role === 'STAFF';
-                        canDemoteToStaff = targetUser.role === 'ADMIN';
+                        if (tRole === 'USER') { canPromoteToStaff = true; canPromoteToAdmin = true; }
+                        if (tRole === 'STAFF') { canDemoteToUser = true; canPromoteToAdmin = true; }
+                        if (tRole === 'ADMIN') { canDemoteToStaff = true; canDemoteToUser = true; }
                       }
                     } else if (userRole === 'ADMIN') {
                       if (!isTargetOwner && !isSelf) {
-                        canPromoteToAdmin = targetUser.role === 'STAFF';
-                        // Admins CANNOT demote an ADMIN to STAFF
-                        canDemoteToStaff = false; 
+                        if (tRole === 'USER') { canPromoteToStaff = true; }
+                        if (tRole === 'STAFF') { canDemoteToUser = true; canPromoteToAdmin = true; }
                       }
                     }
 
@@ -158,27 +190,30 @@ export default function AdminUsers() {
                           {targetUser.created_at ? new Date(targetUser.created_at).toLocaleDateString() : 'N/A'}
                         </td>
                         <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 flex-wrap">
                             {canPromoteToAdmin && (
-                              <button 
-                                onClick={() => updateUserRole(targetUser.id, 'ADMIN')}
-                                className="bg-green-500/10 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors"
-                              >
-                                Promote to Admin
+                              <button onClick={() => updateRole(targetUser.id, 'ADMIN')} className="bg-blue-500/10 text-blue-500 border border-blue-500/30 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors">
+                                Make Admin
+                              </button>
+                            )}
+                            {canPromoteToStaff && (
+                              <button onClick={() => updateRole(targetUser.id, 'STAFF')} className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors">
+                                Make Staff
                               </button>
                             )}
                             {canDemoteToStaff && (
-                              <button 
-                                onClick={() => updateUserRole(targetUser.id, 'STAFF')}
-                                className="bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors"
-                              >
+                              <button onClick={() => updateRole(targetUser.id, 'STAFF')} className="bg-orange-500/10 text-orange-500 border border-orange-500/30 hover:bg-orange-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors">
                                 Demote to Staff
                               </button>
                             )}
+                            {canDemoteToUser && (
+                              <button onClick={() => updateRole(targetUser.id, 'USER')} className="bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors">
+                                Demote to User
+                              </button>
+                            )}
                             
-                            {/* Visual placeholder for non-actionable rows */}
-                            {!canPromoteToAdmin && !canDemoteToStaff && (
-                              <span className="text-slate-600 text-xs uppercase tracking-widest font-semibold px-2">
+                            {!canPromoteToAdmin && !canPromoteToStaff && !canDemoteToStaff && !canDemoteToUser && (
+                              <span className="text-slate-600 text-xs uppercase tracking-widest font-semibold px-2 mt-1 block">
                                 {isSelf ? 'No Actions Available' : isTargetOwner ? 'Protected' : 'No Actions Available'}
                               </span>
                             )}
