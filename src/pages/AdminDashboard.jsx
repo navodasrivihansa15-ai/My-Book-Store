@@ -105,7 +105,7 @@ function InventoryManagement() {
 
   const [formData, setFormData] = useState({
     title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false,
-    translator: '', publisher: '', weight: '', discount_percentage: '', sale_price: ''
+    translator: '', publisher: '', weight_g: 250, page_count: '', discount_percentage: '', sale_price: ''
   });
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -208,7 +208,8 @@ function InventoryManagement() {
         title: formData.title, author: formData.author || null, price: parseFloat(formData.price),
         description: formData.description || null, stock: parseInt(formData.stock) || 0,
         categories: formData.categories, is_featured: formData.is_featured, is_offer: formData.is_offer, is_special: formData.is_special, sales_count: 0,
-        translator: formData.translator || null, publisher: formData.publisher || null, weight: formData.weight || null,
+        translator: formData.translator || null, publisher: formData.publisher || null, weight_g: parseInt(formData.weight_g) || 250,
+        page_count: parseInt(formData.page_count) || null,
         discount_percentage: formData.discount_percentage ? parseFloat(formData.discount_percentage) : 0,
         sale_price: formData.sale_price ? parseFloat(formData.sale_price) : parseFloat(formData.price),
         cover_image_url
@@ -216,7 +217,7 @@ function InventoryManagement() {
 
       if (error) throw new Error(error.message);
       showNotification('success', 'Book added successfully.');
-      setFormData({ title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false, translator: '', publisher: '', weight: '', discount_percentage: '', sale_price: '' });
+      setFormData({ title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false, translator: '', publisher: '', weight_g: 250, page_count: '', discount_percentage: '', sale_price: '' });
       setFile(null); setPreview(null); fetchBooks();
     } catch (err) {
       showNotification('error', err.message);
@@ -311,7 +312,8 @@ function InventoryManagement() {
         title: editingBook.title, author: editingBook.author || null, price: parseFloat(editingBook.price),
         description: editingBook.description || null, stock: parseInt(editingBook.stock) || 0,
         categories: editingBook.categories || [], is_featured: editingBook.is_featured, is_offer: editingBook.is_offer, is_special: editingBook.is_special,
-        translator: editingBook.translator || null, publisher: editingBook.publisher || null, weight: editingBook.weight || null,
+        translator: editingBook.translator || null, publisher: editingBook.publisher || null, weight_g: parseInt(editingBook.weight_g) || 250,
+        page_count: parseInt(editingBook.page_count) || null,
         discount_percentage: editingBook.discount_percentage ? parseFloat(editingBook.discount_percentage) : 0,
         sale_price: editingBook.sale_price ? parseFloat(editingBook.sale_price) : parseFloat(editingBook.price),
         cover_image_url
@@ -373,7 +375,10 @@ function InventoryManagement() {
                   + Add
                 </button>
               </div>
-              <input type="text" name="weight" value={formData.weight || ''} onChange={handleChange} placeholder="Weight (e.g. 250g)" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+              <div className="flex gap-2">
+                <input type="number" min="1" step="1" name="weight_g" value={formData.weight_g || ''} onChange={handleChange} placeholder="Weight (g)" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+                <input type="number" min="1" step="1" name="page_count" value={formData.page_count || ''} onChange={handleChange} placeholder="Pages" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+              </div>
               <input type="number" name="stock" value={formData.stock || ''} onChange={handleChange} placeholder="Stock Qty" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
               <input required type="number" step="0.01" name="price" value={formData.price} onChange={handleChange} placeholder="Orig. Price (Rs.)" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
               <input type="number" step="0.1" name="discount_percentage" value={formData.discount_percentage || ''} onChange={handleChange} placeholder="Discount (%)" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
@@ -505,7 +510,10 @@ function InventoryManagement() {
                     <option value="">Select Publisher (Optional)</option>
                     {publishers.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
                   </select>
-                  <input type="text" name="weight" value={editingBook.weight || ''} onChange={(e) => handleChange(e, true)} placeholder="Weight" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+                  <div className="flex gap-2">
+                    <input type="number" min="1" step="1" name="weight_g" value={editingBook.weight_g || ''} onChange={(e) => handleChange(e, true)} placeholder="Weight (g)" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+                    <input type="number" min="1" step="1" name="page_count" value={editingBook.page_count || ''} onChange={(e) => handleChange(e, true)} placeholder="Pages" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+                  </div>
                   <input type="number" name="stock" value={editingBook.stock || ''} onChange={(e) => handleChange(e, true)} placeholder="Stock Qty" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
                   <input required type="number" step="0.01" name="price" value={editingBook.price} onChange={(e) => handleChange(e, true)} placeholder="Orig Price" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
                   <input type="number" step="0.1" name="discount_percentage" value={editingBook.discount_percentage || ''} onChange={(e) => handleChange(e, true)} placeholder="Discount %" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
@@ -891,6 +899,7 @@ function OrderManagement() {
   const [imgTimestamp] = useState(Date.now());
   const [storeSettings, setStoreSettings] = useState({ name: 'Alexandria Books', slogan: '', address: '', phone: '', email: '' });
   const navigate = useNavigate();
+  const [isPreparingPrint, setIsPreparingPrint] = useState(false);
 
   const fetchOrders = async () => {
     const { data } = await supabase.from('orders').select('*, order_items (quantity, price, books (title, price, discount_percentage))').order('created_at', { ascending: false });
@@ -937,14 +946,230 @@ function OrderManagement() {
     const mailingBgUrl = supabase.storage.from('web-assets').getPublicUrl('MCBG.png').data.publicUrl;
     const logoUrl = supabase.storage.from('web-assets').getPublicUrl('Bill Logo.png').data.publicUrl;
 
+    const ITEMS_PER_PAGE = 10;
+    const ITEMS_ON_LAST_PAGE = 6;
+    const billPages = [];
+    let itemsCopy = [...(selectedOrder.order_items || [])];
+
+    while (itemsCopy.length > 0) {
+      if (itemsCopy.length <= ITEMS_ON_LAST_PAGE) {
+        billPages.push({ items: itemsCopy.splice(0, ITEMS_ON_LAST_PAGE), isLast: true });
+      } else if (itemsCopy.length <= ITEMS_PER_PAGE && itemsCopy.length > ITEMS_ON_LAST_PAGE) {
+        billPages.push({ items: itemsCopy.splice(0, ITEMS_PER_PAGE), isLast: false });
+        if (itemsCopy.length === 0) {
+          billPages.push({ items: [], isLast: true });
+        }
+      } else {
+        billPages.push({ items: itemsCopy.splice(0, ITEMS_PER_PAGE), isLast: false });
+      }
+    }
+    if (billPages.length === 0) billPages.push({ items: [], isLast: true });
+
+    const totalBillPages = billPages.length;
+    billPages.forEach((page, index) => {
+      page.pageIndex = index + 1;
+      page.totalPages = totalBillPages;
+    });
+
+    const printSections = ['COVER', ...billPages];
+    const a4Pages = [];
+    for (let i = 0; i < printSections.length; i += 2) {
+      a4Pages.push(printSections.slice(i, i + 2));
+    }
+
+    const MailingCover = ({ order, storeSettings, mailingBgUrl, billLogoExt, imgTimestamp }) => (
+      <div 
+        className="a5-landscape-cover flex flex-col justify-between bg-white text-black relative h-full w-full"
+        style={{
+          backgroundImage: `url(${mailingBgUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="relative z-10 h-full flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-6 bg-white/80 p-3 rounded-xl">
+              <div>
+                <h1 className="text-2xl font-bold font-serif uppercase tracking-wider text-black">{storeSettings.name}</h1>
+                <p className="text-sm font-semibold">{storeSettings.address}</p>
+                <p className="text-sm font-semibold">Tel: {storeSettings.phone} | Email: {storeSettings.email}</p>
+              </div>
+              <img
+                src={`${supabase.storage.from('web-assets').getPublicUrl(`Bill Logo.${billLogoExt}`).data.publicUrl}?t=${imgTimestamp}`}
+                alt="Logo" className="h-12 w-auto object-contain grayscale"
+              />
+            </div>
+
+            <div className="border-4 border-black p-6 rounded-xl mb-6 bg-white/90 backdrop-blur-sm">
+              <h2 className="text-xl font-bold uppercase tracking-widest mb-4 border-b-2 border-black pb-2">Deliver To:</h2>
+              <p className="text-2xl font-bold mb-2">{order.customer_name || order.user_email}</p>
+              <p className="text-lg leading-relaxed">{order.shipping_address}</p>
+              <p className="text-xl font-bold mt-4">Contact: {order.contact_number}</p>
+            </div>
+          </div>
+
+          <div className="border-t-2 border-black pt-4 flex justify-between items-end bg-white/80 p-3 rounded-xl">
+            <div>
+              <p className="text-xs uppercase font-bold text-gray-500">Order Ref</p>
+              <p className="text-xl font-bold">#{order.display_id || order.id.split('-')[0].toUpperCase()}</p>
+            </div>
+            <div className="border-2 border-black p-2 font-bold text-sm uppercase px-4 text-center bg-white rounded-lg">
+              URGENT<br/>
+              <span className="text-xs normal-case font-semibold">COVID / Standard Handling Instructions apply.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    const RotatedA5Bill = ({ order, pageData, storeSettings, pageIndex, totalPages, logoUrl }) => (
+      <div className="a5-portrait-container bg-white text-black h-full w-full">
+        <div className="a5-portrait-bill flex flex-col h-full bg-white relative">
+          <div className="flex-1 flex flex-col">
+            <div className="flex justify-between items-start mb-4 border-b border-black pb-4">
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-center">
+                  <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain grayscale mb-1" />
+                  <p className="text-[10px] italic text-gray-700 font-serif text-center max-w-[150px]">"{storeSettings.slogan || 'Tota est scientia'}"</p>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold uppercase">Official Invoice</h2>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-bold">Order: #{order.display_id || order.id.split('-')[0].toUpperCase()}</p>
+                <p className="text-sm">Date: {new Date(order.created_at).toLocaleDateString()}</p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <table className="w-full text-left mb-4 text-black border-collapse text-sm">
+                <thead className="border-b-2 border-black uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="py-2">Item</th>
+                    <th className="py-2 text-center">Qty</th>
+                    <th className="py-2 text-right">Price</th>
+                    <th className="py-2 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-300">
+                  {pageData.items.map((item, idx) => {
+                    const discount = item.books?.discount_percentage || 0;
+                    return (
+                      <tr key={idx} className="avoid-break">
+                        <td className="py-2 font-medium pr-2 text-xs">{item.books?.title} {discount > 0 ? `(-${discount}%)` : ''}</td>
+                        <td className="py-2 text-center text-xs">{item.quantity}</td>
+                        <td className="py-2 text-right text-xs">{formatPrice(item.price)}</td>
+                        <td className="py-2 text-right font-bold text-xs">{formatPrice(item.price * item.quantity)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              
+              {pageData.isLast && (
+                <div className="flex justify-end mt-4">
+                  <div className="text-right w-full max-w-sm">
+                    <p className="font-bold mb-3 uppercase tracking-widest text-gray-500 text-xs">Payment Status: <span className="text-black">{order.payment_status}</span></p>
+                    
+                    <div className="flex justify-end gap-6 mb-1 text-sm">
+                      <span className="text-gray-600 font-medium">Subtotal:</span>
+                      <span className="font-bold">{formatPrice(order.total_amount - (order.shipping_fee || 0))}</span>
+                    </div>
+                    
+                    <div className="flex justify-end gap-6 mb-2 text-sm items-start">
+                      <div className="flex flex-col items-end">
+                        <span className="text-gray-600 font-medium">Delivery Charges:</span>
+                        {order.shipping_breakdown && (
+                          <span className="text-[9px] text-gray-600 block leading-tight whitespace-nowrap">({order.shipping_breakdown})</span>
+                        )}
+                      </div>
+                      <span className="font-bold">{formatPrice(order.shipping_fee || 0)}</span>
+                    </div>
+
+                    <div className="border-t border-black pt-1 mt-1">
+                      <p className="text-xs uppercase font-bold text-gray-500 mb-1">Grand Total</p>
+                      <p className="text-2xl font-bold">{formatPrice(order.total_amount)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Fixed Footer */}
+          <div className="mt-auto pt-3 border-t border-gray-300">
+            <div className="flex items-center justify-between">
+              {/* Left Side: WhatsApp QR & Phone */}
+              <div className="flex items-center gap-3">
+                <img 
+                  src={supabase.storage.from('web-assets').getPublicUrl('WhGrpQR.png').data.publicUrl} 
+                  onError={(e) => {
+                    const fallbacks = [
+                      'WhGrpQR.jpg', 'WhGrpQR.jpeg', 'WhGrpQR.PNG', 'WhGrpQR.JPG',
+                      'whgrpqr.png', 'whgrpqr.jpg', 'WHGrpQR.png', 'WHGrpQR.jpg',
+                      'WhgrpQR.png', 'WhgrpQR.jpg'
+                    ];
+                    let idx = Number(e.target.dataset.idx || 0);
+                    if (idx < fallbacks.length) {
+                      e.target.dataset.idx = idx + 1;
+                      e.target.src = supabase.storage.from('web-assets').getPublicUrl(fallbacks[idx]).data.publicUrl;
+                    } else {
+                      e.target.style.display = 'none';
+                    }
+                  }}
+                  alt="WhatsApp QR" className="w-16 h-16 object-contain" 
+                />
+                <div>
+                  <p className="text-sm font-extrabold text-gray-800 uppercase tracking-wide">WhatsApp Us</p>
+                  <p className="text-sm font-bold text-gray-900">{storeSettings?.phone || "07X XXX XXXX"}</p>
+                </div>
+              </div>
+
+              {/* Right Side: Thank You Message */}
+              <div className="text-right max-w-[50%]">
+                <p className="text-xs font-semibold text-gray-800">Thank you for your purchase.</p>
+                <p className="text-[10px] text-gray-600 mt-0.5">Embark on Another Literary Journey</p>
+              </div>
+            </div>
+
+            {/* Very Bottom: Website Link */}
+            <div className="mt-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
+              {storeSettings?.website || "WWW.YOURSTORE.LK"}
+            </div>
+            {pageData.totalPages > 1 && (
+              <div className="text-center mt-2 text-[10px] font-medium text-gray-500">
+                Page {pageData.pageIndex} of {pageData.totalPages}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+
+    const handlePrint = () => {
+      setIsPreparingPrint(true);
+      const img = new Image();
+      img.src = mailingBgUrl;
+      img.onload = () => {
+        setIsPreparingPrint(false);
+        setTimeout(() => window.print(), 300);
+      };
+      img.onerror = () => {
+        setIsPreparingPrint(false);
+        window.print();
+      };
+    };
+
     return (
       <div className="bg-white text-black border border-black md:rounded-xl shadow-none p-4 md:p-8">
         <div className="flex justify-between items-center mb-8 pb-4 border-b border-black no-print">
           <button onClick={() => setSelectedOrder(null)} className="flex items-center gap-2 text-black hover:text-gray-600 font-bold uppercase text-xs tracking-wider cursor-pointer">
             <ChevronLeft size={16} /> Back to Orders
           </button>
-          <button onClick={() => window.print()} className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-800 transition-colors cursor-pointer border border-black">
-            <Printer size={16} /> Print Packing Sheet
+          <button onClick={handlePrint} disabled={isPreparingPrint} className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-800 transition-colors cursor-pointer border border-black disabled:opacity-50 disabled:cursor-not-allowed">
+            <Printer size={16} /> {isPreparingPrint ? "Preparing Print..." : "Print Packing Sheet"}
           </button>
         </div>
 
@@ -971,7 +1196,7 @@ function OrderManagement() {
             </div>
             <div className="text-left md:text-right">
               <p className="text-xs uppercase tracking-widest text-gray-600 font-bold mb-3">Order Details</p>
-              <p className="font-bold text-sm">Order #{selectedOrder.id.slice(0, 8).toUpperCase()}</p>
+              <p className="font-bold text-sm">Order #{selectedOrder.display_id || selectedOrder.id.split('-')[0].toUpperCase()}</p>
               <p className="text-sm mt-1"><span className="font-semibold text-gray-600">Date:</span> {new Date(selectedOrder.created_at).toLocaleString()}</p>
               <p className="text-sm mt-2 leading-relaxed whitespace-pre-line md:ml-auto max-w-xs text-left md:text-right">
                 <span className="font-semibold text-gray-600 block mb-1">Shipping Address:</span>
@@ -1023,134 +1248,28 @@ function OrderManagement() {
         </div>
 
         {/* PRINT ONLY: A4 DUAL A5 SHEET */}
-        <div className="hidden print:flex print-only-packing-sheet print-container">
-          {/* TOP A5: Mailing Label / Courier Cover */}
-          <div 
-            className="a5-landscape-cover flex flex-col justify-between bg-white text-black relative"
-            style={{
-              backgroundImage: `url(${mailingBgUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat'
-            }}
-          >
-            <div className="relative z-10 h-full flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-start mb-6 bg-white/80 p-3 rounded-xl">
-                  <div>
-                    <h1 className="text-2xl font-bold font-serif uppercase tracking-wider text-black">{storeSettings.name}</h1>
-                    <p className="text-sm font-semibold">{storeSettings.address}</p>
-                    <p className="text-sm font-semibold">Tel: {storeSettings.phone} | Email: {storeSettings.email}</p>
-                  </div>
-                  <img
-                    src={`${supabase.storage.from('web-assets').getPublicUrl(`Bill Logo.${billLogoExt}`).data.publicUrl}?t=${imgTimestamp}`}
-                    alt="Logo" className="h-12 w-auto object-contain grayscale"
-                  />
-                </div>
-
-                <div className="border-4 border-black p-6 rounded-xl mb-6 bg-white/90 backdrop-blur-sm">
-                  <h2 className="text-xl font-bold uppercase tracking-widest mb-4 border-b-2 border-black pb-2">Deliver To:</h2>
-                  <p className="text-2xl font-bold mb-2">{selectedOrder.customer_name || selectedOrder.user_email}</p>
-                  <p className="text-lg leading-relaxed">{selectedOrder.shipping_address}</p>
-                  <p className="text-xl font-bold mt-4">Contact: {selectedOrder.contact_number}</p>
-                </div>
+        <div className="hidden print:block print-only-packing-sheet print-container bg-gray-200">
+          {a4Pages.map((pageSections, a4Index) => (
+            <div key={a4Index} className="a4-print-page">
+              
+              {/* TOP HALF OF A4 */}
+              <div className="a5-container border-b-2 border-dashed border-gray-400">
+                {pageSections[0] === 'COVER' ? (
+                  <MailingCover order={selectedOrder} storeSettings={storeSettings} mailingBgUrl={mailingBgUrl} billLogoExt={billLogoExt} imgTimestamp={imgTimestamp} />
+                ) : (
+                  <RotatedA5Bill order={selectedOrder} pageData={pageSections[0]} storeSettings={storeSettings} pageIndex={billPages.indexOf(pageSections[0]) + 1} totalPages={billPages.length} logoUrl={logoUrl} />
+                )}
               </div>
 
-              <div className="border-t-2 border-black pt-4 flex justify-between items-end bg-white/80 p-3 rounded-xl">
-                <div>
-                  <p className="text-xs uppercase font-bold text-gray-500">Order Ref</p>
-                  <p className="text-xl font-bold">#{selectedOrder.id.slice(0, 8).toUpperCase()}</p>
-                </div>
-                <div className="border-2 border-black p-2 font-bold text-sm uppercase px-4 text-center bg-white rounded-lg">
-                  URGENT<br/>
-                  <span className="text-xs normal-case font-semibold">COVID / Standard Handling Instructions apply.</span>
-                </div>
+              {/* BOTTOM HALF OF A4 */}
+              <div className="a5-container">
+                {pageSections[1] ? (
+                  <RotatedA5Bill order={selectedOrder} pageData={pageSections[1]} storeSettings={storeSettings} pageIndex={billPages.indexOf(pageSections[1]) + 1} totalPages={billPages.length} logoUrl={logoUrl} />
+                ) : null}
               </div>
+
             </div>
-          </div>
-
-          {/* BOTTOM A5: Official Invoice */}
-          <div className="a5-portrait-container bg-white text-black">
-            <div className="a5-portrait-bill flex flex-col">
-              <div className="flex justify-between items-start mb-4 border-b border-black pb-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col items-center">
-                    <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain grayscale mb-1" />
-                    <p className="text-[10px] italic text-gray-700 font-serif text-center max-w-[150px]">"{storeSettings.slogan || 'Tota est scientia'}"</p>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold uppercase">Official Invoice</h2>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold">Order: #{selectedOrder.id.slice(0, 8).toUpperCase()}</p>
-                  <p className="text-sm">Date: {new Date(selectedOrder.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-hidden flex flex-col">
-              <table className="w-full text-left mb-4 text-black border-collapse text-sm">
-                <thead className="border-b-2 border-black uppercase text-[10px] tracking-wider">
-                  <tr>
-                    <th className="py-2">Item</th>
-                    <th className="py-2 text-center">Qty</th>
-                    <th className="py-2 text-right">Price</th>
-                    <th className="py-2 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-300">
-                  {selectedOrder.order_items.map((item, idx) => {
-                    const discount = item.books?.discount_percentage || 0;
-                    return (
-                      <tr key={idx} className="avoid-break">
-                        <td className="py-2 font-medium pr-2 text-xs">{item.books?.title} {discount > 0 ? `(-${discount}%)` : ''}</td>
-                        <td className="py-2 text-center text-xs">{item.quantity}</td>
-                        <td className="py-2 text-right text-xs">{formatPrice(item.price)}</td>
-                        <td className="py-2 text-right font-bold text-xs">{formatPrice(item.price * item.quantity)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <div className="mt-auto flex justify-between items-end border-t-2 border-black pt-4">
-                <div className="flex gap-4 items-end">
-                  <div className="border border-black p-1 w-16 h-16 flex items-center justify-center shrink-0">
-                    <img 
-                      src={supabase.storage.from('web-assets').getPublicUrl('WhGrpQR.png').data.publicUrl} 
-                      onError={(e) => {
-                        const fallbacks = [
-                          'WhGrpQR.jpg', 'WhGrpQR.jpeg', 'WhGrpQR.PNG', 'WhGrpQR.JPG',
-                          'whgrpqr.png', 'whgrpqr.jpg', 'WHGrpQR.png', 'WHGrpQR.jpg',
-                          'WhgrpQR.png', 'WhgrpQR.jpg'
-                        ];
-                        let idx = Number(e.target.dataset.idx || 0);
-                        if (idx < fallbacks.length) {
-                          e.target.dataset.idx = idx + 1;
-                          e.target.src = supabase.storage.from('web-assets').getPublicUrl(fallbacks[idx]).data.publicUrl;
-                        } else {
-                          e.target.style.display = 'none';
-                        }
-                      }}
-                      alt="WhatsApp QR" className="w-full h-full object-contain" 
-                    />
-                  </div>
-                  <div className="flex flex-col justify-end">
-                    <p className="italic text-[10px] text-gray-800 font-serif mb-2 max-w-[150px]">Thank you for your purchase. Embark on Another Literary Journey</p>
-                    <div className="text-xs">
-                      <p className="font-bold uppercase tracking-widest text-gray-600 mb-1">WhatsApp Us</p>
-                      <p className="font-semibold">{storeSettings.phone}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold mb-1 uppercase tracking-widest text-gray-500 text-xs">Payment Status: <span className="text-black">{selectedOrder.payment_status}</span></p>
-                  <p className="text-xs uppercase font-bold text-gray-500 mb-1">Grand Total</p>
-                  <p className="text-2xl font-bold">{formatPrice(selectedOrder.total_amount)}</p>
-                </div>
-              </div>
-            </div>
-            </div>
-          </div>
+          ))}
         </div>
 
 
@@ -1279,7 +1398,7 @@ function OrderManagement() {
           <tbody className="divide-y divide-gray-200">
             {orders.map((order) => (
               <tr key={order.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-mono text-gray-500">#{order.id.slice(0, 8)}</td>
+                <td className="px-6 py-4 font-mono text-gray-500">#{order.display_id || order.id.split('-')[0].toUpperCase()}</td>
                 <td className="px-6 py-4">{new Date(order.created_at).toLocaleDateString()}</td>
                 <td className="px-6 py-4 font-bold text-brand-blue">{formatPrice(order.total_amount)}</td>
                 <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${order.order_status === 'Shipped' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>{order.order_status}</span></td>
@@ -1295,7 +1414,7 @@ function OrderManagement() {
         {orders.map((order) => (
           <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
             <div className="flex justify-between items-center mb-1">
-              <span className="font-mono text-gray-500 font-bold text-xs">#{order.id.slice(0, 8)}</span>
+              <span className="font-mono text-gray-500 font-bold text-xs">#{order.display_id || order.id.split('-')[0].toUpperCase()}</span>
               <span className="text-xs text-gray-500">{new Date(order.created_at).toLocaleDateString()}</span>
             </div>
             <div className="flex justify-between items-center mt-1">
@@ -1567,6 +1686,7 @@ function StoreSettings() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [settings, setSettings] = useState({ name: 'Alexandria Books', slogan: 'Tota est scientia', address: '', phone: '', email: '' });
+  const [orderSequence, setOrderSequence] = useState({ prefix: '', current_value: 0, padding_length: 8 });
   const [notification, setNotification] = useState({ type: '', message: '' });
 
   const showNotification = (type, message) => {
@@ -1580,6 +1700,11 @@ function StoreSettings() {
       const { data, error } = await supabase.from('store_settings').select('*').limit(1).single();
       if (data) setSettings(data);
       else if (error && error.code !== 'PGRST116') console.error(error); // ignore 0 rows error initially
+      
+      const { data: seqData, error: seqError } = await supabase.from('order_sequence').select('*').eq('id', 1).single();
+      if (seqData) setOrderSequence(seqData);
+      else if (seqError && seqError.code !== 'PGRST116') console.error(seqError);
+      
       setLoading(false);
     };
     fetchSettings();
@@ -1644,6 +1769,41 @@ function StoreSettings() {
           </div>
           <button type="submit" disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-3 rounded mt-4 hover:bg-theme-darkest transition-colors cursor-pointer disabled:opacity-50 tracking-widest uppercase text-sm">
             {submitting ? 'Saving...' : 'Save Settings'}
+          </button>
+        </form>
+      </div>
+
+      <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-sm">
+        <h2 className="text-xl font-bold text-brand-blue mb-6 border-b border-gray-200 pb-2">Order ID Configuration</h2>
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          setSubmitting(true);
+          const { error } = await supabase.from('order_sequence').upsert({
+            id: 1,
+            prefix: orderSequence.prefix,
+            current_value: parseInt(orderSequence.current_value) || 0,
+            padding_length: parseInt(orderSequence.padding_length) || 8
+          });
+          setSubmitting(false);
+          if (error) showNotification('error', error.message);
+          else showNotification('success', 'Order Sequence updated successfully.');
+        }} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs uppercase tracking-widest text-theme-medium font-bold mb-2">Prefix</label>
+              <input type="text" value={orderSequence.prefix || ''} onChange={e => setOrderSequence({ ...orderSequence, prefix: e.target.value })} className="w-full bg-slate-50 border border-slate-300 px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium" placeholder="ORD-" />
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-widest text-theme-medium font-bold mb-2">Current Sequence Value</label>
+              <input type="number" value={orderSequence.current_value} onChange={e => setOrderSequence({ ...orderSequence, current_value: e.target.value })} className="w-full bg-slate-50 border border-slate-300 px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium" />
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-widest text-theme-medium font-bold mb-2">Padding Length</label>
+              <input type="number" value={orderSequence.padding_length} onChange={e => setOrderSequence({ ...orderSequence, padding_length: e.target.value })} className="w-full bg-slate-50 border border-slate-300 px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium" />
+            </div>
+          </div>
+          <button type="submit" disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-3 rounded mt-4 hover:bg-theme-darkest transition-colors cursor-pointer disabled:opacity-50 tracking-widest uppercase text-sm">
+            {submitting ? 'Saving...' : 'Save Sequence Config'}
           </button>
         </form>
       </div>

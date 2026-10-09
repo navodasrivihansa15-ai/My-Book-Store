@@ -119,7 +119,10 @@ export default function BookDetails() {
                     <p className="font-semibold text-slate-800 mt-1">N/A</p>
                   )}
                 </div>
-                <div><span className="text-xs font-bold uppercase tracking-widest text-slate-400">Weight</span><p className="font-semibold text-slate-800">{book.weight || 'N/A'}</p></div>
+                <div><span className="text-xs font-bold uppercase tracking-widest text-slate-400">Weight</span><p className="font-semibold text-slate-800">{book.weight_g ? `${book.weight_g}g` : '250g'}</p></div>
+                {book.page_count && (
+                  <div><span className="text-xs font-bold uppercase tracking-widest text-slate-400">Pages</span><p className="font-semibold text-slate-800">{book.page_count}</p></div>
+                )}
               </div>
 
               <div className="flex items-center gap-6 border-y border-gray-200 py-6 my-6">

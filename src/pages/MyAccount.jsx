@@ -305,7 +305,7 @@ function UserOrders({ user }) {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b border-slate-100 md:border-slate-200 pb-4 gap-4">
                 <div>
                   <p className="text-[10px] md:text-xs text-theme-medium font-bold uppercase tracking-wider mb-1">Order ID</p>
-                  <p className="font-mono font-bold text-sm bg-white px-2 py-1 rounded-lg border border-slate-100 md:border-slate-200">#{order.id.slice(0,8)}</p>
+                  <p className="font-mono font-bold text-sm bg-white px-2 py-1 rounded-lg border border-slate-100 md:border-slate-200">#{order.display_id || order.id.split('-')[0].toUpperCase()}</p>
                 </div>
                 <div className="text-left sm:text-right">
                   <p className="text-[10px] md:text-xs text-theme-darkest/50 font-bold uppercase tracking-wider mb-1">Placed On</p>
@@ -478,11 +478,16 @@ function UserOrders({ user }) {
                 <div className="w-full sm:w-1/2">
                   <div className="flex justify-between py-2 text-sm text-gray-600">
                     <span>Subtotal</span>
-                    <span>{formatPrice(selectedBill.total_amount)}</span>
+                    <span>{formatPrice(selectedBill.total_amount - (selectedBill.shipping_fee || 0))}</span>
                   </div>
-                  <div className="flex justify-between py-2 text-sm text-gray-600 border-b border-gray-200">
-                    <span>Delivery Fee</span>
-                    <span>Rs. 0.00</span>
+                  <div className="flex justify-between py-2 text-sm text-gray-600 border-b border-gray-200 items-start">
+                    <div className="flex flex-col">
+                      <span>Delivery Fee</span>
+                      {selectedBill.shipping_breakdown && (
+                        <div className="text-xs text-gray-500 mt-1 font-medium">Breakdown: {selectedBill.shipping_breakdown}</div>
+                      )}
+                    </div>
+                    <span>{formatPrice(selectedBill.shipping_fee || 0)}</span>
                   </div>
                   <div className="flex justify-between py-3 text-lg font-bold text-theme-deep">
                     <span>Grand Total</span>
@@ -506,7 +511,7 @@ function UserOrders({ user }) {
           <div className="bg-white rounded-2xl shadow-2xl w-[95%] max-w-md p-6 relative">
             <button onClick={() => setEditDeliveryModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer"><X size={20}/></button>
             <h2 className="text-xl font-bold text-theme-deep mb-2 flex items-center gap-2"><Edit2 size={20}/> Edit Delivery Details</h2>
-            <p className="text-sm text-gray-600 mb-6">Update where we should deliver Order #{selectedOrderForEdit.id.slice(0,8).toUpperCase()}.</p>
+            <p className="text-sm text-gray-600 mb-6">Update where we should deliver Order #{selectedOrderForEdit.display_id || selectedOrderForEdit.id.split('-')[0].toUpperCase()}.</p>
 
             <div className="space-y-4 mb-6">
               <div>

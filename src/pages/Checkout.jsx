@@ -24,6 +24,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [placedOrderId, setPlacedOrderId] = useState(null);
 
   const [bankAccounts, setBankAccounts] = useState([]);
   const [qrUrl, setQrUrl] = useState(null);
@@ -33,6 +34,7 @@ export default function Checkout() {
   const [shippingRates, setShippingRates] = useState({ speed: null, normal: null, sl_post_cod: null });
   const [shippingCost, setShippingCost] = useState(0);
   const [codBreakdown, setCodBreakdown] = useState(null);
+  const [shippingBreakdownStr, setShippingBreakdownStr] = useState('');
 
   useEffect(() => {
     const fetchRates = async () => {
@@ -53,7 +55,21 @@ export default function Checkout() {
   useEffect(() => {
     let cost = 0;
     setCodBreakdown(null);
-    const weight = cart.reduce((totalWeight, item) => totalWeight + ((item.weight || item.weight_g || 250) * item.quantity), 0);
+    // 1. Calculate pure Subtotal (Order Value before shipping)
+    const cartSubtotal = cart.reduce((sum, item) => {
+      const itemPrice = Number(item.price) || Number(item.books?.price) || Number(item.product?.price) || 0;
+      return sum + (itemPrice * item.quantity);
+    }, 0);
+
+    // 2. Calculate accurate Total Weight
+    const totalWeightGrams = cart.reduce((totalWeight, item) => {
+      const itemWeight = Number(item.weight_g) || Number(item.books?.weight_g) || Number(item.product?.weight_g) || 250;
+      return totalWeight + (itemWeight * item.quantity);
+    }, 0);
+
+    // Debugging logs for the developer tool
+    console.log("Calculated Subtotal:", cartSubtotal);
+    console.log("Calculated Weight (g):", totalWeightGrams);
 
     if (paymentMethod === 'COD') {
       if (shippingMethod !== 'sl_post_cod') {
@@ -65,28 +81,29 @@ export default function Checkout() {
       // Part 1: Weight Charge
       let weightCharge = 0;
       if (config.weight_tiers && config.weight_tiers.length > 0) {
-        const sortedWeightTiers = [...config.weight_tiers].sort((a, b) => a.max_weight - b.max_weight);
-        let wTier = sortedWeightTiers.find(t => weight <= t.max_weight);
-        if (wTier) {
-          weightCharge = wTier.price;
-        } else {
-          const maxWTier = sortedWeightTiers[sortedWeightTiers.length - 1];
-          const extraWCost = Math.ceil((weight - maxWTier.max_weight) / config.extra_weight) * config.extra_price;
-          weightCharge = maxWTier.price + extraWCost;
+        const matchingWeightTier = [...config.weight_tiers]
+          .sort((a, b) => a.max_weight - b.max_weight)
+          .find(tier => totalWeightGrams <= tier.max_weight);
+
+        weightCharge = matchingWeightTier ? matchingWeightTier.price : 0;
+
+        // If weight exceeds the max defined tier
+        const maxDefinedWeight = Math.max(...config.weight_tiers.map(t => t.max_weight));
+        if (totalWeightGrams > maxDefinedWeight) {
+          const extraWeight = totalWeightGrams - maxDefinedWeight;
+          const extraSteps = Math.ceil(extraWeight / config.extra_weight);
+          weightCharge = config.weight_tiers.find(t => t.max_weight === maxDefinedWeight).price + (extraSteps * config.extra_price);
         }
       }
 
       // Part 2: Value Charge
       let valueCharge = 0;
       if (config.value_tiers && config.value_tiers.length > 0) {
-        const cartTotal = total;
-        const sortedValueTiers = [...config.value_tiers].sort((a, b) => a.max_value - b.max_value);
-        let vTier = sortedValueTiers.find(t => cartTotal <= t.max_value);
-        if (vTier) {
-          valueCharge = vTier.price;
-        } else {
-          valueCharge = config.max_value_price;
-        }
+        const matchingValueTier = [...config.value_tiers]
+          .sort((a, b) => a.max_value - b.max_value) // Ensure ascending order
+          .find(tier => cartSubtotal <= tier.max_value);
+
+        valueCharge = matchingValueTier ? matchingValueTier.price : config.max_value_price;
       }
 
       // Part 3: Service Charge
@@ -94,6 +111,7 @@ export default function Checkout() {
 
       cost = weightCharge + valueCharge + serviceCharge;
       setCodBreakdown({ weightCharge, valueCharge, serviceCharge });
+      setShippingBreakdownStr(`Weight: Rs.${weightCharge} | Value: Rs.${valueCharge} | Service: Rs.${serviceCharge}`);
       setShippingCost(cost);
       return;
     }
@@ -107,27 +125,31 @@ export default function Checkout() {
 
     if (shippingMethod === 'speed') {
       const config = shippingRates.speed;
-      if (weight <= config.base_weight) {
+      if (totalWeightGrams <= config.base_weight) {
         cost = config.base_price;
+        setShippingBreakdownStr(`Base: Rs.${cost} (${totalWeightGrams}g)`);
       } else {
-        const extraCost = Math.ceil((weight - config.base_weight) / config.extra_weight) * config.extra_price;
+        const extraCost = Math.ceil((totalWeightGrams - config.base_weight) / config.extra_weight) * config.extra_price;
         cost = config.base_price + extraCost;
+        setShippingBreakdownStr(`Base: Rs.${config.base_price} | Extra: Rs.${extraCost} (${totalWeightGrams}g)`);
       }
     } else if (shippingMethod === 'normal') {
       const config = shippingRates.normal;
       const sortedTiers = [...config.tiers].sort((a, b) => a.max_weight - b.max_weight);
-      let tierFound = sortedTiers.find(t => weight <= t.max_weight);
+      let tierFound = sortedTiers.find(t => totalWeightGrams <= t.max_weight);
       
       if (tierFound) {
         cost = tierFound.price;
+        setShippingBreakdownStr(`Base: Rs.${cost} (${totalWeightGrams}g)`);
       } else {
         const maxTier = sortedTiers[sortedTiers.length - 1];
-        const extraCost = Math.ceil((weight - maxTier.max_weight) / config.extra_weight) * config.extra_price;
+        const extraCost = Math.ceil((totalWeightGrams - maxTier.max_weight) / config.extra_weight) * config.extra_price;
         cost = maxTier.price + extraCost;
+        setShippingBreakdownStr(`Base: Rs.${maxTier.price} | Extra: Rs.${extraCost} (${totalWeightGrams}g)`);
       }
     }
     setShippingCost(cost);
-  }, [shippingMethod, paymentMethod, cart, shippingRates, total]);
+  }, [shippingMethod, paymentMethod, cart, shippingRates]);
 
   useEffect(() => {
     const fetchPaymentInfo = async () => {
@@ -212,6 +234,8 @@ export default function Checkout() {
         billing_address: sameAsShipping ? shippingAddress : billingAddress,
         contact_number: contactNumber,
         total_amount: total + shippingCost,
+        shipping_fee: shippingCost,
+        shipping_breakdown: shippingBreakdownStr,
         payment_method: paymentMethod,
         payment_status: paymentMethod === 'COD' ? 'Pending' : 'Pending Verification',
         payment_slip_url,
@@ -231,6 +255,8 @@ export default function Checkout() {
 
       if (itemsError) throw new Error(itemsError.message);
 
+      const displayId = order.display_id || order.id.split('-')[0].toUpperCase();
+      setPlacedOrderId(displayId);
       clearCart();
       setSuccess(true);
     } catch (err) {
@@ -248,6 +274,8 @@ export default function Checkout() {
           <h2 className="text-3xl font-bold text-theme-deep mb-4">Order Confirmed</h2>
           <p className="text-theme-darkest/70 tracking-wide mb-8">
             Thank you for your purchase. Your order has been successfully placed and is now being processed.
+            <br/><br/>
+            <span className="font-bold text-theme-deep text-lg">Order ID: #{placedOrderId}</span>
           </p>
           <button onClick={() => navigate('/account')} className="bg-theme-deep text-theme-bg px-8 py-3 rounded-full hover:bg-theme-darkest transition-colors uppercase tracking-widest text-sm font-bold shadow-md cursor-pointer">
             View My Orders
