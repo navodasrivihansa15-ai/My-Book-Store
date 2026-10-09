@@ -102,7 +102,7 @@ export default function Scanner() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col relative z-[50]">
+    <div className="flex flex-col h-screen w-full bg-gray-900 text-white overflow-hidden relative z-[50]">
       <AnimatePresence>
         {notification.message && (
           <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }} className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 bg-green-500 text-white whitespace-nowrap">
@@ -127,7 +127,7 @@ export default function Scanner() {
         )}
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-4 bg-black">
+      <div className="flex-1 flex flex-col items-center overflow-y-auto p-4 bg-black">
         {/* TARGET TOGGLE */}
         <div className="flex bg-slate-900 rounded-xl p-1 mb-6 w-full max-w-md border border-slate-800">
           <button 

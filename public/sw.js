@@ -1,10 +1,12 @@
-const CACHE_NAME = 'scanner-pwa-v1';
-
-self.addEventListener('install', (event) => {
+self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
-self.addEventListener('fetch', (event) => {
-  // A simple pass-through fetch is enough to pass the PWA install criteria
-  event.respondWith(fetch(event.request));
+self.addEventListener('activate', (e) => {
+  e.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', (e) => {
+  // Simple pass-through fetch to satisfy PWA requirements
+  e.respondWith(fetch(e.request).catch(() => new Response("Offline mode")));
 });

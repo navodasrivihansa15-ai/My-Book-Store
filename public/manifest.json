@@ -1,11 +1,10 @@
 {
-  "name": "Store POS Scanner",
+  "name": "Store Scanner",
   "short_name": "Scanner",
-  "description": "Wireless Barcode Scanner for POS",
   "start_url": "/admin/scanner",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#111827",
+  "theme_color": "#111827",
   "icons": [
     {
       "src": "/icon-192.png",
