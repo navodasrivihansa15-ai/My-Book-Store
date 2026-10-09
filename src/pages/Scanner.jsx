@@ -117,68 +117,183 @@ export default function Scanner() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-gray-900 text-white overflow-hidden relative z-[50]">
+    <div className="flex flex-col h-[100dvh] w-full bg-[#0a0a0f] text-white overflow-hidden relative z-[50] font-sans selection:bg-brand-gold selection:text-black">
+      {/* Background glow effects */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-gold/20 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none" />
+
       <AnimatePresence>
         {notification.message && (
-          <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }} className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 bg-green-500 text-white whitespace-nowrap">
-            <CheckCircle2 size={20}/>
-            {notification.message}
+          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3.5 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.5)] font-bold flex items-center gap-3 backdrop-blur-md border whitespace-nowrap overflow-hidden">
+            {notification.type === 'success' ? (
+              <>
+                <div className="absolute inset-0 bg-green-500/20 backdrop-blur-md" />
+                <div className="absolute inset-0 border border-green-400/50 rounded-full" />
+                <CheckCircle2 size={20} className="text-green-400 relative z-10" />
+                <span className="text-green-100 relative z-10 tracking-wide">{notification.message}</span>
+              </>
+            ) : (
+              <>
+                <div className="absolute inset-0 bg-red-500/20 backdrop-blur-md" />
+                <div className="absolute inset-0 border border-red-400/50 rounded-full" />
+                <span className="text-red-100 relative z-10 tracking-wide">{notification.message}</span>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="p-4 flex items-center justify-between bg-slate-900 border-b border-slate-800">
+      {/* HEADER */}
+      <div className="px-6 py-5 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-4">
-          <Link to="/admin" className="p-2 hover:bg-slate-800 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-400" /></Link>
-          <h1 className="text-xl font-bold tracking-widest text-brand-gold uppercase">Scanner</h1>
+          <Link to="/admin" className="p-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full transition-all shadow-lg active:scale-95">
+            <ChevronLeft size={22} className="text-gray-300" />
+          </Link>
+          <div className="flex flex-col">
+            <h1 className="text-xl md:text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-brand-gold to-yellow-200 bg-clip-text text-transparent">Scanner</h1>
+            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Wireless Link</span>
+          </div>
         </div>
         {deferredPrompt && (
           <button 
             onClick={handleInstallClick}
-            className="flex items-center gap-2 bg-brand-gold text-black px-3 py-1.5 rounded-lg font-bold text-sm hover:bg-yellow-500 transition-colors"
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95"
           >
-            <Download size={16} /> Install App
+            <Download size={16} /> <span className="hidden sm:inline">Install App</span>
           </button>
         )}
       </div>
 
-      <div className="flex-1 flex flex-col items-center overflow-y-auto p-4 bg-black">
+      <div className="flex-1 flex flex-col items-center overflow-y-auto px-4 pb-8 relative z-10 hide-scrollbar">
+        
         {/* TARGET TOGGLE */}
-        <div className="flex bg-slate-900 rounded-xl p-1 mb-6 w-full max-w-md border border-slate-800">
+        <div className="flex bg-white/5 backdrop-blur-xl rounded-2xl p-1.5 mb-8 w-full max-w-md border border-white/10 shadow-2xl relative">
           <button 
             onClick={() => updateScanTarget('POS')}
-            className={`flex-1 py-3 text-sm font-bold uppercase tracking-widest rounded-lg transition-colors ${scanTarget === 'POS' ? 'bg-brand-gold text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}
+            className={`flex-1 py-4 text-xs sm:text-sm font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-500 flex items-center justify-center gap-2 relative overflow-hidden ${scanTarget === 'POS' ? 'text-black shadow-[0_0_30px_rgba(251,191,36,0.3)] scale-[1.02]' : 'text-gray-400 hover:text-white'}`}
           >
-            🛒 Send to POS
+            {scanTarget === 'POS' && <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-500" />}
+            <span className="relative z-10 flex items-center gap-2">🛒 POS</span>
           </button>
           <button 
             onClick={() => updateScanTarget('Inventory')}
-            className={`flex-1 py-3 text-sm font-bold uppercase tracking-widest rounded-lg transition-colors ${scanTarget === 'Inventory' ? 'bg-brand-gold text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}
+            className={`flex-1 py-4 text-xs sm:text-sm font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-500 flex items-center justify-center gap-2 relative overflow-hidden ${scanTarget === 'Inventory' ? 'text-black shadow-[0_0_30px_rgba(251,191,36,0.3)] scale-[1.02]' : 'text-gray-400 hover:text-white'}`}
           >
-            📦 Add to Inventory
+            {scanTarget === 'Inventory' && <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-500" />}
+            <span className="relative z-10 flex items-center gap-2">📦 Inventory</span>
           </button>
         </div>
 
-        <div id="reader" className="w-full max-w-md bg-white rounded-xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border-4 border-slate-800 text-black"></div>
-        <p className="mt-8 text-slate-400 font-medium text-center px-4">Aim the camera at any barcode.<br/>Scans are instantly sent to your selected target.</p>
+        {/* SCANNER CONTAINER */}
+        <div className="relative w-full max-w-md">
+          {/* Scanner frame decor */}
+          <div className="absolute -inset-1 bg-gradient-to-b from-brand-gold/30 to-blue-600/30 rounded-3xl blur-md opacity-70"></div>
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-brand-gold rounded-tl-3xl z-20 pointer-events-none translate-x-[-2px] translate-y-[-2px]"></div>
+          <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-brand-gold rounded-tr-3xl z-20 pointer-events-none translate-x-[2px] translate-y-[-2px]"></div>
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-brand-gold rounded-bl-3xl z-20 pointer-events-none translate-x-[-2px] translate-y-[2px]"></div>
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-brand-gold rounded-br-3xl z-20 pointer-events-none translate-x-[2px] translate-y-[2px]"></div>
+          
+          <div className="bg-[#13141c] rounded-3xl overflow-hidden shadow-2xl relative z-10 border border-white/5 p-2">
+            <div id="reader" className="w-full text-white"></div>
+          </div>
+        </div>
+
+        <p className="mt-8 text-gray-400 font-medium text-center px-6 text-sm leading-relaxed max-w-md">
+          Center the barcode inside the camera view.<br/>
+          <span className="text-brand-gold font-bold">Scans are instantly synchronized.</span>
+        </p>
         
         {/* MANUAL ENTRY */}
-        <div className="mt-8 w-full max-w-md bg-slate-900 p-4 rounded-xl border border-slate-800">
-          <h2 className="text-sm text-slate-400 mb-3 font-bold uppercase tracking-wider">Manual Entry</h2>
-          <form onSubmit={handleManualSubmit} className="flex gap-2">
+        <div className="mt-8 w-full max-w-md bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-2xl">
+          <h2 className="text-xs text-brand-gold mb-4 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></div>
+            Manual Override
+          </h2>
+          <form onSubmit={handleManualSubmit} className="flex gap-3">
             <input 
               type="text" 
-              placeholder="Enter ISBN manually..." 
+              placeholder="Enter barcode / ISBN..." 
               value={manualBarcode}
               onChange={(e) => setManualBarcode(e.target.value)}
-              className="flex-1 bg-black border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-gold transition-colors"
+              className="flex-1 bg-black/40 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/50 transition-all placeholder-gray-600 font-medium"
             />
-            <button type="submit" className="bg-brand-gold text-black px-6 py-3 rounded-lg font-bold hover:bg-yellow-500 transition-colors">
+            <button type="submit" className="bg-gradient-to-r from-amber-400 to-yellow-500 text-black px-6 py-4 rounded-xl font-black uppercase tracking-wider text-sm shadow-[0_5px_15px_rgba(251,191,36,0.3)] hover:shadow-[0_5px_25px_rgba(251,191,36,0.5)] active:scale-95 transition-all">
               Send
             </button>
           </form>
         </div>
       </div>
+
+      {/* CUSTOM CSS FOR HTML5 QR CODE SCANNER */}
+      <style>{`
+        #reader {
+          border: none !important;
+          background: transparent !important;
+        }
+        #reader img {
+          display: none !important;
+        }
+        #reader button {
+          background: rgba(255, 255, 255, 0.1) !important;
+          color: white !important;
+          border-radius: 12px !important;
+          padding: 12px 24px !important;
+          font-weight: 800 !important;
+          font-size: 12px !important;
+          border: 1px solid rgba(255,255,255,0.1) !important;
+          text-transform: uppercase !important;
+          letter-spacing: 2px !important;
+          margin-top: 15px !important;
+          margin-bottom: 10px !important;
+          backdrop-filter: blur(10px) !important;
+          transition: all 0.3s ease !important;
+          cursor: pointer !important;
+          width: 100% !important;
+        }
+        #reader button:active {
+          transform: scale(0.98) !important;
+          background: rgba(255, 255, 255, 0.15) !important;
+        }
+        #reader select {
+          background: rgba(0,0,0,0.5) !important;
+          color: white !important;
+          border: 1px solid rgba(255,255,255,0.2) !important;
+          border-radius: 12px !important;
+          padding: 12px 16px !important;
+          margin-bottom: 15px !important;
+          outline: none !important;
+          width: 100% !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          appearance: none !important;
+        }
+        #reader a {
+          display: none !important;
+        }
+        #reader__dashboard_section_csr span {
+          color: #94a3b8 !important;
+          font-size: 12px !important;
+          font-weight: 600 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 1px !important;
+          display: block !important;
+          margin-bottom: 8px !important;
+        }
+        #reader__scan_region {
+          border-radius: 20px !important;
+          overflow: hidden !important;
+          background: #000 !important;
+          position: relative !important;
+        }
+        #reader__scan_region video {
+          object-fit: cover !important;
+          border-radius: 20px !important;
+        }
+        /* Hide the annoying 'Powered by' text */
+        #reader__dashboard_section_swaplink {
+          display: none !important;
+        }
+      `}</style>
     </div>
   );
 }
