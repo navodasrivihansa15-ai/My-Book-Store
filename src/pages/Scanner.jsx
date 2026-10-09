@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Scanner() {
   const [notification, setNotification] = useState({ type: '', message: '' });
+  const [manualBarcode, setManualBarcode] = useState('');
   const lastScanTime = useRef(0);
 
   const showNotification = (type, message) => {
@@ -31,6 +32,25 @@ export default function Scanner() {
     }
   };
 
+  const processScan = async (barcodeText) => {
+    const now = Date.now();
+    if (now - lastScanTime.current < 1500) return; // Debounce 1.5s
+    lastScanTime.current = now;
+
+    playBeep();
+    showNotification('success', 'Sent to POS!');
+
+    const { error } = await supabase.from('pos_scans').insert({ barcode: barcodeText });
+    if (error) console.error("Error inserting scan:", error);
+  };
+
+  const handleManualSubmit = (e) => {
+    e.preventDefault();
+    if (!manualBarcode.trim()) return;
+    processScan(manualBarcode.trim());
+    setManualBarcode('');
+  };
+
   useEffect(() => {
     const scanner = new Html5QrcodeScanner("reader", { 
       fps: 10, 
@@ -40,16 +60,7 @@ export default function Scanner() {
     }, false);
 
     scanner.render(async (decodedText) => {
-      const now = Date.now();
-      if (now - lastScanTime.current < 1500) return; // Debounce 1.5s
-      lastScanTime.current = now;
-
-      playBeep();
-      showNotification('success', 'Sent to POS!');
-
-      const { error } = await supabase.from('pos_scans').insert({ barcode: decodedText });
-      if (error) console.error("Error inserting scan:", error);
-
+      await processScan(decodedText);
     }, (err) => {
       // ignore frame errors
     });
@@ -78,6 +89,23 @@ export default function Scanner() {
       <div className="flex-1 flex flex-col items-center justify-center p-4 bg-black">
         <div id="reader" className="w-full max-w-md bg-white rounded-xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border-4 border-slate-800 text-black"></div>
         <p className="mt-8 text-slate-400 font-medium text-center px-4">Aim the camera at any barcode.<br/>Scans are instantly sent to your PC's POS.</p>
+        
+        {/* MANUAL ENTRY */}
+        <div className="mt-8 w-full max-w-md bg-slate-900 p-4 rounded-xl border border-slate-800">
+          <h2 className="text-sm text-slate-400 mb-3 font-bold uppercase tracking-wider">Manual Entry</h2>
+          <form onSubmit={handleManualSubmit} className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Enter ISBN manually..." 
+              value={manualBarcode}
+              onChange={(e) => setManualBarcode(e.target.value)}
+              className="flex-1 bg-black border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand-gold transition-colors"
+            />
+            <button type="submit" className="bg-brand-gold text-black px-6 py-3 rounded-lg font-bold hover:bg-yellow-500 transition-colors">
+              Send
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

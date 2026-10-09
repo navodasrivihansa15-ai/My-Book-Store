@@ -5,6 +5,7 @@ import { Search, Plus, Minus, Trash2, Printer, CheckCircle2, ChevronLeft, Credit
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { formatPrice } from '../lib/utils';
 import { Link } from 'react-router-dom';
+import AddBookModal from '../components/AddBookModal';
 
 export default function POS() {
   const [books, setBooks] = useState([]);
@@ -19,6 +20,8 @@ export default function POS() {
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [showScanner, setShowScanner] = useState(false);
   const [showMobileQR, setShowMobileQR] = useState(false);
+  const [isAddBookModalOpen, setIsAddBookModalOpen] = useState(false);
+  const [unrecognizedBarcode, setUnrecognizedBarcode] = useState('');
   const mobileScannerUrl = window.location.origin + '/admin/scanner';
 
   const searchInputRef = useRef(null);
@@ -88,7 +91,23 @@ export default function POS() {
           } catch (e) {}
 
         } else {
-          showNotification('error', 'Mobile Scan: Book not found');
+          // NOT FOUND
+          try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            oscillator.start();
+            setTimeout(() => oscillator.stop(), 300);
+          } catch (e) {}
+
+          setUnrecognizedBarcode(scannedBarcode);
+          setIsAddBookModalOpen(true);
+          showNotification('error', 'New Book Detected! Please add details.');
         }
 
         // Cleanup the scan row
@@ -125,6 +144,13 @@ export default function POS() {
     if (settingsData) setStoreSettings(settingsData);
     setLoading(false);
     if (searchInputRef.current) searchInputRef.current.focus();
+  };
+
+  const onAddBookSuccess = (newBook) => {
+    setBooks(prev => [...prev, newBook]);
+    setFilteredBooks(prev => [...prev, newBook]);
+    addToCart(newBook);
+    showNotification('success', 'New book added to cart!');
   };
 
   const addToCart = (book) => {
@@ -221,8 +247,10 @@ export default function POS() {
       showNotification('success', 'Book added via barcode!');
       if (searchInputRef.current) searchInputRef.current.focus();
     } else {
-      showNotification('error', 'Book not found for this barcode');
       setSearch('');
+      setUnrecognizedBarcode(scannedBarcode);
+      setIsAddBookModalOpen(true);
+      showNotification('error', 'New Book Detected! Please add details.');
       if (searchInputRef.current) searchInputRef.current.focus();
     }
   };
@@ -322,6 +350,14 @@ export default function POS() {
             </div>
           </div>
         )}
+        
+        {/* ADD BOOK MODAL */}
+        <AddBookModal 
+          isOpen={isAddBookModalOpen} 
+          onClose={() => setIsAddBookModalOpen(false)} 
+          initialBarcode={unrecognizedBarcode} 
+          onSuccess={onAddBookSuccess} 
+        />
         
         <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredBooks.map(book => (
