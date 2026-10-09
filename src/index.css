@@ -137,3 +137,41 @@ body {
     page-break-inside: avoid;
   }
 }
+
+/* POS RECEIPT PRINT LOGIC */
+/* 1. Hide the receipt entirely on normal screens */
+@media screen {
+  .print-only-pos-receipt {
+    display: none !important;
+  }
+}
+
+/* 2. Print overrides */
+@media print {
+  /* Hide the entire normal POS UI */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Force the receipt and its children to be visible */
+  .print-only-pos-receipt, .print-only-pos-receipt * {
+    visibility: visible !important;
+  }
+  
+  /* Position the receipt at the absolute top left of the paper */
+  .print-only-pos-receipt {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Optimize page size for Thermal Printer */
+  @page {
+    size: 80mm auto;
+    margin: 0mm;
+  }
+}

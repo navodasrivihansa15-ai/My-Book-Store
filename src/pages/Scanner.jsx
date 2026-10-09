@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { CheckCircle2, ChevronLeft } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Scanner() {
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [manualBarcode, setManualBarcode] = useState('');
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const lastScanTime = useRef(0);
 
   const showNotification = (type, message) => {
@@ -70,6 +71,28 @@ export default function Scanner() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col relative z-[999999]">
       <AnimatePresence>
@@ -81,9 +104,19 @@ export default function Scanner() {
         )}
       </AnimatePresence>
 
-      <div className="p-4 flex items-center gap-4 bg-slate-900 border-b border-slate-800">
-        <Link to="/admin" className="p-2 hover:bg-slate-800 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-400" /></Link>
-        <h1 className="text-xl font-bold tracking-widest text-brand-gold uppercase">Mobile Scanner</h1>
+      <div className="p-4 flex items-center justify-between bg-slate-900 border-b border-slate-800">
+        <div className="flex items-center gap-4">
+          <Link to="/admin" className="p-2 hover:bg-slate-800 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-400" /></Link>
+          <h1 className="text-xl font-bold tracking-widest text-brand-gold uppercase">Scanner</h1>
+        </div>
+        {deferredPrompt && (
+          <button 
+            onClick={handleInstallClick}
+            className="flex items-center gap-2 bg-brand-gold text-black px-3 py-1.5 rounded-lg font-bold text-sm hover:bg-yellow-500 transition-colors"
+          >
+            <Download size={16} /> Install App
+          </button>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-4 bg-black">

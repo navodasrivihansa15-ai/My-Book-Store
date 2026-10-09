@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Minus, Trash2, Printer, CheckCircle2, ChevronLeft, CreditCard, Banknote, Camera, X, Smartphone } from 'lucide-react';
@@ -15,7 +16,7 @@ export default function POS() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash'); // Cash or Card
-  const [receiptData, setReceiptData] = useState(null);
+  const [completedOrder, setCompletedOrder] = useState(null);
   const [storeSettings, setStoreSettings] = useState({ name: 'Alexandria Books', address: '', phone: '' });
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [showScanner, setShowScanner] = useState(false);
@@ -191,23 +192,58 @@ export default function POS() {
 
       const displayId = order.display_id || order.id.split('-')[0].toUpperCase();
       
-      // 1. Save the finalized order details to the receipt state
-      setReceiptData({ ...order, display_id: displayId, items: cart });
+      // 1. Save the finalized order details to the completedOrder state
+      setCompletedOrder({ ...order, display_id: displayId, items: cart });
       
       // 2. Clear the POS cart for the next customer
       setCart([]);
       
       fetchData(); // Refresh stock
-      showNotification('success', 'Sale completed successfully!');
       
-      // 3. Crucial Fix: Use setTimeout to allow React to render the receipt DOM BEFORE triggering print
+      // 3. Keep the auto-print on first load
       setTimeout(() => {
         window.print();
-        // We do not clear receiptData immediately here to avoid blank print previews on some devices
-      }, 500); // 500ms delay is usually perfect for DOM updates
+      }, 500);
 
     } catch (err) {
       showNotification('error', "Error processing sale: " + err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleVoidSale = async () => {
+    if (!completedOrder) return;
+    if (!window.confirm('Are you sure you want to cancel this sale and restock the items?')) return;
+    
+    setProcessing(true);
+    try {
+      // 1. Mark order as cancelled
+      const { error: cancelError } = await supabase.from('orders')
+        .update({ order_status: 'Cancelled' })
+        .eq('id', completedOrder.id);
+        
+      if (cancelError) throw new Error(cancelError.message);
+
+      // 2. Restock items
+      for (const item of completedOrder.items) {
+        // We increment stock back based on current stock in DB to avoid race conditions
+        const { data: currentBook } = await supabase.from('books').select('stock, sales_count').eq('id', item.book.id).single();
+        if (currentBook) {
+          await supabase.from('books')
+            .update({ 
+              stock: currentBook.stock + item.quantity, 
+              sales_count: Math.max(0, (currentBook.sales_count || 0) - item.quantity) 
+            })
+            .eq('id', item.book.id);
+        }
+      }
+
+      showNotification('success', 'Sale Cancelled & Stock Restored');
+      setCompletedOrder(null);
+      fetchData();
+    } catch (err) {
+      showNotification('error', "Error voiding sale: " + err.message);
     } finally {
       setProcessing(false);
     }
@@ -285,8 +321,29 @@ export default function POS() {
         )}
       </AnimatePresence>
 
-      {/* LEFT PANEL: PRODUCTS */}
-      <div className="flex-1 flex flex-col h-full bg-white border-r border-gray-200">
+      {/* TRANSACTION SUCCESS OVERLAY */}
+      {completedOrder ? (
+        <div className="flex-1 w-full h-full flex flex-col items-center justify-center bg-white z-[50]">
+          <CheckCircle2 size={80} className="text-green-500 mb-6" />
+          <h1 className="text-4xl font-bold font-serif mb-2 text-theme-deep">Sale Completed Successfully!</h1>
+          <p className="text-xl text-gray-500 mb-8">Order <span className="font-bold text-gray-800">#{completedOrder.display_id}</span> • Grand Total: <span className="font-bold text-theme-deep text-2xl ml-1">Rs. {completedOrder.total_amount}</span></p>
+          
+          <div className="flex flex-col gap-4 w-full max-w-sm">
+            <button onClick={() => window.print()} className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-brand-blue text-white shadow-lg hover:bg-brand-blue/90 transition-colors text-lg cursor-pointer">
+              <Printer size={24} /> Reprint Receipt
+            </button>
+            <button onClick={handleVoidSale} disabled={processing} className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-red-500 text-white shadow-lg hover:bg-red-600 transition-colors text-lg cursor-pointer disabled:opacity-50">
+              <Trash2 size={24} /> {processing ? 'Voiding...' : 'Void / Cancel Sale'}
+            </button>
+            <button onClick={() => setCompletedOrder(null)} className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors text-lg cursor-pointer">
+              <Plus size={24} /> Start New Sale
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* LEFT PANEL: PRODUCTS */}
+          <div className="flex-1 flex flex-col h-full bg-white border-r border-gray-200">
         <div className="p-4 border-b border-gray-200 flex items-center gap-4 bg-gray-50">
           <Link to="/admin" className="p-2 hover:bg-gray-200 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-600" /></Link>
           <div className="relative flex-1 flex gap-2">
@@ -437,21 +494,8 @@ export default function POS() {
         </div>
       </div>
 
-      {/* HIDDEN PRINT COMPONENT */}
-      <style>
-        {`
-          .print-only-pos-receipt { display: none; }
-          @media print {
-            @page { size: 80mm auto; margin: 0; }
-            body { width: 80mm; margin: 0; font-family: monospace; font-size: 12px; color: black; -webkit-print-color-adjust: exact; }
-            .print-only-pos-receipt { display: block !important; visibility: visible; position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; background: white; z-index: 99999; }
-            .dashed-line { border-bottom: 1px dashed black; margin: 5px 0; }
-            body * { visibility: hidden; }
-            .print-only-pos-receipt * { visibility: visible; }
-          }
-        `}
-      </style>
-      {receiptData && (
+      {/* PRINT RECEIPT DATA - TELEPORTED TO BODY TO AVOID DOM CLIPPING */}
+      {receiptData && createPortal(
         <div className="print-only-pos-receipt">
           <div className="text-center mb-4">
             <h1 className="font-bold text-[16px] leading-tight">{storeSettings.name}</h1>
@@ -460,7 +504,7 @@ export default function POS() {
           </div>
           <div className="dashed-line"></div>
           <div className="text-[12px] mb-2 flex justify-between">
-            <span>Order: #{receiptData.display_id}</span>
+            <span>Order: #{completedOrder.display_id}</span>
             <span>{new Date().toLocaleDateString()}</span>
           </div>
           <div className="dashed-line"></div>
@@ -474,7 +518,7 @@ export default function POS() {
               </tr>
             </thead>
             <tbody>
-              {receiptData.items.map((item, idx) => (
+              {completedOrder.items.map((item, idx) => (
                 <tr key={idx}>
                   <td className="py-1 break-words pr-1">{item.book.title}</td>
                   <td className="py-1 text-center align-top">{item.quantity}</td>
@@ -487,11 +531,11 @@ export default function POS() {
           <div className="dashed-line"></div>
           <div className="flex justify-between font-bold text-[14px] my-2">
             <span>TOTAL</span>
-            <span>Rs. {receiptData.total_amount}</span>
+            <span>Rs. {completedOrder.total_amount}</span>
           </div>
           <div className="flex justify-between text-[12px] my-1">
             <span>Payment Method:</span>
-            <span>{receiptData.payment_method}</span>
+            <span>{completedOrder.payment_method}</span>
           </div>
           <div className="dashed-line"></div>
           
@@ -499,7 +543,8 @@ export default function POS() {
             <p className="font-bold">Thank you for your purchase!</p>
             <p className="mt-1">Powered by Antigravity POS</p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
