@@ -493,9 +493,12 @@ export default function POS() {
           </button>
         </div>
       </div>
+        </>
+      )}
+
 
       {/* PRINT RECEIPT DATA - TELEPORTED TO BODY TO AVOID DOM CLIPPING */}
-      {receiptData && createPortal(
+      {completedOrder && createPortal(
         <div className="print-only-pos-receipt">
           <div className="text-center mb-4">
             <h1 className="font-bold text-[16px] leading-tight">{storeSettings.name}</h1>
