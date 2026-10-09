@@ -15,7 +15,7 @@ export default function POS() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash'); // Cash or Card
-  const [completedOrder, setCompletedOrder] = useState(null);
+  const [receiptData, setReceiptData] = useState(null);
   const [storeSettings, setStoreSettings] = useState({ name: 'Alexandria Books', address: '', phone: '' });
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [showScanner, setShowScanner] = useState(false);
@@ -190,16 +190,21 @@ export default function POS() {
       }
 
       const displayId = order.display_id || order.id.split('-')[0].toUpperCase();
-      setCompletedOrder({ ...order, display_id: displayId, items: cart });
+      
+      // 1. Save the finalized order details to the receipt state
+      setReceiptData({ ...order, display_id: displayId, items: cart });
+      
+      // 2. Clear the POS cart for the next customer
       setCart([]);
+      
       fetchData(); // Refresh stock
       showNotification('success', 'Sale completed successfully!');
       
-      // Print trigger
+      // 3. Crucial Fix: Use setTimeout to allow React to render the receipt DOM BEFORE triggering print
       setTimeout(() => {
         window.print();
-        setCompletedOrder(null);
-      }, 500);
+        // We do not clear receiptData immediately here to avoid blank print previews on some devices
+      }, 500); // 500ms delay is usually perfect for DOM updates
 
     } catch (err) {
       showNotification('error', "Error processing sale: " + err.message);
@@ -435,17 +440,18 @@ export default function POS() {
       {/* HIDDEN PRINT COMPONENT */}
       <style>
         {`
+          .print-only-pos-receipt { display: none; }
           @media print {
             @page { size: 80mm auto; margin: 0; }
             body { width: 80mm; margin: 0; font-family: monospace; font-size: 12px; color: black; -webkit-print-color-adjust: exact; }
-            .print-only-pos-receipt { visibility: visible; position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; background: white; z-index: 99999; }
+            .print-only-pos-receipt { display: block !important; visibility: visible; position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; background: white; z-index: 99999; }
             .dashed-line { border-bottom: 1px dashed black; margin: 5px 0; }
             body * { visibility: hidden; }
             .print-only-pos-receipt * { visibility: visible; }
           }
         `}
       </style>
-      {completedOrder && (
+      {receiptData && (
         <div className="print-only-pos-receipt">
           <div className="text-center mb-4">
             <h1 className="font-bold text-[16px] leading-tight">{storeSettings.name}</h1>
@@ -454,7 +460,7 @@ export default function POS() {
           </div>
           <div className="dashed-line"></div>
           <div className="text-[12px] mb-2 flex justify-between">
-            <span>Order: #{completedOrder.display_id}</span>
+            <span>Order: #{receiptData.display_id}</span>
             <span>{new Date().toLocaleDateString()}</span>
           </div>
           <div className="dashed-line"></div>
@@ -468,7 +474,7 @@ export default function POS() {
               </tr>
             </thead>
             <tbody>
-              {completedOrder.items.map((item, idx) => (
+              {receiptData.items.map((item, idx) => (
                 <tr key={idx}>
                   <td className="py-1 break-words pr-1">{item.book.title}</td>
                   <td className="py-1 text-center align-top">{item.quantity}</td>
@@ -481,11 +487,11 @@ export default function POS() {
           <div className="dashed-line"></div>
           <div className="flex justify-between font-bold text-[14px] my-2">
             <span>TOTAL</span>
-            <span>Rs. {completedOrder.total_amount}</span>
+            <span>Rs. {receiptData.total_amount}</span>
           </div>
           <div className="flex justify-between text-[12px] my-1">
             <span>Payment Method:</span>
-            <span>{completedOrder.payment_method}</span>
+            <span>{receiptData.payment_method}</span>
           </div>
           <div className="dashed-line"></div>
           
