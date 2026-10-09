@@ -18,6 +18,7 @@ import BookDetails from './pages/BookDetails';
 import ProfilePage from './pages/ProfilePage';
 import MobileExplore from './pages/MobileExplore';
 import POS from './pages/POS';
+import Scanner from './pages/Scanner';
 import { useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -62,6 +63,7 @@ function AnimatedRoutes() {
         <Route path="/publishers/:name" element={<ProfilePage type="publisher" />} />
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/pos" element={<AdminRoute><POS /></AdminRoute>} />
+        <Route path="/admin/scanner" element={<AdminRoute><Scanner /></AdminRoute>} />
         <Route path="/explore" element={<MobileExplore />} />
       </Routes>
     </AnimatePresence>
@@ -70,7 +72,7 @@ function AnimatedRoutes() {
 
 function AppLayout() {
   const location = useLocation();
-  const isPOS = location.pathname.startsWith('/admin/pos');
+  const isPOS = location.pathname.startsWith('/admin/pos') || location.pathname.startsWith('/admin/scanner');
 
   if (isPOS) {
     return <AnimatedRoutes />;

@@ -105,7 +105,7 @@ function InventoryManagement() {
 
   const [formData, setFormData] = useState({
     title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false,
-    translator: '', publisher: '', weight_g: 250, page_count: '', discount_percentage: '', sale_price: ''
+    translator: '', publisher: '', weight_g: 250, page_count: '', barcode: '', discount_percentage: '', sale_price: ''
   });
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -210,6 +210,7 @@ function InventoryManagement() {
         categories: formData.categories, is_featured: formData.is_featured, is_offer: formData.is_offer, is_special: formData.is_special, sales_count: 0,
         translator: formData.translator || null, publisher: formData.publisher || null, weight_g: parseInt(formData.weight_g) || 250,
         page_count: parseInt(formData.page_count) || null,
+        barcode: formData.barcode || null,
         discount_percentage: formData.discount_percentage ? parseFloat(formData.discount_percentage) : 0,
         sale_price: formData.sale_price ? parseFloat(formData.sale_price) : parseFloat(formData.price),
         cover_image_url
@@ -217,7 +218,7 @@ function InventoryManagement() {
 
       if (error) throw new Error(error.message);
       showNotification('success', 'Book added successfully.');
-      setFormData({ title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false, translator: '', publisher: '', weight_g: 250, page_count: '', discount_percentage: '', sale_price: '' });
+      setFormData({ title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false, translator: '', publisher: '', weight_g: 250, page_count: '', barcode: '', discount_percentage: '', sale_price: '' });
       setFile(null); setPreview(null); fetchBooks();
     } catch (err) {
       showNotification('error', err.message);
@@ -314,6 +315,7 @@ function InventoryManagement() {
         categories: editingBook.categories || [], is_featured: editingBook.is_featured, is_offer: editingBook.is_offer, is_special: editingBook.is_special,
         translator: editingBook.translator || null, publisher: editingBook.publisher || null, weight_g: parseInt(editingBook.weight_g) || 250,
         page_count: parseInt(editingBook.page_count) || null,
+        barcode: editingBook.barcode || null,
         discount_percentage: editingBook.discount_percentage ? parseFloat(editingBook.discount_percentage) : 0,
         sale_price: editingBook.sale_price ? parseFloat(editingBook.sale_price) : parseFloat(editingBook.price),
         cover_image_url
@@ -345,6 +347,7 @@ function InventoryManagement() {
           <div className="lg:col-span-2 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Book Title" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2.5 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+              <input type="text" name="barcode" value={formData.barcode || ''} onChange={handleChange} placeholder="Barcode / ISBN" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2.5 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
 
               <div className="flex gap-2">
                 <select name="author" value={formData.author || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
@@ -496,6 +499,7 @@ function InventoryManagement() {
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
                   <input required type="text" name="title" value={editingBook.title} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+                  <input type="text" name="barcode" value={editingBook.barcode || ''} onChange={(e) => handleChange(e, true)} placeholder="Barcode / ISBN" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
 
                   <select name="author" value={editingBook.author || ''} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
                     <option value="">Select Author (Optional)</option>

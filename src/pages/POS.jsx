@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Minus, Trash2, Printer, CheckCircle2, ChevronLeft, CreditCard, Banknote } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Printer, CheckCircle2, ChevronLeft, CreditCard, Banknote, Camera, X, Smartphone } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { formatPrice } from '../lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -16,8 +17,16 @@ export default function POS() {
   const [completedOrder, setCompletedOrder] = useState(null);
   const [storeSettings, setStoreSettings] = useState({ name: 'Alexandria Books', address: '', phone: '' });
   const [notification, setNotification] = useState({ type: '', message: '' });
+  const [showScanner, setShowScanner] = useState(false);
+  const [showMobileQR, setShowMobileQR] = useState(false);
+  const mobileScannerUrl = window.location.origin + '/admin/scanner';
 
   const searchInputRef = useRef(null);
+  const booksRef = useRef(books);
+
+  useEffect(() => {
+    booksRef.current = books;
+  }, [books]);
 
   const showNotification = (type, message) => {
     setNotification({ type, message });
@@ -29,12 +38,77 @@ export default function POS() {
   }, []);
 
   useEffect(() => {
+    if (showScanner) {
+      const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+      scanner.render((text) => {
+        scanner.clear();
+        setShowScanner(false);
+        handleBarcodeScan(text);
+      }, (err) => {
+        // ignore
+      });
+      return () => {
+        scanner.clear().catch(() => {});
+      };
+    }
+  }, [showScanner]);
+
+  // REAL-TIME LISTENER FOR MOBILE SCANNER
+  useEffect(() => {
+    const channel = supabase
+      .channel('pos_scans_channel')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pos_scans' }, async (payload) => {
+        const scannedBarcode = payload.new.barcode;
+        const scanId = payload.new.id;
+        
+        const book = booksRef.current.find(b => b.barcode === scannedBarcode);
+        if (book) {
+          setCart(prev => {
+            const existing = prev.find(item => item.book.id === book.id);
+            if (existing) {
+              if (existing.quantity >= book.stock) return prev;
+              return prev.map(item => item.book.id === book.id ? { ...item, quantity: item.quantity + 1 } : item);
+            }
+            return [...prev, { book, quantity: 1, price: book.sale_price || book.price }];
+          });
+          
+          showNotification('success', 'Mobile Scan: Added ' + book.title);
+          
+          try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            oscillator.start();
+            setTimeout(() => oscillator.stop(), 150);
+          } catch (e) {}
+
+        } else {
+          showNotification('error', 'Mobile Scan: Book not found');
+        }
+
+        // Cleanup the scan row
+        await supabase.from('pos_scans').delete().eq('id', scanId);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
     if (search) {
       const lower = search.toLowerCase();
       setFilteredBooks(books.filter(b => 
         b.title.toLowerCase().includes(lower) || 
         b.author?.toLowerCase().includes(lower) || 
-        b.id.includes(lower)
+        b.id.includes(lower) ||
+        b.barcode?.toLowerCase() === lower
       ));
     } else {
       setFilteredBooks(books);
@@ -139,11 +213,34 @@ export default function POS() {
     }
   };
 
-  const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter' && filteredBooks.length > 0) {
-      // Auto-add first matching book if barcode scanner hit Enter
-      addToCart(filteredBooks[0]);
+  const handleBarcodeScan = (scannedBarcode) => {
+    const book = books.find(b => b.barcode === scannedBarcode);
+    if (book) {
+      addToCart(book);
       setSearch('');
+      showNotification('success', 'Book added via barcode!');
+      if (searchInputRef.current) searchInputRef.current.focus();
+    } else {
+      showNotification('error', 'Book not found for this barcode');
+      setSearch('');
+      if (searchInputRef.current) searchInputRef.current.focus();
+    }
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (search.trim()) {
+        const exactBarcodeBook = books.find(b => b.barcode === search.trim());
+        if (exactBarcodeBook) {
+          handleBarcodeScan(search.trim());
+        } else if (filteredBooks.length > 0) {
+          addToCart(filteredBooks[0]);
+          setSearch('');
+        } else {
+          showNotification('error', 'Book not found');
+          setSearch('');
+        }
+      }
     }
   };
 
@@ -165,20 +262,66 @@ export default function POS() {
       <div className="flex-1 flex flex-col h-full bg-white border-r border-gray-200">
         <div className="p-4 border-b border-gray-200 flex items-center gap-4 bg-gray-50">
           <Link to="/admin" className="p-2 hover:bg-gray-200 rounded-full transition-colors"><ChevronLeft size={24} className="text-gray-600" /></Link>
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input 
-              ref={searchInputRef}
-              type="text" 
-              autoFocus
-              placeholder="Scan Barcode or Search Title..." 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              className="w-full bg-white border-2 border-gray-300 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-theme-medium text-lg font-medium transition-colors"
-            />
+          <div className="relative flex-1 flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input 
+                ref={searchInputRef}
+                type="text" 
+                autoFocus
+                placeholder="Scan barcode or type name..." 
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="w-full bg-white border-2 border-gray-300 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-theme-medium text-lg font-medium transition-colors"
+              />
+            </div>
+            <button 
+              onClick={() => setShowScanner(true)}
+              className="bg-brand-blue text-white px-4 rounded-xl flex items-center gap-2 font-bold hover:bg-brand-blue/90 transition-colors shadow-sm cursor-pointer"
+            >
+              <Camera size={20} /> <span className="hidden md:inline">PC Camera</span>
+            </button>
+            <button 
+              onClick={() => setShowMobileQR(true)}
+              className="bg-purple-600 text-white px-4 rounded-xl flex items-center gap-2 font-bold hover:bg-purple-700 transition-colors shadow-sm cursor-pointer"
+            >
+              <Smartphone size={20} /> <span className="hidden md:inline">Mobile Scanner</span>
+            </button>
           </div>
         </div>
+
+        {/* MOBILE SCANNER QR MODAL */}
+        {showMobileQR && (
+          <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in p-4">
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-sm">
+              <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50">
+                <h2 className="font-bold text-lg text-brand-blue flex items-center gap-2"><Smartphone size={20} /> Mobile Scanner</h2>
+                <button onClick={() => setShowMobileQR(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors cursor-pointer text-gray-500"><X size={20} /></button>
+              </div>
+              <div className="p-8 flex flex-col items-center text-center">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(mobileScannerUrl)}`} alt="Scanner QR" className="w-48 h-48 mb-6 rounded-xl shadow-sm" />
+                <h3 className="font-bold text-gray-800 text-xl mb-2">Scan with your Phone</h3>
+                <p className="text-gray-500 text-sm mb-4">Open this QR code with your phone's camera to use it as a wireless barcode scanner for this POS.</p>
+                <div className="bg-gray-100 p-3 rounded-lg text-xs font-mono text-gray-600 break-all">{mobileScannerUrl}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* CAMERA SCANNER MODAL */}
+        {showScanner && (
+          <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 text-white animate-in fade-in">
+            <div className="flex justify-between items-center p-4 bg-black">
+              <h2 className="font-bold text-xl flex items-center gap-2"><Camera size={24} /> Scan Barcode</h2>
+              <button onClick={() => setShowScanner(false)} className="p-2 hover:bg-white/20 rounded-full transition-colors cursor-pointer"><X size={24} /></button>
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center p-4">
+              <div id="reader" className="w-full max-w-md bg-white rounded-xl overflow-hidden shadow-2xl"></div>
+              <p className="mt-6 text-gray-400">Position the barcode inside the frame</p>
+            </div>
+          </div>
+        )}
         
         <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredBooks.map(book => (
