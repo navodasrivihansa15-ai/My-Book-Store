@@ -267,12 +267,12 @@ export default function POS() {
   useEffect(() => {
     // 1. Define the channel
     const scannerChannel = supabase
-      .channel('public:pos_scans')
+      .channel('public-pos-scans')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'pos_scans' },
         async (payload) => {
-          console.log("🔥 REALTIME PAYLOAD RECEIVED:", payload);
+          console.log("🔥 REALTIME PAYLOAD RECEIVED IN POS:", payload);
           const scannedBarcode = payload.new.barcode;
           const target = payload.new.target;
           const scanId = payload.new.id;
@@ -280,17 +280,21 @@ export default function POS() {
           if (target && target !== 'POS') return; // Ignore inventory scans
 
           if (scannedBarcode) {
-            // 2. Call your function to handle the barcode (Search books, Add to Cart, or Open Add Book Modal)
-            await handleBarcodeScan(scannedBarcode);
-            
-            // 3. Cleanup: Delete the row so the database doesn't fill up
-            await supabase.from('pos_scans').delete().eq('id', scanId);
+            try {
+              // 2. Call your function to handle the barcode
+              await handleBarcodeScan(scannedBarcode);
+              
+              // 3. Cleanup: Delete the row so the database doesn't fill up
+              await supabase.from('pos_scans').delete().eq('id', scanId);
+            } catch (err) {
+              console.error("Error processing scan payload:", err);
+            }
           }
         }
       )
       .subscribe((status, err) => {
-        console.log("📶 Supabase Realtime Status:", status);
-        if (err) console.error("Realtime Error:", err);
+        console.log("📶 Supabase Realtime Status (Scanner):", status);
+        if (err) console.error("Realtime Error (Scanner):", err);
       });
 
     // Cleanup subscription on unmount

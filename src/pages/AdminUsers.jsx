@@ -79,6 +79,12 @@ export default function AdminUsers() {
         return;
       }
 
+      if (!data || data.length === 0) {
+        console.warn("Update failed silently. Probably blocked by Row Level Security (RLS) in Supabase.");
+        showNotification('error', "Update blocked! Please add an UPDATE policy for user_roles in Supabase.");
+        return;
+      }
+
       console.log("Role updated successfully:", data);
       showNotification('success', `User successfully updated to ${newRole}`);
       // Optional fallback: call fetchUsers() here just in case Realtime is slow
