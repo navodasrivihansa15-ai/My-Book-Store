@@ -249,7 +249,8 @@ export default function POS() {
 
   useEffect(() => {
     if (showScanner) {
-      const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+      // Removed qrbox constraint to prevent NotReadableError on webcams
+      const scanner = new Html5QrcodeScanner("reader", { fps: 10 }, false);
       scanner.render((text) => {
         scanner.clear();
         setShowScanner(false);
@@ -265,17 +266,16 @@ export default function POS() {
 
   // REAL-TIME LISTENER FOR MOBILE SCANNER
   useEffect(() => {
-    // 1. Define the channel
+    // 1. Listen for Broadcast messages (No Database required!)
     const scannerChannel = supabase
-      .channel('public-pos-scans')
+      .channel('scanner-broadcast-channel')
       .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'pos_scans' },
+        'broadcast',
+        { event: 'scan' },
         async (payload) => {
-          console.log("🔥 REALTIME PAYLOAD RECEIVED IN POS:", payload);
-          const scannedBarcode = payload.new.barcode;
-          const target = payload.new.target;
-          const scanId = payload.new.id;
+          console.log("🔥 REALTIME BROADCAST RECEIVED IN POS:", payload);
+          const scannedBarcode = payload.payload.barcode;
+          const target = payload.payload.target;
           
           if (target && target !== 'POS') return; // Ignore inventory scans
 
@@ -283,18 +283,15 @@ export default function POS() {
             try {
               // 2. Call your function to handle the barcode
               await handleBarcodeScan(scannedBarcode);
-              
-              // 3. Cleanup: Delete the row so the database doesn't fill up
-              await supabase.from('pos_scans').delete().eq('id', scanId);
             } catch (err) {
-              console.error("Error processing scan payload:", err);
+              console.error("Error processing scan broadcast:", err);
             }
           }
         }
       )
       .subscribe((status, err) => {
-        console.log("📶 Supabase Realtime Status (Scanner):", status);
-        if (err) console.error("Realtime Error (Scanner):", err);
+        console.log("📶 Supabase Realtime Status (POS Broadcast Listener):", status);
+        if (err) console.error("Realtime Error (POS Listener):", err);
       });
 
     // Cleanup subscription on unmount

@@ -154,6 +154,30 @@ function InventoryManagement() {
     };
 
     fetchDropdownData();
+
+    // Listen for Broadcast messages from Mobile Scanner
+    const scannerChannel = supabase
+      .channel('scanner-broadcast-channel')
+      .on(
+        'broadcast',
+        { event: 'scan' },
+        (payload) => {
+          const scannedBarcode = payload.payload.barcode;
+          const target = payload.payload.target;
+          
+          if (target === 'Inventory' && scannedBarcode) {
+            setFormData(prev => ({ ...prev, barcode: scannedBarcode }));
+            showNotification('success', `Barcode ${scannedBarcode} loaded from Scanner!`);
+          }
+        }
+      )
+      .subscribe((status) => {
+         console.log("Inventory Scanner Broadcast Status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(scannerChannel);
+    };
   }, []);
 
   const handleChange = (e, isEdit = false) => {

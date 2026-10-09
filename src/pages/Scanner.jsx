@@ -12,6 +12,7 @@ export default function Scanner() {
   const [scanTarget, setScanTarget] = useState('POS');
   const scanTargetRef = useRef('POS');
   const lastScanTime = useRef(0);
+  const broadcastChannel = useRef(null);
 
   const updateScanTarget = (target) => {
     setScanTarget(target);
@@ -47,10 +48,18 @@ export default function Scanner() {
 
     playBeep();
     const currentTarget = scanTargetRef.current;
-    showNotification('success', currentTarget === 'POS' ? 'Sent to POS!' : 'Sent to Inventory!');
-
-    const { error } = await supabase.from('pos_scans').insert({ barcode: barcodeText, target: currentTarget });
-    if (error) console.error("Error inserting scan:", error);
+    
+    // Broadcast the scan event using Supabase Realtime (No database table needed!)
+    if (broadcastChannel.current) {
+      broadcastChannel.current.send({
+        type: 'broadcast',
+        event: 'scan',
+        payload: { barcode: barcodeText, target: currentTarget }
+      });
+      showNotification('success', currentTarget === 'POS' ? 'Sent to POS!' : 'Sent to Inventory!');
+    } else {
+      showNotification('error', 'Scanner not connected to Realtime!');
+    }
   };
 
   const handleManualSubmit = (e) => {
@@ -61,6 +70,13 @@ export default function Scanner() {
   };
 
   useEffect(() => {
+    // Connect to Supabase Broadcast channel
+    const channel = supabase.channel('scanner-broadcast-channel');
+    channel.subscribe((status) => {
+      console.log('Scanner Broadcast Status:', status);
+    });
+    broadcastChannel.current = channel;
+
     const scanner = new Html5QrcodeScanner("reader", { 
       fps: 10, 
       qrbox: { width: 250, height: 150 }
@@ -74,6 +90,7 @@ export default function Scanner() {
 
     return () => {
       scanner.clear().catch(() => {});
+      supabase.removeChannel(channel);
     };
   }, []);
 
