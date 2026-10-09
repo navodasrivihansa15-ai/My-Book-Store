@@ -205,8 +205,8 @@ function InventoryManagement() {
       if (file) cover_image_url = await handleUploadImage(file, 'book-covers');
 
       const { error } = await supabase.from('books').insert({
-        title: formData.title, author: formData.author || null, price: parseFloat(formData.price),
-        description: formData.description || null, stock: parseInt(formData.stock) || 0,
+        title: formData.title, author: formData.author || '', price: parseFloat(formData.price),
+        description: formData.description || '', stock: parseInt(formData.stock) || 0,
         categories: formData.categories, is_featured: formData.is_featured, is_offer: formData.is_offer, is_special: formData.is_special, sales_count: 0,
         translator: formData.translator || null, publisher: formData.publisher || null, weight_g: parseInt(formData.weight_g) || 250,
         page_count: parseInt(formData.page_count) || null,
@@ -310,8 +310,8 @@ function InventoryManagement() {
       if (file) cover_image_url = await handleUploadImage(file, 'book-covers');
 
       const { error } = await supabase.from('books').update({
-        title: editingBook.title, author: editingBook.author || null, price: parseFloat(editingBook.price),
-        description: editingBook.description || null, stock: parseInt(editingBook.stock) || 0,
+        title: editingBook.title, author: editingBook.author || '', price: parseFloat(editingBook.price),
+        description: editingBook.description || '', stock: parseInt(editingBook.stock) || 0,
         categories: editingBook.categories || [], is_featured: editingBook.is_featured, is_offer: editingBook.is_offer, is_special: editingBook.is_special,
         translator: editingBook.translator || null, publisher: editingBook.publisher || null, weight_g: parseInt(editingBook.weight_g) || 250,
         page_count: parseInt(editingBook.page_count) || null,

@@ -58,65 +58,34 @@ export default function POS() {
 
   // REAL-TIME LISTENER FOR MOBILE SCANNER
   useEffect(() => {
-    const channel = supabase
-      .channel('pos_scans_channel')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pos_scans' }, async (payload) => {
-        const scannedBarcode = payload.new.barcode;
-        const scanId = payload.new.id;
-        
-        const book = booksRef.current.find(b => b.barcode === scannedBarcode);
-        if (book) {
-          setCart(prev => {
-            const existing = prev.find(item => item.book.id === book.id);
-            if (existing) {
-              if (existing.quantity >= book.stock) return prev;
-              return prev.map(item => item.book.id === book.id ? { ...item, quantity: item.quantity + 1 } : item);
-            }
-            return [...prev, { book, quantity: 1, price: book.sale_price || book.price }];
-          });
+    // 1. Define the channel
+    const scannerChannel = supabase
+      .channel('public:pos_scans')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'pos_scans' },
+        async (payload) => {
+          console.log("🔥 REALTIME PAYLOAD RECEIVED:", payload);
+          const scannedBarcode = payload.new.barcode;
+          const scanId = payload.new.id;
           
-          showNotification('success', 'Mobile Scan: Added ' + book.title);
-          
-          try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 150);
-          } catch (e) {}
-
-        } else {
-          // NOT FOUND
-          try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.type = 'triangle';
-            oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 300);
-          } catch (e) {}
-
-          setUnrecognizedBarcode(scannedBarcode);
-          setIsAddBookModalOpen(true);
-          showNotification('error', 'New Book Detected! Please add details.');
+          if (scannedBarcode) {
+            // 2. Call your function to handle the barcode (Search books, Add to Cart, or Open Add Book Modal)
+            await handleBarcodeScan(scannedBarcode);
+            
+            // 3. Cleanup: Delete the row so the database doesn't fill up
+            await supabase.from('pos_scans').delete().eq('id', scanId);
+          }
         }
+      )
+      .subscribe((status, err) => {
+        console.log("📶 Supabase Realtime Status:", status);
+        if (err) console.error("Realtime Error:", err);
+      });
 
-        // Cleanup the scan row
-        await supabase.from('pos_scans').delete().eq('id', scanId);
-      })
-      .subscribe();
-
+    // Cleanup subscription on unmount
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(scannerChannel);
     };
   }, []);
 
@@ -239,18 +208,43 @@ export default function POS() {
     }
   };
 
-  const handleBarcodeScan = (scannedBarcode) => {
-    const book = books.find(b => b.barcode === scannedBarcode);
+  const handleBarcodeScan = async (scannedBarcode) => {
+    // Always use booksRef.current inside listeners to avoid stale state closures
+    const book = booksRef.current.find(b => b.barcode === scannedBarcode);
     if (book) {
       addToCart(book);
       setSearch('');
-      showNotification('success', 'Book added via barcode!');
+      showNotification('success', 'Mobile Scan: Added ' + book.title);
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        oscillator.start();
+        setTimeout(() => oscillator.stop(), 150);
+      } catch (e) {}
       if (searchInputRef.current) searchInputRef.current.focus();
     } else {
       setSearch('');
       setUnrecognizedBarcode(scannedBarcode);
       setIsAddBookModalOpen(true);
       showNotification('error', 'New Book Detected! Please add details.');
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        oscillator.start();
+        setTimeout(() => oscillator.stop(), 300);
+      } catch (e) {}
       if (searchInputRef.current) searchInputRef.current.focus();
     }
   };
