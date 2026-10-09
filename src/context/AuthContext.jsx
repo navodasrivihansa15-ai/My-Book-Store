@@ -6,25 +6,54 @@ const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchRole = async (userId, userEmail) => {
+    if (!userId) {
+      setUserRole(null);
+      return;
+    }
+    const { data, error } = await supabase.from('user_roles').select('role').eq('id', userId).single();
+    if (error || !data) {
+      console.error("Error fetching user role", error);
+      if (userEmail === 'navodasrivihansa15@gmail.com') {
+        setUserRole('OWNER');
+      } else {
+        setUserRole('CUSTOMER');
+      }
+    } else {
+      setUserRole(data.role || 'CUSTOMER');
+    }
+  };
 
   useEffect(() => {
     // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        await fetchRole(currentUser.id, currentUser.email);
+      }
       setLoading(false);
     });
 
     // Listen for auth changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        await fetchRole(currentUser.id, currentUser.email);
+      } else {
+        setUserRole(null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, userRole, loading }}>
       <AnimatePresence mode="wait">
         {loading ? (
           <motion.div 

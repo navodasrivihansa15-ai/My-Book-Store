@@ -82,7 +82,7 @@ export default function AddBookModal({ isOpen, onClose, initialBarcode, onSucces
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed top-[56px] md:top-[132px] bottom-0 inset-x-0 z-[50] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md mx-auto bg-white rounded-2xl p-6 shadow-2xl">
             <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer z-10"><X size={24} /></button>
             <h2 className="text-xl font-bold text-brand-blue mb-6">Quick Add Book</h2>

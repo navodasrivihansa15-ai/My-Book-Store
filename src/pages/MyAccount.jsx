@@ -167,7 +167,7 @@ function ProfileSettings({ user }) {
         {toast.show && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-32 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ${
+            className={`fixed top-32 left-1/2 -translate-x-1/2 z-[50] px-6 py-3 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ${
               toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
             }`}
           >
@@ -244,6 +244,7 @@ function ProfileSettings({ user }) {
 // ==========================================
 function UserOrders({ user }) {
   const [orders, setOrders] = useState([]);
+  const [storeSettings, setStoreSettings] = useState({ name: 'Alexandria Books', address: '', phone: '', email: 'hello@alexandria.lk' });
   const [loading, setLoading] = useState(true);
   const [selectedBill, setSelectedBill] = useState(null);
   const [editDeliveryModalOpen, setEditDeliveryModalOpen] = useState(false);
@@ -257,7 +258,7 @@ function UserOrders({ user }) {
   };
 
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchOrdersAndSettings = async () => {
       const { data, error } = await supabase
         .from('orders')
         .select(`*, order_items (quantity, price, books (title))`)
@@ -266,10 +267,14 @@ function UserOrders({ user }) {
 
       if (error) console.error(error);
       else setOrders(data);
+      
+      const { data: settingsData } = await supabase.from('store_settings').select('*').limit(1).single();
+      if (settingsData) setStoreSettings(settingsData);
+
       setLoading(false);
     };
 
-    if (user) fetchOrders();
+    if (user) fetchOrdersAndSettings();
   }, [user]);
 
   if (loading) return <div className="py-10 text-center font-bold text-gray-500 animate-pulse">Loading your orders...</div>;
@@ -281,7 +286,7 @@ function UserOrders({ user }) {
         {toast.show && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-32 left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ${
+            className={`fixed top-32 left-1/2 -translate-x-1/2 z-[50] px-6 py-3 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ${
               toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
             }`}
           >
@@ -404,7 +409,7 @@ function UserOrders({ user }) {
       )}
 
       {selectedBill && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-2 sm:p-4 animate-in fade-in zoom-in duration-200">
+        <div className="fixed top-[56px] md:top-[132px] bottom-0 inset-x-0 bg-black/60 backdrop-blur-sm z-[50] flex items-center justify-center p-2 sm:p-4 animate-in fade-in zoom-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl w-[95%] max-w-2xl max-h-[90vh] overflow-y-auto relative print-container text-black">
             {/* Non-printable header */}
             <div className="sticky top-0 bg-white/90 backdrop-blur-md p-4 border-b border-gray-100 flex justify-between items-center z-10 no-print rounded-t-2xl">
@@ -420,9 +425,9 @@ function UserOrders({ user }) {
               {/* Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-6 border-b-2 border-gray-100 gap-4">
                 <div>
-                  <h1 className="text-2xl font-serif font-bold text-theme-deep mb-1">Alexandria Books</h1>
-                  <p className="text-sm text-gray-500">123 Literary Ave, Colombo 03</p>
-                  <p className="text-sm text-gray-500">hello@alexandria.lk | +94 11 234 5678</p>
+                  <h1 className="text-2xl font-serif font-bold text-theme-deep mb-1">{storeSettings.name}</h1>
+                  <p className="text-sm text-gray-500">{storeSettings.address}</p>
+                  <p className="text-sm text-gray-500">{storeSettings.email || 'hello@alexandria.lk'} | {storeSettings.phone}</p>
                 </div>
                 <div className="text-left sm:text-right">
                   <h2 className="text-xl font-bold text-gray-800 uppercase tracking-wider mb-2">Invoice</h2>
@@ -478,16 +483,19 @@ function UserOrders({ user }) {
                 <div className="w-full sm:w-1/2">
                   <div className="flex justify-between py-2 text-sm text-gray-600">
                     <span>Subtotal</span>
-                    <span>{formatPrice(selectedBill.total_amount - (selectedBill.shipping_fee || 0))}</span>
+                    <span className="font-medium text-gray-800">{formatPrice(selectedBill.total_amount - (selectedBill.shipping_fee || 0))}</span>
                   </div>
-                  <div className="flex justify-between py-2 text-sm text-gray-600 border-b border-gray-200 items-start">
-                    <div className="flex flex-col">
+                  <div className="flex flex-col py-3 border-b border-gray-200 gap-1">
+                    <div className="flex justify-between text-sm text-gray-600">
                       <span>Delivery Fee</span>
-                      {selectedBill.shipping_breakdown && (
-                        <div className="text-xs text-gray-500 mt-1 font-medium">Breakdown: {selectedBill.shipping_breakdown}</div>
-                      )}
+                      <span className="font-medium text-gray-800">{formatPrice(selectedBill.shipping_fee || 0)}</span>
                     </div>
-                    <span>{formatPrice(selectedBill.shipping_fee || 0)}</span>
+                    {selectedBill.shipping_breakdown && (
+                      <div className="mt-1.5 text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100 leading-relaxed shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+                        <span className="font-bold text-gray-400 tracking-wider text-[10px] uppercase block mb-1 border-b border-gray-200 pb-1">Calculation Breakdown</span>
+                        {selectedBill.shipping_breakdown}
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-between py-3 text-lg font-bold text-theme-deep">
                     <span>Grand Total</span>
@@ -499,7 +507,10 @@ function UserOrders({ user }) {
               {/* Footer */}
               <div className="text-center mt-12 pt-8 border-t border-gray-100">
                 <p className="text-sm font-bold text-gray-800 mb-1">Thank you for your purchase!</p>
-                <p className="text-xs text-gray-500">If you have any questions about this invoice, please contact us at hello@alexandria.lk</p>
+                <p className="text-xs text-gray-500 mb-3">If you have any questions about this invoice, please contact us at {storeSettings.email || 'hello@alexandria.lk'}</p>
+                <div className="text-[10px] text-gray-500 italic text-center mt-2 border-t border-gray-200 pt-3">
+                  * Delivery fees are based solely on actual postal or courier charges.
+                </div>
               </div>
             </div>
           </div>
@@ -507,7 +518,7 @@ function UserOrders({ user }) {
       )}
 
       {editDeliveryModalOpen && selectedOrderForEdit && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
+        <div className="fixed top-[56px] md:top-[132px] bottom-0 inset-x-0 bg-black/60 backdrop-blur-sm z-[50] flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl w-[95%] max-w-md p-6 relative">
             <button onClick={() => setEditDeliveryModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer"><X size={20}/></button>
             <h2 className="text-xl font-bold text-theme-deep mb-2 flex items-center gap-2"><Edit2 size={20}/> Edit Delivery Details</h2>

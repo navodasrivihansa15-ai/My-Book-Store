@@ -38,7 +38,7 @@ export default function Offers() {
   }, []);
 
   return (
-    <div className="w-full min-h-screen pb-28 pt-24 md:pb-12 md:pt-32 px-3 md:px-8">
+    <div className="w-full">
       <div className="mb-8">
         <h2 className="text-2xl md:text-4xl font-extrabold text-brand-blue font-serif mb-2 leading-tight">Special Offers</h2>
         <p className="text-slate-500 font-medium">Exclusive deals and discounts for our readers.</p>

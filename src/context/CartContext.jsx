@@ -1,9 +1,21 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const CartContext = createContext({});
 
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    try {
+      const savedCart = localStorage.getItem('alexandria_cart');
+      return savedCart ? JSON.parse(savedCart) : [];
+    } catch (error) {
+      console.error("Failed to parse cart from local storage", error);
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('alexandria_cart', JSON.stringify(cart));
+  }, [cart]);
 
   const addToCart = (book) => {
     setCart((prev) => {

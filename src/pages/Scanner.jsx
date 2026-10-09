@@ -9,7 +9,14 @@ export default function Scanner() {
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [manualBarcode, setManualBarcode] = useState('');
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [scanTarget, setScanTarget] = useState('POS');
+  const scanTargetRef = useRef('POS');
   const lastScanTime = useRef(0);
+
+  const updateScanTarget = (target) => {
+    setScanTarget(target);
+    scanTargetRef.current = target;
+  };
 
   const showNotification = (type, message) => {
     setNotification({ type, message });
@@ -39,9 +46,10 @@ export default function Scanner() {
     lastScanTime.current = now;
 
     playBeep();
-    showNotification('success', 'Sent to POS!');
+    const currentTarget = scanTargetRef.current;
+    showNotification('success', currentTarget === 'POS' ? 'Sent to POS!' : 'Sent to Inventory!');
 
-    const { error } = await supabase.from('pos_scans').insert({ barcode: barcodeText });
+    const { error } = await supabase.from('pos_scans').insert({ barcode: barcodeText, target: currentTarget });
     if (error) console.error("Error inserting scan:", error);
   };
 
@@ -94,7 +102,7 @@ export default function Scanner() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col relative z-[999999]">
+    <div className="min-h-screen bg-black text-white flex flex-col relative z-[50]">
       <AnimatePresence>
         {notification.message && (
           <motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -50 }} className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl font-bold flex items-center gap-2 bg-green-500 text-white whitespace-nowrap">
@@ -120,8 +128,24 @@ export default function Scanner() {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-4 bg-black">
+        {/* TARGET TOGGLE */}
+        <div className="flex bg-slate-900 rounded-xl p-1 mb-6 w-full max-w-md border border-slate-800">
+          <button 
+            onClick={() => updateScanTarget('POS')}
+            className={`flex-1 py-3 text-sm font-bold uppercase tracking-widest rounded-lg transition-colors ${scanTarget === 'POS' ? 'bg-brand-gold text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}
+          >
+            🛒 Send to POS
+          </button>
+          <button 
+            onClick={() => updateScanTarget('Inventory')}
+            className={`flex-1 py-3 text-sm font-bold uppercase tracking-widest rounded-lg transition-colors ${scanTarget === 'Inventory' ? 'bg-brand-gold text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}
+          >
+            📦 Add to Inventory
+          </button>
+        </div>
+
         <div id="reader" className="w-full max-w-md bg-white rounded-xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border-4 border-slate-800 text-black"></div>
-        <p className="mt-8 text-slate-400 font-medium text-center px-4">Aim the camera at any barcode.<br/>Scans are instantly sent to your PC's POS.</p>
+        <p className="mt-8 text-slate-400 font-medium text-center px-4">Aim the camera at any barcode.<br/>Scans are instantly sent to your selected target.</p>
         
         {/* MANUAL ENTRY */}
         <div className="mt-8 w-full max-w-md bg-slate-900 p-4 rounded-xl border border-slate-800">

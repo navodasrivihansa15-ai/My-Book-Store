@@ -53,7 +53,7 @@ export default function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="fixed top-0 left-0 w-full z-[9990] bg-gradient-to-r from-gray-900/85 via-blue-900/75 to-slate-400/65 backdrop-blur-lg border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)] text-white"
+        className="fixed top-0 left-0 w-full z-[60] bg-gradient-to-r from-gray-900/85 via-blue-900/75 to-slate-400/65 backdrop-blur-lg border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)] text-white"
       >
       <div className="max-w-[1440px] mx-auto px-3 py-2 md:py-0 md:px-6">
         

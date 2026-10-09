@@ -14,7 +14,7 @@ export default function BottomNav() {
 
 
   return (
-    <div className="fixed bottom-0 left-0 w-full z-[9999] bg-white/90 backdrop-blur-lg border-t border-gray-200 flex justify-around items-center h-16 md:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    <div className="fixed bottom-0 left-0 w-full z-[50] bg-white/90 backdrop-blur-lg border-t border-gray-200 flex justify-around items-center h-16 md:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       <Link to="/" className={`flex flex-col items-center justify-center w-full h-full ${isActive('/') ? 'text-theme-deep' : 'text-gray-500'}`}>
         <Home size={24} className={isActive('/') ? 'fill-theme-deep/20' : ''} />
         <span className="text-[10px] mt-1 font-semibold">Home</span>

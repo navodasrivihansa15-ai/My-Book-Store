@@ -3,9 +3,11 @@ import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function AdminDashboard() {
+  const { userRole } = useAuth();
   const [activeTab, setActiveTab] = useState('inventory');
 
   return (
@@ -14,6 +16,16 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-3xl md:text-4xl font-serif text-brand-blue font-bold mb-1 md:mb-2">Command Center</h1>
           <p className="text-sm md:text-base text-gray-500 tracking-wide">Manage your bookstore inventory, banners, and orders.</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+             <Link to="/admin/pos" className="bg-brand-gold text-black px-4 py-2 rounded-lg font-bold text-sm tracking-widest uppercase shadow hover:bg-yellow-500 transition-colors flex items-center gap-2">
+               🛒 Launch POS
+             </Link>
+             {['OWNER', 'ADMIN'].includes(userRole) && (
+               <Link to="/admin/users" className="bg-slate-800 text-white border border-slate-700 px-4 py-2 rounded-lg font-bold text-sm tracking-widest uppercase shadow hover:bg-slate-700 transition-colors flex items-center gap-2">
+                 🛡️ Manage Users
+               </Link>
+             )}
+          </div>
         </div>
 
         {/* Mobile Navigation */}
@@ -492,7 +504,7 @@ function InventoryManagement() {
       {/* EDIT MODAL */}
       <AnimatePresence>
         {isEditModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 z-[50] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto mx-auto bg-slate-50 rounded-2xl p-5 md:p-6 shadow-2xl">
               <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer z-10"><X size={24} /></button>
               <h2 className="text-xl md:text-2xl font-bold text-brand-blue mb-4 md:mb-6">Edit Book</h2>
@@ -573,7 +585,7 @@ function InventoryManagement() {
       {/* CATEGORY MODAL */}
       <AnimatePresence>
         {isCategoryModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 z-[50] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-50/90 backdrop-blur-xl border border-slate-200 p-4 md:p-6 rounded-2xl shadow-[0_8px_32px_rgba(26,61,99,0.3)] w-[95%] max-w-md mx-auto max-h-[85vh] overflow-y-auto relative">
               <button onClick={() => setIsCategoryModalOpen(false)} className="absolute top-4 right-4 text-theme-medium hover:text-theme-darkest cursor-pointer"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-theme-deep mb-6">Add New Category</h2>
@@ -594,7 +606,7 @@ function InventoryManagement() {
       {/* ADD PUBLISHER MODAL */}
       <AnimatePresence>
         {isAddPublisherModalOpen && (
-          <div className="fixed inset-0 bg-theme-darkest/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 bg-theme-darkest/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white p-4 md:p-6 rounded-xl shadow-2xl w-[95%] max-w-md mx-auto max-h-[85vh] overflow-y-auto relative border border-theme-light/30">
               <button onClick={() => setIsAddPublisherModalOpen(false)} className="absolute top-4 right-4 text-theme-medium hover:text-theme-darkest cursor-pointer"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-theme-deep mb-6">Add New Publisher</h2>
@@ -628,7 +640,7 @@ function InventoryManagement() {
       {/* ADD AUTHOR MODAL */}
       <AnimatePresence>
         {isAuthorModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 z-[50] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-50/90 backdrop-blur-xl border border-slate-200 p-4 md:p-6 rounded-2xl shadow-[0_8px_32px_rgba(26,61,99,0.3)] w-[95%] max-w-md mx-auto max-h-[85vh] overflow-y-auto relative border border-theme-light/30">
               <button onClick={() => setIsAuthorModalOpen(false)} className="absolute top-4 right-4 text-theme-medium hover:text-theme-darkest cursor-pointer"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-theme-deep mb-6">Add New Author</h2>
@@ -653,7 +665,7 @@ function InventoryManagement() {
       {/* ADD TRANSLATOR MODAL */}
       <AnimatePresence>
         {isTranslatorModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 z-[50] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-50/90 backdrop-blur-xl border border-slate-200 p-4 md:p-6 rounded-2xl shadow-[0_8px_32px_rgba(26,61,99,0.3)] w-[95%] max-w-md mx-auto max-h-[85vh] overflow-y-auto relative border border-theme-light/30">
               <button onClick={() => setIsTranslatorModalOpen(false)} className="absolute top-4 right-4 text-theme-medium hover:text-theme-darkest cursor-pointer"><X size={24} /></button>
               <h2 className="text-2xl font-bold text-theme-deep mb-6">Add New Translator</h2>
@@ -993,7 +1005,7 @@ function OrderManagement() {
       >
         <div className="relative z-10 h-full flex flex-col justify-between">
           <div>
-            <div className="flex justify-between items-start mb-6 bg-white/80 p-3 rounded-xl">
+            <div className="flex justify-between items-center mb-6 bg-white/80 p-3 rounded-xl">
               <div>
                 <h1 className="text-2xl font-bold font-serif uppercase tracking-wider text-black">{storeSettings.name}</h1>
                 <p className="text-sm font-semibold">{storeSettings.address}</p>
@@ -1001,15 +1013,24 @@ function OrderManagement() {
               </div>
               <img
                 src={`${supabase.storage.from('web-assets').getPublicUrl(`Bill Logo.${billLogoExt}`).data.publicUrl}?t=${imgTimestamp}`}
-                alt="Logo" className="h-12 w-auto object-contain grayscale"
+                alt="Logo" className="h-16 w-auto object-contain grayscale"
               />
             </div>
 
             <div className="border-4 border-black p-6 rounded-xl mb-6 bg-white/90 backdrop-blur-sm">
               <h2 className="text-xl font-bold uppercase tracking-widest mb-4 border-b-2 border-black pb-2">Deliver To:</h2>
-              <p className="text-2xl font-bold mb-2">{order.customer_name || order.user_email}</p>
-              <p className="text-lg leading-relaxed">{order.shipping_address}</p>
-              <p className="text-xl font-bold mt-4">Contact: {order.contact_number}</p>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-2xl font-bold mb-2">{order.customer_name || order.user_email}</p>
+                  <p className="text-lg leading-relaxed">{order.shipping_address}</p>
+                  <p className="text-xl font-bold mt-4">Contact: {order.contact_number}</p>
+                </div>
+                {order.payment_method?.includes('COD') && (
+                  <div className="ml-4 border-2 border-black px-5 py-2.5 rounded-xl shrink-0 self-start bg-white">
+                    <p className="text-lg font-extrabold tracking-wide text-black whitespace-nowrap">COD : {Number(order.total_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/=</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1020,7 +1041,7 @@ function OrderManagement() {
             </div>
             <div className="border-2 border-black p-2 font-bold text-sm uppercase px-4 text-center bg-white rounded-lg">
               URGENT<br/>
-              <span className="text-xs normal-case font-semibold">COVID / Standard Handling Instructions apply.</span>
+              <span className="text-xs normal-case font-semibold">Handle with care! Books inside. Please transport them safely and treat them with love. 🖤</span>
             </div>
           </div>
         </div>
@@ -1147,6 +1168,9 @@ function OrderManagement() {
                 Page {pageData.pageIndex} of {pageData.totalPages}
               </div>
             )}
+            <div className="text-[10px] text-gray-500 italic text-center mt-2 border-t border-gray-200 pt-1">
+              * Delivery fees are based solely on actual postal or courier charges.
+            </div>
           </div>
         </div>
       </div>
@@ -1310,7 +1334,7 @@ function OrderManagement() {
         </div>
 
         {rejectModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 bg-black/60 backdrop-blur-sm z-[50] flex items-center justify-center p-4">
             <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md relative">
               <h2 className="text-xl font-bold text-red-600 mb-2">Reject Payment</h2>
               <p className="text-sm text-gray-600 mb-4">Please provide a reason for rejecting the payment. This will be visible to the customer.</p>
@@ -1344,7 +1368,7 @@ function OrderManagement() {
         )}
 
         {shippedModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 bg-black/60 backdrop-blur-sm z-[50] flex items-center justify-center p-4">
             <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md relative">
               <h2 className="text-xl font-bold text-brand-blue mb-2">Order Tracking Details</h2>
               <p className="text-sm text-gray-600 mb-4">Please provide shipping and tracking details for this order.</p>
@@ -1650,7 +1674,7 @@ function AdminPaymentSettings() {
       {/* EDIT MODAL */}
       <AnimatePresence>
         {isEditModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 z-[50] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-lg bg-slate-50 rounded-2xl p-6 shadow-2xl">
               <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer z-10"><X size={24} /></button>
               <h2 className="text-xl font-bold text-brand-blue mb-6">Edit Bank Account</h2>

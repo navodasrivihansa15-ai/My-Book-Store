@@ -5,7 +5,7 @@ export default function MobileCategoryMenu({ isOpen, setIsOpen, categories }) {
     <>
       {/* Overlay */}
       <div 
-        className={`fixed inset-0 bg-black/60 z-[9998] transition-opacity duration-300 md:hidden ${
+        className={`fixed inset-0 bg-black/60 z-[50] transition-opacity duration-300 md:hidden ${
           isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
         }`}
         onClick={() => setIsOpen(false)}
@@ -13,7 +13,7 @@ export default function MobileCategoryMenu({ isOpen, setIsOpen, categories }) {
 
       {/* Menu Box */}
       <div 
-        className={`fixed top-[75px] bottom-[85px] left-3 w-[85%] max-w-[320px] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)] z-[9999] flex flex-col overflow-hidden transform transition-all duration-300 ease-in-out md:hidden ${
+        className={`fixed top-[75px] bottom-[85px] left-3 w-[85%] max-w-[320px] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.15)] z-[50] flex flex-col overflow-hidden transform transition-all duration-300 ease-in-out md:hidden ${
           isOpen ? 'translate-x-0 opacity-100 pointer-events-auto' : '-translate-x-full opacity-0 pointer-events-none'
         }`}
       >

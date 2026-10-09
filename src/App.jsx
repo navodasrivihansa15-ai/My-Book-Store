@@ -19,6 +19,8 @@ import ProfilePage from './pages/ProfilePage';
 import MobileExplore from './pages/MobileExplore';
 import POS from './pages/POS';
 import Scanner from './pages/Scanner';
+import AdminUsers from './pages/AdminUsers';
+import AdminRoute from './components/AdminRoute';
 import { useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -27,19 +29,6 @@ function PrivateRoute({ children }) {
   if (loading) return null; // Handled by AuthContext global loading state
   
   return user ? children : <Navigate to="/login" replace />;
-}
-
-function AdminRoute({ children }) {
-  const { user, loading } = useAuth();
-  
-  if (loading) return null;
-  
-  // Replace with actual admin email
-  if (!user || user.email !== 'navodasrivihansa15@gmail.com') {
-    return <Navigate to="/" replace />;
-  }
-  
-  return children;
 }
 
 function AnimatedRoutes() {
@@ -64,6 +53,7 @@ function AnimatedRoutes() {
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/pos" element={<AdminRoute><POS /></AdminRoute>} />
         <Route path="/admin/scanner" element={<AdminRoute><Scanner /></AdminRoute>} />
+        <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
         <Route path="/explore" element={<MobileExplore />} />
       </Routes>
     </AnimatePresence>
@@ -72,9 +62,9 @@ function AnimatedRoutes() {
 
 function AppLayout() {
   const location = useLocation();
-  const isPOS = location.pathname.startsWith('/admin/pos') || location.pathname.startsWith('/admin/scanner');
+  const isAdminStandalone = location.pathname.startsWith('/admin/pos') || location.pathname.startsWith('/admin/scanner') || location.pathname.startsWith('/admin/users');
 
-  if (isPOS) {
+  if (isAdminStandalone) {
     return <AnimatedRoutes />;
   }
 
