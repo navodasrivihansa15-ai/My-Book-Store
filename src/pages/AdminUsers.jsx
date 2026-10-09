@@ -23,12 +23,20 @@ export default function AdminUsers() {
 
     // Realtime listener
     const rolesChannel = supabase
-      .channel('public:user_roles')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles' }, (payload) => {
-        console.log("Live update received:", payload);
-        fetchUsers(); // Re-fetch the list when any role changes
-      })
-      .subscribe();
+      .channel('public-user-roles')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_roles' },
+        (payload) => {
+          console.log("⚡ Realtime Payload Received:", payload);
+          // CRITICAL: Call the function that updates your React state (e.g., setUsers)
+          fetchUsers(); 
+        }
+      )
+      .subscribe((status, err) => {
+        console.log("📶 Realtime Connection Status:", status);
+        if (err) console.error("Realtime Subscription Error:", err);
+      });
 
     return () => {
       supabase.removeChannel(rolesChannel);
