@@ -24,8 +24,8 @@ export default function StaffPinOverlay({ onAuthenticated }) {
       return;
     }
 
-    // Fetch role and name for the newly logged in user
-    const { data: roleData } = await supabase.from('user_profiles').select('role, full_name').eq('id', data.user.id).single();
+    // Fetch role, name, and assigned device info for the newly logged in user
+    const { data: roleData } = await supabase.from('user_profiles').select('role, full_name, device_id, device_name').eq('id', data.user.id).single();
     const userRole = roleData?.role || 'USER';
 
     if (userRole === 'USER') {
@@ -36,11 +36,15 @@ export default function StaffPinOverlay({ onAuthenticated }) {
     }
 
     const displayName = roleData?.full_name || data.user.email;
+    const deviceId = roleData?.device_id || 'UNASSIGNED';
+    const deviceName = roleData?.device_name || 'Unknown Device';
     
     // Create new staff session
     const { data: sessionData } = await supabase.from('staff_sessions').insert({
         staff_name: displayName,
-        role: userRole
+        role: userRole,
+        device_id: deviceId,
+        device_name: deviceName
     }).select().single();
 
     const sessionId = sessionData ? sessionData.id : null;

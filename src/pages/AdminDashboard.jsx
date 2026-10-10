@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck, Database, Download, Upload, AlertTriangle } from 'lucide-react';
+import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck, Database, Download, Upload, AlertTriangle, ShoppingCart, Shield } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -19,67 +19,73 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-brand-blue font-bold mb-1 md:mb-2 whitespace-nowrap">Command Center</h1>
           <p className="text-xs sm:text-sm md:text-base text-gray-500 tracking-wide">Manage your bookstore inventory, banners, and orders.</p>
-          <div className="mt-4 flex flex-wrap gap-3">
-             <Link to="/admin/pos" className="bg-brand-gold text-black px-4 py-2 rounded-lg font-bold text-sm tracking-widest uppercase shadow hover:bg-yellow-500 transition-colors flex items-center gap-2">
-               🛒 Launch POS
-             </Link>
-             {['OWNER', 'ADMIN'].includes(userRole) && (
-               <Link to="/admin/users" className="bg-slate-800 text-white border border-slate-700 px-4 py-2 rounded-lg font-bold text-sm tracking-widest uppercase shadow hover:bg-slate-700 transition-colors flex items-center gap-2">
-                 🛡️ Manage Users
-               </Link>
-             )}
-          </div>
         </div>
 
         {/* Mobile Navigation */}
-        <div className="flex overflow-x-auto whitespace-nowrap hide-scrollbar space-x-3 pb-2 md:hidden w-full">
-          <button onClick={() => setActiveTab('inventory')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'inventory' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+        <div className="flex flex-wrap gap-2 md:hidden w-full items-center">
+          <button onClick={() => setActiveTab('inventory')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'inventory' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Plus size={16} /> Inventory
           </button>
-          <button onClick={() => setActiveTab('banners')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'banners' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
-            <ImageIcon size={16} /> Banners
-          </button>
-          <button onClick={() => setActiveTab('orders')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'orders' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+          <button onClick={() => setActiveTab('orders')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'orders' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Package size={16} /> Orders
           </button>
-          <button onClick={() => setActiveTab('payment')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'payment' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+          <Link to="/admin/pos" className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 bg-brand-gold text-black shadow-md hover:bg-yellow-500">
+            <ShoppingCart size={16} /> Launch POS
+          </Link>
+          {['OWNER', 'ADMIN'].includes(userRole) && (
+            <Link to="/admin/users" className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 bg-slate-800 text-white shadow-md hover:bg-slate-700">
+              <Shield size={16} /> Manage Users
+            </Link>
+          )}
+          <button onClick={() => setActiveTab('banners')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'banners' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <ImageIcon size={16} /> Banners
+          </button>
+          <button onClick={() => setActiveTab('payment')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'payment' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <CreditCard size={16} /> Payment
           </button>
-          <button onClick={() => setActiveTab('store')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'store' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+          <button onClick={() => setActiveTab('store')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'store' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Settings size={16} /> Store
           </button>
-          <button onClick={() => setActiveTab('shipping')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'shipping' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+          <button onClick={() => setActiveTab('shipping')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'shipping' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Truck size={16} /> Shipping
           </button>
           {['OWNER', 'ADMIN'].includes(userRole) && (
-            <button onClick={() => setActiveTab('database')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'database' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <button onClick={() => setActiveTab('database')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'database' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
               <Database size={16} /> Database
             </button>
           )}
         </div>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex bg-slate-50 p-1 rounded-lg border border-slate-200 shadow-sm">
-          <button onClick={() => setActiveTab('inventory')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'inventory' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+        <div className="hidden md:flex flex-wrap gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 shadow-sm">
+          <button onClick={() => setActiveTab('inventory')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'inventory' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Plus size={18} /> Inventory
           </button>
-          <button onClick={() => setActiveTab('banners')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'banners' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-            <ImageIcon size={18} /> Banners
-          </button>
-          <button onClick={() => setActiveTab('orders')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'orders' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+          <button onClick={() => setActiveTab('orders')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'orders' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Package size={18} /> Orders
           </button>
-          <button onClick={() => setActiveTab('payment')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'payment' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+          <Link to="/admin/pos" className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer bg-brand-gold/10 text-brand-gold hover:bg-brand-gold hover:text-black">
+            <ShoppingCart size={18} /> Launch POS
+          </Link>
+          {['OWNER', 'ADMIN'].includes(userRole) && (
+            <Link to="/admin/users" className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer bg-slate-200/50 text-slate-700 hover:bg-slate-800 hover:text-white">
+              <Shield size={18} /> Manage Users
+            </Link>
+          )}
+          <button onClick={() => setActiveTab('banners')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'banners' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+            <ImageIcon size={18} /> Banners
+          </button>
+          <button onClick={() => setActiveTab('payment')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'payment' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <CreditCard size={18} /> Payment
           </button>
-          <button onClick={() => setActiveTab('store')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'store' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+          <button onClick={() => setActiveTab('store')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'store' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Settings size={18} /> Store
           </button>
-          <button onClick={() => setActiveTab('shipping')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'shipping' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+          <button onClick={() => setActiveTab('shipping')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'shipping' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Truck size={18} /> Shipping
           </button>
           {['OWNER', 'ADMIN'].includes(userRole) && (
-            <button onClick={() => setActiveTab('database')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'database' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+            <button onClick={() => setActiveTab('database')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'database' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
               <Database size={18} /> Database
             </button>
           )}
@@ -934,6 +940,7 @@ function BannerManagement() {
 // ==========================================
 function OrderManagement() {
   const [orders, setOrders] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -988,20 +995,27 @@ function OrderManagement() {
   }, []);
 
   const updateStatus = async (id, field, value) => {
+    const existingOrder = orders.find(o => o.id === id) || {};
     let updates = { [field]: value };
     let statToIncrement = null;
+    let shouldIncrementGeneral = false;
+    
     if (field === 'order_status' && value === 'Packed') {
-      updates.packed_by = handlerName;
-      updates.handled_by = handlerName;
-      statToIncrement = 'web_packed';
+      if (!existingOrder.packed_by) {
+        updates.packed_by = handlerName;
+        updates.handled_by = handlerName;
+        statToIncrement = 'web_packed';
+        shouldIncrementGeneral = true;
+      }
     }
+    
     const { error } = await supabase.from('orders').update(updates).eq('id', id);
     if (!error) { 
       fetchOrders(); 
       if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates }); 
       try {
         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
-        if (activeStaff.session_id) {
+        if (activeStaff.session_id && shouldIncrementGeneral) {
           if (statToIncrement) await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: statToIncrement });
           await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_handled' });
         }
@@ -1010,14 +1024,23 @@ function OrderManagement() {
   };
 
   const handleVerifyPayment = async (id) => {
-    const updates = { payment_status: 'Verified', order_status: 'Processing', reject_reason: null, payment_verified_by: handlerName, handled_by: handlerName };
+    const existingOrder = orders.find(o => o.id === id) || {};
+    const updates = { payment_status: 'Verified', order_status: 'Processing', reject_reason: null };
+    let shouldIncrement = false;
+    
+    if (!existingOrder.payment_verified_by) {
+      updates.payment_verified_by = handlerName;
+      updates.handled_by = handlerName;
+      shouldIncrement = true;
+    }
+
     const { error } = await supabase.from('orders').update(updates).eq('id', id);
     if (!error) { 
       fetchOrders(); 
       if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates }); 
       try {
         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
-        if (activeStaff.session_id) {
+        if (activeStaff.session_id && shouldIncrement) {
           await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'payments_verified' });
           await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_handled' });
         }
@@ -1236,7 +1259,7 @@ function OrderManagement() {
               </div>
             )}
             <div className="text-[10px] text-gray-500 italic text-center mt-2 border-t border-gray-200 pt-1">
-              * Delivery fees are based solely on actual postal or courier charges.
+
             </div>
           </div>
         </div>
@@ -1519,8 +1542,8 @@ function OrderManagement() {
                       
                       try {
                         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
-                        if (activeStaff.session_id) {
-                          if (skippedPacked) await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_packed' });
+                        if (activeStaff.session_id && skippedPacked) {
+                          await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_packed' });
                           await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_handled' });
                         }
                       } catch(e) {}
@@ -1538,9 +1561,26 @@ function OrderManagement() {
     );
   }
 
+  const filteredOrders = statusFilter === 'All' ? orders : orders.filter(o => o.order_status === statusFilter);
+
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-      <div className="p-4 md:p-6 border-b border-gray-200 bg-gray-50"><h2 className="text-xl font-bold text-brand-blue">Order History</h2></div>
+      <div className="p-4 md:p-6 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h2 className="text-xl font-bold text-brand-blue">Order History</h2>
+        <select 
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm font-bold text-gray-700 bg-white outline-none focus:border-brand-blue"
+        >
+          <option value="All">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Processing">Processing</option>
+          <option value="Packed">Packed</option>
+          <option value="Shipped">Shipped</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
 
       {/* DESKTOP ORDERS TABLE */}
       <div className="hidden md:block overflow-x-auto">
@@ -1549,7 +1589,7 @@ function OrderManagement() {
             <tr><th className="px-6 py-3">Order ID</th><th className="px-6 py-3">Date</th><th className="px-6 py-3">Total</th><th className="px-6 py-3">Status</th><th className="px-6 py-3 text-right">Actions</th></tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {orders.map((order) => (
+            {filteredOrders.map((order) => (
               <tr key={order.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 font-mono text-gray-500">#{order.display_id || order.id.split('-')[0].toUpperCase()}</td>
                 <td className="px-6 py-4">{new Date(order.created_at).toLocaleDateString()}</td>
@@ -1564,7 +1604,7 @@ function OrderManagement() {
 
       {/* MOBILE ORDERS CARDS */}
       <div className="md:hidden flex flex-col p-4 gap-3 bg-gray-100">
-        {orders.map((order) => (
+        {filteredOrders.map((order) => (
           <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
             <div className="flex justify-between items-center mb-1">
               <span className="font-mono text-gray-500 font-bold text-xs">#{order.display_id || order.id.split('-')[0].toUpperCase()}</span>
@@ -1586,7 +1626,7 @@ function OrderManagement() {
             </div>
           </div>
         ))}
-        {orders.length === 0 && (
+        {filteredOrders.length === 0 && (
           <div className="text-center py-8 text-gray-500 font-medium">No orders found.</div>
         )}
       </div>
@@ -2146,7 +2186,7 @@ function DatabaseManagement({ userRole }) {
     setTimeout(() => setNotification({ type: '', message: '' }), 6000);
   };
 
-  const tablesToBackup = ['books', 'categories', 'orders', 'order_items', 'store_settings', 'publishers', 'contributors'];
+  const tablesToBackup = ['books', 'categories', 'orders', 'order_items', 'store_settings', 'publishers', 'contributors', 'staff_sessions', 'user_profiles'];
   const bucketsToBackup = ['book-covers', 'publisher-logos', 'banners', 'payment-proofs'];
 
   const downloadFileAsBlob = async (bucket, path) => {
@@ -2240,7 +2280,7 @@ function DatabaseManagement({ userRole }) {
         
         if (restoreMode === 'overwrite') {
            setProgress('Wiping current database tables (Overwrite mode)...');
-           const deleteOrder = ['order_items', 'orders', 'books', 'publishers', 'contributors', 'categories', 'store_settings'];
+           const deleteOrder = ['order_items', 'orders', 'books', 'publishers', 'contributors', 'categories', 'store_settings', 'staff_sessions', 'user_profiles'];
            for (const table of deleteOrder) {
              const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
              if (error) console.warn(`Wipe warning on ${table}:`, error);
@@ -2248,7 +2288,7 @@ function DatabaseManagement({ userRole }) {
         }
         
         // Disable foreign key checks is tricky via REST API, we rely on upsert and order
-        const insertOrder = ['categories', 'contributors', 'publishers', 'store_settings', 'books', 'orders', 'order_items'];
+        const insertOrder = ['user_profiles', 'staff_sessions', 'categories', 'contributors', 'publishers', 'store_settings', 'books', 'orders', 'order_items'];
         
         for (const table of insertOrder) {
           if (dbData[table] && dbData[table].length > 0) {
@@ -2302,7 +2342,7 @@ function DatabaseManagement({ userRole }) {
     
     try {
       // Order matters to avoid foreign key violations
-      const deleteOrder = ['order_items', 'orders', 'books', 'publishers', 'contributors', 'categories'];
+      const deleteOrder = ['order_items', 'orders', 'books', 'publishers', 'contributors', 'categories', 'staff_sessions', 'user_profiles'];
       
       for (const table of deleteOrder) {
         setProgress(`Wiping table: ${table}...`);

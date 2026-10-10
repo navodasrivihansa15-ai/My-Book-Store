@@ -7,6 +7,7 @@ export default function SubNavbar() {
     { name: 'PUBLISHERS', path: '/publishers' },
     { name: 'Authors', path: '/authors' },
     { name: 'Offers', path: '/offers' },
+    { name: 'Request Book', path: '/request-book' },
   ];
 
   return (

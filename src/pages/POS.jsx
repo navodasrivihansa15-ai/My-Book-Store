@@ -13,18 +13,26 @@ const defaultShortcuts = {
   openShortcutsMenu: 'Alt+k',
   addScannedItem: 'Space', // Spacebar
   checkout: 'Enter', // Opens Cash Payment
-  deleteLastItem: 'Backspace',
+  undoLastAction: 'Alt+Backspace',
+  redoAction: 'Control+y',
   clearOrder: 'Delete',
   closeModals: 'Escape', // Also acts as "Next Order" on success screen
   reprintBill: 'p',
-  hardwareScanner: 'Control+b'
+  hardwareScanner: 'Control+b',
+  switchFocus: 'Tab',
+  increaseQty: '+',
+  decreaseQty: '-',
+  togglePayment: 'Shift'
 };
 
 const getEventKeyString = (e) => {
-  if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return null;
+  if (['Control', 'Alt', 'Meta'].includes(e.key)) return null;
   let keyString = '';
   if (e.ctrlKey) keyString += 'Control+';
   if (e.altKey) keyString += 'Alt+';
+  
+  if (e.key === 'Shift') return keyString + 'Shift';
+  
   if (e.shiftKey && e.key.length === 1) {
     keyString += e.key;
   } else if (e.shiftKey) {
@@ -92,7 +100,7 @@ const PosReceiptPrint = ({ data, storeSettings, isPreview = false }) => {
         <p className="font-bold">Thank you for your purchase!</p>
         <p className="mt-1">Powered by Antigravity POS</p>
         <div className="text-[10px] text-gray-500 italic text-center mt-2 border-t border-dashed border-black pt-1">
-          * Delivery fees are based solely on actual postal or courier charges.
+
         </div>
       </div>
     </div>
@@ -105,6 +113,13 @@ const ShortcutSettingsModal = ({ shortcuts, setShortcuts, onClose, showNotificat
   const handleKeyCapture = (e, keyName) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (keyName === 'qtyModifier') {
+      if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+        setLocalShortcuts(prev => ({ ...prev, [keyName]: e.key }));
+        return;
+      }
+    }
 
     // Ignore standalone modifier keys
     if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
@@ -143,13 +158,18 @@ const ShortcutSettingsModal = ({ shortcuts, setShortcuts, onClose, showNotificat
 
   const shortcutLabels = {
     openShortcutsMenu: 'Open Shortcuts Menu',
-    addScannedItem: 'Add Item to Cart (Search Bar)',
+    addScannedItem: 'Add Selected Item / Barcode',
     checkout: 'Checkout / Confirm Sale',
-    deleteLastItem: 'Remove Last Item',
+    undoLastAction: 'Undo Last Action',
+    redoAction: 'Redo Undone Action',
     clearOrder: 'Void / Clear Entire Order',
     closeModals: 'Close Pop-ups / Next Order',
     reprintBill: 'Print / Reprint Receipt',
-    hardwareScanner: 'Trigger Hardware Scanner'
+    hardwareScanner: 'Trigger Hardware Scanner',
+    switchFocus: 'Switch Focus (Search ↔ Cart)',
+    increaseQty: 'Increase Cart QTY (+)',
+    decreaseQty: 'Decrease Cart QTY (-)',
+    togglePayment: 'Toggle Cash / Card Payment'
   };
 
   return (
@@ -181,6 +201,18 @@ const ShortcutSettingsModal = ({ shortcuts, setShortcuts, onClose, showNotificat
               />
             </div>
           ))}
+          
+          <div className="mt-4 pt-4 border-t-2 border-dashed border-gray-200">
+            <h3 className="font-bold text-gray-800 mb-3 text-sm">Navigation Shortcuts (Fixed)</h3>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+              <span className="text-sm font-bold text-gray-700">Navigate Items in Focus</span>
+              <span className="w-40 border p-2 rounded-lg text-center font-mono font-bold text-sm bg-gray-100 text-gray-600">Arrow Keys</span>
+            </div>
+            <div className="flex justify-between items-center pb-2 mt-2">
+              <span className="text-sm font-bold text-gray-700">Set Cart QTY / Reset to 1</span>
+              <span className="w-40 border p-2 rounded-lg text-center font-mono font-bold text-[11px] leading-tight bg-gray-100 text-gray-600">Type Nums / Backspace (In Cart)</span>
+            </div>
+          </div>
         </div>
         
         <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between">
@@ -209,11 +241,16 @@ export default function POS() {
       return [];
     }
   });
+  const [cartHistory, setCartHistory] = useState([]);
+  const [redoHistory, setRedoHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash'); // Cash or Card
   const [completedOrder, setCompletedOrder] = useState(null);
   const [storeSettings, setStoreSettings] = useState({ name: 'Alexandria Books', address: '', phone: '' });
+  const [activeSection, setActiveSection] = useState('search'); // 'search' or 'cart'
+  const [searchSelectedIndex, setSearchSelectedIndex] = useState(0);
+  const [cartSelectedIndex, setCartSelectedIndex] = useState(0);
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [showScanner, setShowScanner] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -224,7 +261,17 @@ export default function POS() {
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [shortcuts, setShortcuts] = useState(() => {
     const saved = localStorage.getItem('pos_shortcuts');
-    return saved ? JSON.parse(saved) : defaultShortcuts;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Auto-migrate from Backspace to Alt+Backspace
+      if (parsed.undoLastAction === 'Backspace' || parsed.deleteLastItem === 'Backspace') {
+        parsed.undoLastAction = 'Alt+Backspace';
+        delete parsed.deleteLastItem;
+        localStorage.setItem('pos_shortcuts', JSON.stringify(parsed));
+      }
+      return { ...defaultShortcuts, ...parsed };
+    }
+    return defaultShortcuts;
   });
   const mobileScannerUrl = window.location.origin + '/admin/scanner';
   const { user, userFullName } = useAuth();
@@ -322,6 +369,7 @@ export default function POS() {
     } else {
       setFilteredBooks(books);
     }
+    setSearchSelectedIndex(0);
   }, [search, books]);
 
   const fetchData = async () => {
@@ -336,6 +384,20 @@ export default function POS() {
     if (searchInputRef.current) searchInputRef.current.focus();
   };
 
+  useEffect(() => {
+    if (activeSection === 'search') {
+      const el = document.getElementById(`search-item-${searchSelectedIndex}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [searchSelectedIndex, activeSection]);
+
+  useEffect(() => {
+    if (activeSection === 'cart') {
+      const el = document.getElementById(`cart-item-${cartSelectedIndex}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [cartSelectedIndex, activeSection]);
+
   const onAddBookSuccess = (newBook) => {
     setBooks(prev => [...prev, newBook]);
     setFilteredBooks(prev => [...prev, newBook]);
@@ -343,41 +405,127 @@ export default function POS() {
     showNotification('success', 'New book added to cart!');
   };
 
+  const pushToHistory = (previousCart) => {
+    setCartHistory(hist => {
+      const newHist = [...hist, previousCart];
+      if (newHist.length > 50) return newHist.slice(newHist.length - 50);
+      return newHist;
+    });
+    setRedoHistory([]);
+  };
+
+  const saveCartToHistory = () => {
+    pushToHistory(cart);
+  };
+
+  const handleUndo = () => {
+    if (cartHistory.length === 0) {
+      showNotification('error', 'Nothing to undo!');
+      return;
+    }
+    const previousState = cartHistory[cartHistory.length - 1];
+    setCartHistory(prev => prev.slice(0, -1));
+    setRedoHistory(prev => [...prev, cart]);
+    setCart(previousState);
+    showNotification('success', 'Last action undone');
+  };
+
+  const handleRedo = () => {
+    if (redoHistory.length === 0) {
+      showNotification('error', 'Nothing to redo!');
+      return;
+    }
+    const nextState = redoHistory[redoHistory.length - 1];
+    setRedoHistory(prev => prev.slice(0, -1));
+    setCartHistory(hist => {
+      const newHist = [...hist, cart];
+      if (newHist.length > 50) return newHist.slice(newHist.length - 50);
+      return newHist;
+    });
+    setCart(nextState);
+    showNotification('success', 'Action redone');
+  };
+
   const addToCart = (book) => {
     setCart(prev => {
       const existing = prev.find(item => item.book.id === book.id);
       if (existing) {
         if (existing.quantity >= book.stock) return prev; // Prevent adding more than stock
+        pushToHistory(prev);
         return prev.map(item => item.book.id === book.id ? { ...item, quantity: item.quantity + 1 } : item);
       }
+      pushToHistory(prev);
       return [...prev, { book, quantity: 1, price: book.sale_price || book.price }];
     });
   };
 
   const updateQuantity = (id, delta) => {
-    setCart(prev => prev.map(item => {
-      if (item.book.id === id) {
-        const newQ = item.quantity + delta;
-        if (newQ > item.book.stock || newQ < 1) return item;
-        return { ...item, quantity: newQ };
-      }
-      return item;
-    }));
+    setCart(prev => {
+      let changed = false;
+      const nextCart = prev.map(item => {
+        if (item.book.id === id) {
+          const newQ = item.quantity + delta;
+          if (newQ > item.book.stock || newQ < 1) return item;
+          changed = true;
+          return { ...item, quantity: newQ };
+        }
+        return item;
+      });
+      if (changed) pushToHistory(prev);
+      return nextCart;
+    });
   };
 
   const setQuantity = (id, newQ) => {
-    setCart(prev => prev.map(item => {
-      if (item.book.id === id) {
-        if (newQ > item.book.stock) newQ = item.book.stock;
-        if (newQ < 1) newQ = 1;
-        return { ...item, quantity: newQ };
-      }
-      return item;
-    }));
+    setCart(prev => {
+      let changed = false;
+      const nextCart = prev.map(item => {
+        if (item.book.id === id) {
+          if (newQ > item.book.stock) newQ = item.book.stock;
+          if (newQ < 1) newQ = 1;
+          if (newQ !== item.quantity) changed = true;
+          return { ...item, quantity: newQ };
+        }
+        return item;
+      });
+      if (changed) pushToHistory(prev);
+      return nextCart;
+    });
+  };
+
+  const appendQuantityToIndex = (index, digit) => {
+    setCart(prev => {
+      if (!prev[index]) return prev;
+      const item = prev[index];
+      const currentQty = item.quantity;
+      let newQty = parseInt(`${currentQty === 1 ? '' : currentQty}${digit}`);
+      if (newQty > item.book.stock) newQty = item.book.stock;
+      if (newQty < 1) newQty = 1;
+      if (newQty === currentQty) return prev;
+      pushToHistory(prev);
+      const nextCart = [...prev];
+      nextCart[index] = { ...item, quantity: newQty };
+      return nextCart;
+    });
+  };
+
+  const resetQuantityToIndex = (index) => {
+    setCart(prev => {
+      if (!prev[index]) return prev;
+      const item = prev[index];
+      if (item.quantity === 1) return prev;
+      pushToHistory(prev);
+      const nextCart = [...prev];
+      nextCart[index] = { ...item, quantity: 1 };
+      return nextCart;
+    });
   };
 
   const removeFromCart = (id) => {
-    setCart(prev => prev.filter(item => item.book.id !== id));
+    setCart(prev => {
+      pushToHistory(prev);
+      return prev.filter(item => item.book.id !== id);
+    });
   };
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -546,30 +694,26 @@ export default function POS() {
     const keyStr = getEventKeyString(e);
     if (!keyStr) return;
 
-    // Add Item (Spacebar)
+    // Add Item (Spacebar / addScannedItem)
     if (keyStr === shortcuts.addScannedItem) {
       e.preventDefault(); // Prevent typing a space
-      if (search.trim() !== '') {
-        const exactBarcodeBook = books.find(b => b.barcode === search.trim());
-        if (exactBarcodeBook) {
-          handleBarcodeScan(search.trim());
-        } else if (filteredBooks.length > 0) {
-          addToCart(filteredBooks[0]);
-          setSearch('');
-        } else {
+      const exactBarcodeBook = search.trim() !== '' ? books.find(b => b.barcode === search.trim()) : null;
+      if (exactBarcodeBook) {
+        handleBarcodeScan(search.trim());
+      } else if (filteredBooks.length > 0 && searchSelectedIndex >= 0 && searchSelectedIndex < filteredBooks.length) {
+        addToCart(filteredBooks[searchSelectedIndex]);
+        setSearch('');
+      } else {
+        if (search.trim() !== '') {
           showNotification('error', 'Book not found');
           setSearch('');
         }
       }
     }
     // Delete Last Item (Backspace)
-    else if (keyStr === shortcuts.deleteLastItem && search === '') {
+    else if (keyStr === shortcuts.undoLastAction && search === '') {
       e.preventDefault();
-      if (cart.length > 0) {
-        const newCart = [...cart];
-        newCart.pop(); // Remove the last added item
-        setCart(newCart);
-      }
+      handleUndo();
     }
     // Complete Sale (Enter)
     else if (keyStr === shortcuts.checkout && search === '') {
@@ -578,16 +722,28 @@ export default function POS() {
     }
   };
 
+  const syncStateRef = useRef({
+    searchSelectedIndex: 0,
+    cartSelectedIndex: 0,
+    activeSection: 'search'
+  });
+
+  // Sync ref with state when state changes (e.g., from mouse clicks or search reset)
   useEffect(() => {
-    const handleSuccessKeys = (e) => {
-      // Only active if the success screen is showing
-      if (!completedOrder) return;
+    syncStateRef.current.searchSelectedIndex = searchSelectedIndex;
+    syncStateRef.current.cartSelectedIndex = cartSelectedIndex;
+    syncStateRef.current.activeSection = activeSection;
+  }, [searchSelectedIndex, cartSelectedIndex, activeSection]);
 
-      const keyStr = getEventKeyString(e);
-      if (!keyStr) return;
+  const globalKeyHandlerRef = useRef(null);
 
-      const isMatch = (action) => shortcuts[action] && shortcuts[action].toLowerCase() === keyStr.toLowerCase();
+  globalKeyHandlerRef.current = (e) => {
+    const keyStr = getEventKeyString(e);
+    if (!keyStr) return;
+    const isMatch = (action) => shortcuts[action] && shortcuts[action].toLowerCase() === keyStr.toLowerCase();
 
+    // 1. Success Screen Keys
+    if (completedOrder) {
       if (isMatch('reprintBill')) {
         e.preventDefault();
         const originalTitle = document.title;
@@ -602,68 +758,128 @@ export default function POS() {
         setCompletedOrder(null);
         setTimeout(() => searchInputRef.current?.focus(), 100);
       }
-    };
+      return;
+    }
 
-    window.addEventListener('keydown', handleSuccessKeys);
-    return () => window.removeEventListener('keydown', handleSuccessKeys);
-  }, [completedOrder]);
+    // 2. Normal POS Keys
+    if (isPaymentModalOpen) return;
+
+    const activeEl = document.activeElement;
+    const isInputFocused = activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA';
+
+    // Intercept Tab to toggle sections (now customizable)
+    if (isMatch('switchFocus') && !isAddBookModalOpen && !showScanner && !showShortcutsModal && !showMobileQR) {
+      e.preventDefault();
+      const newSection = syncStateRef.current.activeSection === 'search' ? 'cart' : 'search';
+      syncStateRef.current.activeSection = newSection;
+      setActiveSection(newSection);
+      return;
+    }
+
+    // Intercept Arrow keys for navigation
+    if (e.key.startsWith('Arrow') && !isAddBookModalOpen && !showScanner && !showShortcutsModal && !showMobileQR) {
+      e.preventDefault();
+      const st = syncStateRef.current;
+      
+      if (st.activeSection === 'search') {
+        if (e.key === 'ArrowRight') st.searchSelectedIndex = Math.min(st.searchSelectedIndex + 1, filteredBooks.length - 1);
+        else if (e.key === 'ArrowLeft') st.searchSelectedIndex = Math.max(st.searchSelectedIndex - 1, 0);
+        else if (e.key === 'ArrowDown') st.searchSelectedIndex = Math.min(st.searchSelectedIndex + 5, filteredBooks.length - 1);
+        else if (e.key === 'ArrowUp') st.searchSelectedIndex = Math.max(st.searchSelectedIndex - 5, 0);
+        
+        setSearchSelectedIndex(st.searchSelectedIndex);
+      } else if (st.activeSection === 'cart') {
+        // Navigate cart
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') st.cartSelectedIndex = Math.min(st.cartSelectedIndex + 1, cart.length - 1);
+        else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') st.cartSelectedIndex = Math.max(st.cartSelectedIndex - 1, 0);
+        
+        setCartSelectedIndex(st.cartSelectedIndex);
+      }
+      return;
+    }
+
+    // Close Modals
+    if (isMatch('closeModals') || e.key === 'Escape') {
+      setIsAddBookModalOpen(false);
+      setShowScanner(false);
+      setShowShortcutsModal(false);
+      setShowMobileQR(false);
+      searchInputRef.current?.focus();
+      return;
+    }
+
+    // If a modal is open, don't trigger other background shortcuts
+    if (isAddBookModalOpen || showScanner || showShortcutsModal || showMobileQR) return;
+
+    if (isMatch('hardwareScanner')) {
+      e.preventDefault();
+      showNotification('success', 'Hardware Scanner Mode Ready');
+      return;
+    }
+    
+    if (isMatch('openShortcutsMenu')) {
+      e.preventDefault();
+      setShowShortcutsModal(true);
+      return;
+    }
+
+    if (isMatch('togglePayment') && !isAddBookModalOpen && !showScanner && !showShortcutsModal && !showMobileQR && !completedOrder) {
+      e.preventDefault();
+      setPaymentMethod(prev => prev === 'Cash' ? 'Card' : 'Cash');
+      return;
+    }
+
+    if (!isInputFocused || activeEl.tagName === 'INPUT') {
+      const st = syncStateRef.current;
+      
+      // Global Actions (When not typing in a box)
+      if (isMatch('checkout')) {
+        e.preventDefault();
+        triggerCheckout();
+      } else if ((isMatch('addScannedItem') || e.key === 'Enter') && st.activeSection === 'search' && st.searchSelectedIndex >= 0 && st.searchSelectedIndex < filteredBooks.length && !isMatch('checkout')) {
+        e.preventDefault();
+        addToCart(filteredBooks[st.searchSelectedIndex]);
+      } else if (st.activeSection === 'cart' && /^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        appendQuantityToIndex(st.cartSelectedIndex, e.key);
+      } else if (st.activeSection === 'cart' && e.key === 'Backspace') {
+        e.preventDefault();
+        resetQuantityToIndex(st.cartSelectedIndex);
+      } else if (st.activeSection === 'cart' && isMatch('increaseQty')) {
+        e.preventDefault();
+        if (cart[st.cartSelectedIndex]) updateQuantity(cart[st.cartSelectedIndex].book.id, 1);
+      } else if (st.activeSection === 'cart' && isMatch('decreaseQty')) {
+        e.preventDefault();
+        if (cart[st.cartSelectedIndex]) updateQuantity(cart[st.cartSelectedIndex].book.id, -1);
+      } else if (isMatch('undoLastAction')) {
+        e.preventDefault();
+        handleUndo();
+      } else if (isMatch('redoAction')) {
+        e.preventDefault();
+        handleRedo();
+      } else if (isMatch('clearOrder')) {
+        e.preventDefault();
+        if (completedOrder) handleVoidSale();
+        else {
+          if (cart.length > 0) saveCartToHistory();
+          setCart([]);
+        }
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && st.activeSection === 'search') {
+        // AUTO-FOCUS SEARCH BAR: If user starts typing any letter/number while in search mode!
+        searchInputRef.current?.focus();
+      }
+    }
+  };
 
   useEffect(() => {
-    const handleGlobalKeyDown = (e) => {
-      if (completedOrder || isPaymentModalOpen) return; // Prevent global listener when success screen or payment modal is active
-      
-      const activeEl = document.activeElement;
-      const isInputFocused = activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA';
-
-      const keyStr = getEventKeyString(e);
-      if (!keyStr) return;
-
-      const isMatch = (action) => shortcuts[action] && shortcuts[action].toLowerCase() === keyStr.toLowerCase();
-
-      // 1. Close Modals
-      if (isMatch('closeModals') || e.key === 'Escape') {
-        setIsAddBookModalOpen(false);
-        setShowScanner(false);
-        setShowShortcutsModal(false);
-        setShowMobileQR(false);
-        searchInputRef.current?.focus();
-        return;
-      }
-
-      // If a modal is open, don't trigger other background shortcuts
-      if (isAddBookModalOpen || showScanner || showShortcutsModal || showMobileQR) return;
-
-      if (isMatch('hardwareScanner')) {
-        e.preventDefault();
-        showNotification('success', 'Hardware Scanner Mode Ready');
-        return;
-      }
-      
-      if (isMatch('openShortcutsMenu')) {
-        e.preventDefault();
-        setShowShortcutsModal(true);
-        return;
-      }
-
-      if (!isInputFocused) {
-        // 2. Global Actions (When not typing in a box)
-        if (isMatch('checkout')) {
-          e.preventDefault();
-          triggerCheckout();
-        } else if (isMatch('clearOrder')) {
-          e.preventDefault();
-          if (completedOrder) handleVoidSale();
-          else setCart([]);
-        } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-          // 3. AUTO-FOCUS SEARCH BAR: If user starts typing any letter/number, auto-focus the search bar!
-          searchInputRef.current?.focus();
-        }
+    const listener = (e) => {
+      if (globalKeyHandlerRef.current) {
+        globalKeyHandlerRef.current(e);
       }
     };
-
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [shortcuts, cart, completedOrder, isAddBookModalOpen, showScanner, showShortcutsModal, showMobileQR, paymentMethod]);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, []);
 
   if (loading) return <div className="h-screen w-full flex items-center justify-center bg-gray-50 text-theme-deep font-bold">Loading POS...</div>;
 
@@ -802,12 +1018,20 @@ export default function POS() {
         />
         
         <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filteredBooks.map(book => (
+          {filteredBooks.map((book, index) => (
             <button 
+              id={`search-item-${index}`}
               key={book.id} 
-              onClick={() => addToCart(book)}
+              onClick={() => {
+                setSearchSelectedIndex(index);
+                addToCart(book);
+              }}
               disabled={book.stock < 1}
-              className={`relative flex flex-col text-left p-3 rounded-xl border-2 transition-all duration-200 ${book.stock > 0 ? 'bg-white border-gray-100 hover:border-theme-medium hover:shadow-lg cursor-pointer' : 'bg-gray-100 border-gray-100 opacity-60 cursor-not-allowed'}`}
+              className={`relative flex flex-col text-left p-3 rounded-xl border-2 transition-all duration-200 ${
+                activeSection === 'search' && searchSelectedIndex === index 
+                  ? 'border-brand-gold shadow-[0_0_15px_rgba(234,179,8,0.4)] scale-[1.02] bg-white z-10' 
+                  : book.stock > 0 ? 'bg-white border-gray-100 hover:border-theme-medium hover:shadow-lg cursor-pointer' : 'bg-gray-100 border-gray-100 opacity-60 cursor-not-allowed'
+              }`}
             >
               <div className="aspect-[2/3] w-full bg-gray-200 rounded-lg mb-3 overflow-hidden">
                 {book.cover_image_url ? <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">No Img</div>}
@@ -830,15 +1054,31 @@ export default function POS() {
             <p className="text-sm text-gray-500">{cart.length} items</p>
           </div>
           {cart.length > 0 && (
-            <button onClick={() => setCart([])} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold" title={`Clear Cart (${shortcuts.clearOrder})`}>
-              <Trash2 size={16} /> Clear <span className="hidden xl:inline text-xs opacity-70">({shortcuts.clearOrder})</span>
-            </button>
+            <div className="flex gap-2">
+              {cartHistory.length > 0 && (
+                <button onClick={handleUndo} className="text-gray-500 hover:bg-gray-100 p-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold" title={`Undo (${shortcuts.undoLastAction})`}>
+                  <RotateCcw size={16} /> Undo
+                </button>
+              )}
+              {redoHistory.length > 0 && (
+                <button onClick={handleRedo} className="text-gray-500 hover:bg-gray-100 p-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold" title={`Redo (${shortcuts.redoAction})`}>
+                  <RotateCcw size={16} className="rotate-180" /> Redo
+                </button>
+              )}
+              <button onClick={() => { saveCartToHistory(); setCart([]); }} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold" title={`Clear Cart (${shortcuts.clearOrder})`}>
+                <Trash2 size={16} /> Clear <span className="hidden xl:inline text-xs opacity-70">({shortcuts.clearOrder})</span>
+              </button>
+            </div>
           )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-          {cart.map(item => (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={item.book.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3">
+          {cart.map((item, index) => (
+            <motion.div id={`cart-item-${index}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={item.book.id} onClick={() => setCartSelectedIndex(index)} className={`bg-white p-4 rounded-xl border-2 shadow-sm flex flex-col gap-3 transition-all ${
+              activeSection === 'cart' && cartSelectedIndex === index 
+                ? 'border-brand-gold shadow-[0_0_15px_rgba(234,179,8,0.3)]' 
+                : 'border-gray-200'
+            }`}>
               <div className="flex justify-between items-start gap-2">
                 <h4 className="font-bold text-gray-800 text-sm leading-tight flex-1">{item.book.title}</h4>
                 <button onClick={() => removeFromCart(item.book.id)} className="text-gray-400 hover:text-red-500 cursor-pointer p-1"><Trash2 size={16} /></button>

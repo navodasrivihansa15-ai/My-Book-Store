@@ -41,22 +41,35 @@ export default function StoreCopyPrint({ order, storeSettings, storePrintSize })
         </div>
       </div>
 
-      <div className="font-bold text-gray-800 border-2 border-gray-800 p-2 text-sm my-4 bg-gray-100 flex justify-between">
-        <span>INTERNAL REF - HANDLED BY:</span>
-        <span>{order.handled_by || 'N/A'}</span>
-      </div>
+      {order.source === 'POS' ? (
+        <div className="font-bold text-gray-800 border-2 border-gray-800 p-2 text-sm my-4 bg-gray-100 flex justify-between">
+          <span>INTERNAL REF - HANDLED BY:</span>
+          <span>{order.handled_by || 'N/A'}</span>
+        </div>
+      ) : (
+        <div className="font-bold text-gray-800 border-2 border-gray-800 p-2 text-sm my-4 bg-gray-100 flex flex-col gap-1">
+          <div className="flex justify-between border-b border-gray-300 pb-1">
+            <span>PAYMENT VERIFIED BY:</span>
+            <span>{order.payment_verified_by || (order.payment_method === 'Cash on Delivery' ? 'N/A (COD)' : 'Pending')}</span>
+          </div>
+          <div className="flex justify-between pt-1">
+            <span>PACKED / SHIPPED BY:</span>
+            <span>{order.packed_by || 'Pending'}</span>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 text-sm border border-gray-300 p-4">
         <div>
           <h3 className="font-bold uppercase border-b border-gray-300 mb-2">Customer Details</h3>
-          <p><strong>Name:</strong> {order.customer_name || 'N/A'}</p>
-          <p><strong>Phone:</strong> {order.phone || 'N/A'}</p>
-          <p><strong>Email:</strong> {order.email || 'N/A'}</p>
-          {order.address && <p><strong>Address:</strong> {order.address}, {order.city}</p>}
+          <p><strong>Name:</strong> {order.customer_name || order.user_email || 'N/A'}</p>
+          <p><strong>Phone:</strong> {order.contact_number || order.phone || 'N/A'}</p>
+          <p><strong>Email:</strong> {order.user_email || order.email || 'N/A'}</p>
+          {(order.shipping_address || order.address) && <p><strong>Address:</strong> {order.shipping_address || `${order.address}, ${order.city}`}</p>}
         </div>
         <div>
           <h3 className="font-bold uppercase border-b border-gray-300 mb-2">Order Info</h3>
-          <p><strong>Status:</strong> {order.status}</p>
+          <p><strong>Status:</strong> {order.order_status || order.status || 'Pending'}</p>
           <p><strong>Payment:</strong> {order.payment_status}</p>
           <p><strong>Method:</strong> {order.payment_method}</p>
         </div>

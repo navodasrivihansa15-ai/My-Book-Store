@@ -55,6 +55,27 @@ export default function MobileExplore() {
   return (
     <div className="block md:hidden pb-24 pt-24 min-h-screen bg-slate-50">
       
+      {/* QUICK ACTIONS SECTION */}
+      <section className="mb-10 px-5">
+        <h2 className="text-xl font-bold text-theme-deep tracking-tight mb-4">Quick Links</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <button 
+            onClick={() => navigate('/offers')}
+            className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"
+          >
+            <span className="text-2xl mb-2">🎁</span>
+            <span className="text-sm font-bold text-theme-deep">Special Offers</span>
+          </button>
+          <button 
+            onClick={() => navigate('/request-book')}
+            className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"
+          >
+            <span className="text-2xl mb-2">📖</span>
+            <span className="text-sm font-bold text-theme-deep">Request Book</span>
+          </button>
+        </div>
+      </section>
+
       {/* AUTHORS & TRANSLATORS SECTION */}
       <section className="mb-10">
         <div className="flex items-center justify-between px-5 mb-4">

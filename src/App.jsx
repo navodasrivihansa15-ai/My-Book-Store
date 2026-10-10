@@ -20,6 +20,7 @@ import MobileExplore from './pages/MobileExplore';
 import POS from './pages/POS';
 import Scanner from './pages/Scanner';
 import AdminUsers from './pages/AdminUsers';
+import RequestBook from './pages/RequestBook';
 import AdminRoute from './components/AdminRoute';
 import { useAuth } from './context/AuthContext';
 
@@ -55,6 +56,7 @@ function AnimatedRoutes() {
         <Route path="/admin/scanner" element={<Scanner />} />
         <Route path="/admin/users" element={<AdminRoute allowedRoles={['OWNER', 'ADMIN']}><AdminUsers /></AdminRoute>} />
         <Route path="/explore" element={<MobileExplore />} />
+        <Route path="/request-book" element={<RequestBook />} />
       </Routes>
     </AnimatePresence>
   );

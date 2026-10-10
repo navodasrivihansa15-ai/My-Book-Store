@@ -13,6 +13,10 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [activeTab, setActiveTab] = useState('users');
+  
+  const [editingDevice, setEditingDevice] = useState(null);
+  const [deviceIdInput, setDeviceIdInput] = useState('');
+  const [deviceNameInput, setDeviceNameInput] = useState('');
 
   useEffect(() => {
     if (userRole === 'STAFF' || userRole === 'USER') {
@@ -98,6 +102,34 @@ export default function AdminUsers() {
     }
   };
 
+  const updateDevice = async (e) => {
+    e.preventDefault();
+    if (!editingDevice) return;
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ device_id: deviceIdInput, device_name: deviceNameInput })
+        .eq('id', editingDevice.id);
+
+      if (error) throw error;
+      
+      // Cascade update to sessions so the Owner Vault instantly reflects the new device info
+      if (editingDevice.full_name) {
+        await supabase
+          .from('staff_sessions')
+          .update({ device_id: deviceIdInput, device_name: deviceNameInput })
+          .eq('staff_name', editingDevice.full_name);
+      }
+      
+      showNotification('success', 'Device successfully assigned.');
+      setEditingDevice(null);
+      fetchUsers();
+    } catch (err) {
+      console.error(err);
+      showNotification('error', 'Failed to assign device.');
+    }
+  };
+
   const getRoleBadge = (role) => {
     switch(role) {
       case 'OWNER':
@@ -176,15 +208,16 @@ export default function AdminUsers() {
                 <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase tracking-wider text-xs">
                   <th className="p-4 font-semibold">User Email</th>
                   <th className="p-4 font-semibold">Current Role</th>
+                  <th className="p-4 font-semibold">Assigned Device</th>
                   <th className="p-4 font-semibold">Joined Date</th>
                   <th className="p-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="4" className="text-center py-12 text-slate-500">Loading users...</td></tr>
+                  <tr><td colSpan="5" className="text-center py-12 text-slate-500">Loading users...</td></tr>
                 ) : users.length === 0 ? (
-                  <tr><td colSpan="4" className="text-center py-12 text-slate-500">No users found.</td></tr>
+                  <tr><td colSpan="5" className="text-center py-12 text-slate-500">No users found.</td></tr>
                 ) : (
                   users.map((targetUser) => {
                     const isSelf = targetUser.email === user?.email || targetUser.id === user?.id;
@@ -220,6 +253,12 @@ export default function AdminUsers() {
                         <td className="p-4">
                           {getRoleBadge(targetUser.role)}
                         </td>
+                        <td className="p-4">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-mono text-slate-300">{targetUser.device_id || 'UNASSIGNED'}</span>
+                            {targetUser.device_name && <span className="text-[10px] text-slate-500 uppercase">{targetUser.device_name}</span>}
+                          </div>
+                        </td>
                         <td className="p-4 text-slate-400 text-sm">
                           {targetUser.created_at ? new Date(targetUser.created_at).toLocaleDateString() : 'N/A'}
                         </td>
@@ -247,9 +286,22 @@ export default function AdminUsers() {
                             )}
                             
                             {!canPromoteToAdmin && !canPromoteToStaff && !canDemoteToStaff && !canDemoteToUser && (
-                              <span className="text-slate-600 text-xs uppercase tracking-widest font-semibold px-2 mt-1 block">
+                              <span className="text-slate-600 text-xs uppercase tracking-widest font-semibold px-2 block">
                                 {isSelf ? 'No Actions Available' : isTargetOwner ? 'Protected' : 'No Actions Available'}
                               </span>
+                            )}
+                            
+                            {(userRole === 'OWNER' || userRole === 'ADMIN') && (
+                              <button 
+                                onClick={() => {
+                                  setEditingDevice(targetUser);
+                                  setDeviceIdInput(targetUser.device_id || '');
+                                  setDeviceNameInput(targetUser.device_name || '');
+                                }} 
+                                className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(51,65,85,0.5)]"
+                              >
+                                Assign Device
+                              </button>
                             )}
                           </div>
                         </td>
@@ -265,6 +317,45 @@ export default function AdminUsers() {
           <DigitalRecordBook />
         )}
       </div>
+
+      {/* Device Assignment Modal */}
+      {editingDevice && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+            <h3 className="text-2xl font-bold text-white mb-2">Assign POS Device</h3>
+            <p className="text-slate-400 text-sm mb-6">Assigning device to <strong className="text-white">{editingDevice.full_name || editingDevice.email}</strong></p>
+            <form onSubmit={updateDevice} className="space-y-4">
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2">Device ID (e.g. PC-01)</label>
+                <input 
+                  type="text" 
+                  value={deviceIdInput} 
+                  onChange={(e) => setDeviceIdInput(e.target.value)} 
+                  placeholder="PC-01" 
+                  required
+                  className="w-full bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-brand-gold font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-slate-400 mb-2">Device Name/Model</label>
+                <input 
+                  type="text" 
+                  value={deviceNameInput} 
+                  onChange={(e) => setDeviceNameInput(e.target.value)} 
+                  placeholder="Main Counter Lenovo" 
+                  required
+                  className="w-full bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-brand-gold"
+                />
+              </div>
+              <div className="flex gap-4 mt-8">
+                <button type="button" onClick={() => setEditingDevice(null)} className="flex-1 py-3 text-slate-400 hover:text-white font-bold uppercase tracking-wider text-sm transition-colors border border-slate-700 hover:border-slate-500 rounded-lg">Cancel</button>
+                <button type="submit" className="flex-1 bg-brand-gold text-black font-bold uppercase tracking-wider text-sm transition-colors hover:bg-yellow-500 rounded-lg">Save Assignment</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -13,6 +13,8 @@ const fallbackImage = 'https://placehold.co/400x600/e2e8f0/0b1d3a?text=No+Cover'
 export default function Home() {
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [contributors, setContributors] = useState([]);
+  const [publishers, setPublishers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
   
@@ -44,6 +46,12 @@ export default function Home() {
     const { data: catData } = await supabase.from('categories').select('*').order('name');
     if (catData) setCategories(catData.map(c => c.name));
     
+    const { data: contData } = await supabase.from('contributors').select('*');
+    if (contData) setContributors(contData);
+
+    const { data: pubData } = await supabase.from('publishers').select('*');
+    if (pubData) setPublishers(pubData);
+
     setLoading(false);
   };
 
@@ -74,14 +82,35 @@ export default function Home() {
     }
 
     if (searchQuery) {
+      const q = searchQuery.toLowerCase();
       result = result.filter(book => 
-        book.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (book.author && book.author.toLowerCase().includes(searchQuery.toLowerCase()))
+        (book.title && book.title.toLowerCase().includes(q)) || 
+        (book.isbn && book.isbn.toLowerCase().includes(q)) || 
+        (book.author && book.author.toLowerCase().includes(q)) || 
+        (book.translator && book.translator.toLowerCase().includes(q)) ||
+        (book.publisher && book.publisher.toLowerCase().includes(q))
       );
     }
     
     return result;
   }, [books, bestSellers, searchQuery, selectedCategory]);
+
+  const filteredContributors = useMemo(() => {
+    if (!searchQuery) return [];
+    const q = searchQuery.toLowerCase();
+    return contributors.filter(c => 
+      (c.name_en && c.name_en.toLowerCase().includes(q)) || 
+      (c.name_si && c.name_si.toLowerCase().includes(q))
+    );
+  }, [contributors, searchQuery]);
+
+  const filteredPublishers = useMemo(() => {
+    if (!searchQuery) return [];
+    const q = searchQuery.toLowerCase();
+    return publishers.filter(p => 
+      (p.name && p.name.toLowerCase().includes(q))
+    );
+  }, [publishers, searchQuery]);
 
   return (
     <div className="flex flex-col md:flex-row gap-8 w-full">
@@ -184,24 +213,87 @@ export default function Home() {
               </button>
             </div>
 
-            {filteredBooks.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
-                {filteredBooks.map(book => (
-                  <div key={book.id} className="w-full flex justify-center">
-                    <BookCard book={book} addToCart={addToCart} />
+            {searchQuery && (filteredContributors.length > 0 || filteredPublishers.length > 0) && (
+              <div className="space-y-8 mb-12">
+                {filteredContributors.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-bold text-theme-darkest mb-4 border-b border-theme-medium/20 pb-2">Authors & Translators</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
+                      {filteredContributors.map(person => (
+                        <Link 
+                          to={`/${person.role === 'Translator' ? 'translator' : 'author'}/${encodeURIComponent(person.name_en)}`}
+                          key={person.id} 
+                          className="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:-translate-y-2 hover:shadow-lg transition-all duration-300 group text-center"
+                        >
+                          <div className="w-20 h-20 relative overflow-hidden rounded-full bg-theme-light/50 flex items-center justify-center border-4 border-white shadow-inner group-hover:border-theme-light transition-colors">
+                            <span className="text-3xl font-bold text-theme-deep">{person.name_en.charAt(0).toUpperCase()}</span>
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-base text-theme-darkest group-hover:text-theme-medium transition-colors line-clamp-2">
+                              {person.name_en}
+                            </h3>
+                            <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm bg-theme-medium/10 text-theme-darkest">
+                              {person.role}
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
+                
+                {filteredPublishers.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-bold text-theme-darkest mb-4 border-b border-theme-medium/20 pb-2">Publishers</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
+                      {filteredPublishers.map(pub => (
+                        <Link 
+                          to={`/publishers/${encodeURIComponent(pub.name)}`}
+                          key={pub.id} 
+                          className="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:-translate-y-2 hover:shadow-lg transition-all duration-300 group text-center"
+                        >
+                          <div className="w-20 h-20 relative overflow-hidden rounded-full bg-slate-200 flex items-center justify-center border-4 border-white shadow-inner group-hover:border-slate-300 transition-colors">
+                            <span className="text-3xl font-bold text-slate-700">{pub.name.charAt(0).toUpperCase()}</span>
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-base text-theme-darkest group-hover:text-theme-medium transition-colors line-clamp-2">
+                              {pub.name}
+                            </h3>
+                            <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm bg-slate-200 text-slate-700">
+                              Publisher
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {filteredBooks.length > 0 ? (
+              <div>
+                {searchQuery && <h3 className="text-xl font-bold text-theme-darkest mb-4 border-b border-theme-medium/20 pb-2">Books</h3>}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
+                  {filteredBooks.map(book => (
+                    <div key={book.id} className="w-full flex justify-center">
+                      <BookCard book={book} addToCart={addToCart} />
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
-              <div className="text-center py-24 bg-white rounded-2xl border border-theme-light/30 shadow-md">
-                <p className="text-theme-darkest/70 font-medium text-xl mb-6">No masterpieces found matching your search.</p>
-                <button 
-                  onClick={() => { setSearchParams({}) }}
-                  className="bg-theme-deep text-theme-bg px-8 py-3 rounded-full font-bold tracking-wide text-sm hover:bg-theme-darkest transition-all cursor-pointer shadow-md hover:shadow-lg hover:shadow-theme-medium/20"
-                >
-                  View All Books
-                </button>
-              </div>
+              (!searchQuery || (filteredContributors.length === 0 && filteredPublishers.length === 0)) && (
+                <div className="text-center py-24 bg-white rounded-2xl border border-theme-light/30 shadow-md">
+                  <p className="text-theme-darkest/70 font-medium text-xl mb-6">No matching results found for your search.</p>
+                  <button 
+                    onClick={() => { setSearchParams({}) }}
+                    className="bg-theme-deep text-theme-bg px-8 py-3 rounded-full font-bold tracking-wide text-sm hover:bg-theme-darkest transition-all cursor-pointer shadow-md hover:shadow-lg hover:shadow-theme-medium/20"
+                  >
+                    Clear Search
+                  </button>
+                </div>
+              )
             )}
           </div>
         )}

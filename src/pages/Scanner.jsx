@@ -149,7 +149,7 @@ export default function Scanner() {
           <ChevronLeft size={22} className="text-gray-300" />
         </Link>
         <div className="flex flex-col items-center">
-          <h1 className="text-xl md:text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-brand-gold to-yellow-200 bg-clip-text text-transparent">Scanner</h1>
+          <h1 className="text-2xl md:text-3xl font-black tracking-[0.25em] uppercase text-brand-gold drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]">Scanner</h1>
           <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Wireless Link</span>
         </div>
         {deferredPrompt && (

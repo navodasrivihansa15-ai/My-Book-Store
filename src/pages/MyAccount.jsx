@@ -523,7 +523,7 @@ function UserOrders({ user }) {
                 <p className="text-sm font-bold text-gray-800 mb-1">Thank you for your purchase!</p>
                 <p className="text-xs text-gray-500 mb-3">If you have any questions about this invoice, please contact us at {storeSettings.email || 'hello@alexandria.lk'}</p>
                 <div className="text-[10px] text-gray-500 italic text-center mt-2 border-t border-gray-200 pt-3">
-                  * Delivery fees are based solely on actual postal or courier charges.
+
                 </div>
               </div>
             </div>
