@@ -40,7 +40,7 @@ export default function Home() {
   };
 
   const fetchData = async () => {
-    const { data: bookData } = await supabase.from('books').select('*').order('created_at', { ascending: false });
+    const { data: bookData } = await supabase.from('books').select('*').or('is_special.is.null,is_special.eq.false').order('created_at', { ascending: false });
     if (bookData) setBooks(bookData);
     
     const { data: catData } = await supabase.from('categories').select('*').order('name');
@@ -218,21 +218,21 @@ export default function Home() {
                 {filteredContributors.length > 0 && (
                   <div>
                     <h3 className="text-xl font-bold text-theme-darkest mb-4 border-b border-theme-medium/20 pb-2">Authors & Translators</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {filteredContributors.map(person => (
                         <Link 
                           to={`/${person.role === 'Translator' ? 'translator' : 'author'}/${encodeURIComponent(person.name_en)}`}
                           key={person.id} 
-                          className="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:-translate-y-2 hover:shadow-lg transition-all duration-300 group text-center"
+                          className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-row items-center gap-4 cursor-pointer hover:shadow-md transition-all duration-300 group"
                         >
-                          <div className="w-20 h-20 relative overflow-hidden rounded-full bg-theme-light/50 flex items-center justify-center border-4 border-white shadow-inner group-hover:border-theme-light transition-colors">
-                            <span className="text-3xl font-bold text-theme-deep">{person.name_en.charAt(0).toUpperCase()}</span>
+                          <div className="w-12 h-12 shrink-0 relative overflow-hidden rounded-full bg-theme-light/30 flex items-center justify-center border-2 border-white shadow-inner group-hover:border-theme-light transition-colors">
+                            <span className="text-xl font-bold text-theme-deep">{person.name_en.charAt(0).toUpperCase()}</span>
                           </div>
-                          <div>
-                            <h3 className="font-bold text-base text-theme-darkest group-hover:text-theme-medium transition-colors line-clamp-2">
+                          <div className="flex-1 min-w-0 text-left flex flex-col justify-center">
+                            <h3 className="font-bold text-sm text-theme-darkest group-hover:text-theme-medium transition-colors truncate">
                               {person.name_en}
                             </h3>
-                            <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm bg-theme-medium/10 text-theme-darkest">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-theme-medium mt-0.5">
                               {person.role}
                             </span>
                           </div>
@@ -245,21 +245,21 @@ export default function Home() {
                 {filteredPublishers.length > 0 && (
                   <div>
                     <h3 className="text-xl font-bold text-theme-darkest mb-4 border-b border-theme-medium/20 pb-2">Publishers</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {filteredPublishers.map(pub => (
                         <Link 
                           to={`/publishers/${encodeURIComponent(pub.name)}`}
                           key={pub.id} 
-                          className="bg-slate-50 rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:-translate-y-2 hover:shadow-lg transition-all duration-300 group text-center"
+                          className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-row items-center gap-4 cursor-pointer hover:shadow-md transition-all duration-300 group"
                         >
-                          <div className="w-20 h-20 relative overflow-hidden rounded-full bg-slate-200 flex items-center justify-center border-4 border-white shadow-inner group-hover:border-slate-300 transition-colors">
-                            <span className="text-3xl font-bold text-slate-700">{pub.name.charAt(0).toUpperCase()}</span>
+                          <div className="w-12 h-12 shrink-0 relative overflow-hidden rounded-full bg-slate-100 flex items-center justify-center border-2 border-white shadow-inner group-hover:border-slate-300 transition-colors">
+                            <span className="text-xl font-bold text-slate-600">{pub.name.charAt(0).toUpperCase()}</span>
                           </div>
-                          <div>
-                            <h3 className="font-bold text-base text-theme-darkest group-hover:text-theme-medium transition-colors line-clamp-2">
+                          <div className="flex-1 min-w-0 text-left flex flex-col justify-center">
+                            <h3 className="font-bold text-sm text-theme-darkest group-hover:text-theme-medium transition-colors truncate">
                               {pub.name}
                             </h3>
-                            <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm bg-slate-200 text-slate-700">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5">
                               Publisher
                             </span>
                           </div>

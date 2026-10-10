@@ -38,15 +38,15 @@ export default function Offers() {
   }, []);
 
   return (
-    <div className="w-full">
-      <div className="mb-8">
+    <div className="w-full max-w-7xl mx-auto">
+      <div className="mb-8 px-2 md:px-0">
         <h2 className="text-2xl md:text-4xl font-extrabold text-brand-blue font-serif mb-2 leading-tight">Special Offers</h2>
         <p className="text-slate-500 font-medium">Exclusive deals and discounts for our readers.</p>
       </div>
 
       {!loading && offerBanners.length > 0 && (
-        <div className="w-full">
-          <HeroBanner banners={offerBanners} disableLinks={true} className="w-full aspect-[3/2] md:aspect-[16/5] object-cover rounded-2xl shadow-md mb-6" />
+        <div className="w-full mb-6">
+          <HeroBanner banners={offerBanners} disableLinks={true} className="w-full aspect-[3/2] md:aspect-[16/5] object-cover rounded-2xl shadow-md" />
         </div>
       )}
 

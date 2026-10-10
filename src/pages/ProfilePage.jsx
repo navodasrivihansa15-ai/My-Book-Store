@@ -29,6 +29,7 @@ export default function ProfilePage({ type }) {
         .from('books')
         .select('*')
         .eq(type, decodedName)
+        .or('is_special.is.null,is_special.eq.false')
         .order('created_at', { ascending: false });
 
       if (booksData) setBooks(booksData);

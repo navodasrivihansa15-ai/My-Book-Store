@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck, Database, Download, Upload, AlertTriangle, ShoppingCart, Shield } from 'lucide-react';
+import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck, Database, Download, Upload, AlertTriangle, ShoppingCart, Shield, BookOpen } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -12,36 +12,42 @@ import StoreCopyPrint from '../components/StoreCopyPrint';
 export default function AdminDashboard() {
   const { userRole } = useAuth();
   const [activeTab, setActiveTab] = useState('inventory');
+  const [showRequests, setShowRequests] = useState(false);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-7xl mx-auto pt-4 md:pt-8 pb-24 md:pb-8 px-4 md:px-0">
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-8 gap-4 md:gap-6 no-print">
-        <div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-brand-blue font-bold mb-1 md:mb-2 whitespace-nowrap">Command Center</h1>
-          <p className="text-xs sm:text-sm md:text-base text-gray-500 tracking-wide">Manage your bookstore inventory, banners, and orders.</p>
+      <div className="flex flex-col mb-4 md:mb-8 gap-4 md:gap-6 no-print">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-brand-blue font-bold mb-1 md:mb-2 whitespace-nowrap">Command Center</h1>
+            <p className="text-xs sm:text-sm md:text-base text-gray-500 tracking-wide">Manage your bookstore inventory, banners, and orders.</p>
+          </div>
+          <button 
+            onClick={() => setShowRequests(true)} 
+            className="bg-brand-gold text-black px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-sm shadow-md hover:bg-yellow-500 transition-colors flex items-center gap-2 cursor-pointer"
+          >
+            <BookOpen size={18} /> View Book Requests
+          </button>
         </div>
 
         {/* Mobile Navigation */}
-        <div className="flex flex-wrap gap-2 md:hidden w-full items-center">
+        <div className="flex overflow-x-auto whitespace-nowrap hide-scrollbar space-x-3 pb-2 md:hidden w-full items-center">
           <button onClick={() => setActiveTab('inventory')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'inventory' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Plus size={16} /> Inventory
           </button>
           <button onClick={() => setActiveTab('orders')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'orders' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Package size={16} /> Orders
           </button>
-          <Link to="/admin/pos" className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 bg-brand-gold text-black shadow-md hover:bg-yellow-500">
+          <Link to="/admin/pos" className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 bg-white border border-gray-200 text-theme-medium hover:text-theme-deep">
             <ShoppingCart size={16} /> Launch POS
           </Link>
           {['OWNER', 'ADMIN'].includes(userRole) && (
-            <Link to="/admin/users" className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 bg-slate-800 text-white shadow-md hover:bg-slate-700">
+            <Link to="/admin/users" className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 bg-white border border-gray-200 text-theme-medium hover:text-theme-deep">
               <Shield size={16} /> Manage Users
             </Link>
           )}
           <button onClick={() => setActiveTab('banners')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'banners' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <ImageIcon size={16} /> Banners
-          </button>
-          <button onClick={() => setActiveTab('payment')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'payment' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
-            <CreditCard size={16} /> Payment
           </button>
           <button onClick={() => setActiveTab('store')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'store' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Settings size={16} /> Store
@@ -57,26 +63,23 @@ export default function AdminDashboard() {
         </div>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex flex-wrap gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 shadow-sm">
+        <div className="hidden md:flex mx-auto w-fit bg-slate-50 p-1 rounded-lg border border-slate-200 shadow-sm overflow-x-auto hide-scrollbar">
           <button onClick={() => setActiveTab('inventory')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'inventory' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Plus size={18} /> Inventory
           </button>
           <button onClick={() => setActiveTab('orders')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'orders' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Package size={18} /> Orders
           </button>
-          <Link to="/admin/pos" className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer bg-brand-gold/10 text-brand-gold hover:bg-brand-gold hover:text-black">
+          <Link to="/admin/pos" className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer text-theme-medium hover:text-theme-deep">
             <ShoppingCart size={18} /> Launch POS
           </Link>
           {['OWNER', 'ADMIN'].includes(userRole) && (
-            <Link to="/admin/users" className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer bg-slate-200/50 text-slate-700 hover:bg-slate-800 hover:text-white">
+            <Link to="/admin/users" className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer text-theme-medium hover:text-theme-deep">
               <Shield size={18} /> Manage Users
             </Link>
           )}
           <button onClick={() => setActiveTab('banners')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'banners' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <ImageIcon size={18} /> Banners
-          </button>
-          <button onClick={() => setActiveTab('payment')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'payment' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-            <CreditCard size={18} /> Payment
           </button>
           <button onClick={() => setActiveTab('store')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'store' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Settings size={18} /> Store
@@ -96,11 +99,12 @@ export default function AdminDashboard() {
         {activeTab === 'inventory' && <motion.div key="inventory" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><InventoryManagement /></motion.div>}
         {activeTab === 'banners' && <motion.div key="banners" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><BannerManagement /></motion.div>}
         {activeTab === 'orders' && <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><OrderManagement /></motion.div>}
-        {activeTab === 'payment' && <motion.div key="payment" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><AdminPaymentSettings /></motion.div>}
         {activeTab === 'store' && <motion.div key="store" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><StoreSettings /></motion.div>}
         {activeTab === 'shipping' && <motion.div key="shipping" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><ShippingSettings /></motion.div>}
         {activeTab === 'database' && <motion.div key="database" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><DatabaseManagement userRole={userRole} /></motion.div>}
       </AnimatePresence>
+
+      <BookRequestsModal isOpen={showRequests} onClose={() => setShowRequests(false)} />
 
       <style>{`
         @media print {
@@ -1927,7 +1931,11 @@ function StoreSettings() {
   if (loading) return <div className="p-8 text-center text-gray-500 animate-pulse">Loading Store Settings...</div>;
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
+    <div className="space-y-8 w-full">
+      
+      {/* Moved AdminPaymentSettings to the top of StoreSettings */}
+      <AdminPaymentSettings />
+
       {notification.message && (
         <div className={`p-4 rounded-lg border flex items-center gap-3 ${notification.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
           {notification.type === 'success' ? <Check size={20} /> : <AlertCircle size={20} />}
@@ -2474,6 +2482,153 @@ function DatabaseManagement({ userRole }) {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// BOOK REQUESTS MODAL
+// ==========================================
+function BookRequestsModal({ isOpen, onClose }) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen) fetchRequests();
+  }, [isOpen]);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('book_requests').select('*').order('created_at', { ascending: false });
+    if (!error && data) setRequests(data);
+    setLoading(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this request?')) return;
+    
+    // Add .select() to verify if the row was actually deleted
+    const { data, error } = await supabase.from('book_requests').delete().eq('id', id).select();
+    
+    if (error) {
+      console.error(error);
+      alert('Failed to delete request. Error: ' + error.message);
+    } else if (data && data.length === 0) {
+      // If no rows were deleted, RLS policy is blocking it
+      alert('Delete failed! Security (RLS) is blocking it.\n\nPlease open your Supabase Dashboard -> SQL Editor and run the "add_delete_policy.sql" file I created for you to enable deletions.');
+    } else {
+      // Success
+      fetchRequests();
+    }
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    const html = `
+      <html>
+        <head>
+          <title>Book Requests Report</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #333; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f4f4f4; font-weight: bold; }
+            h1 { text-align: center; margin-bottom: 5px; color: #1a365d; }
+            .date { text-align: center; color: #666; font-size: 14px; margin-bottom: 20px; }
+            @media print {
+              @page { margin: 1cm; }
+              body { -webkit-print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Book Requests Report</h1>
+          <div class="date">Generated on ${new Date().toLocaleString()}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Requested By</th>
+                <th>Email</th>
+                <th>Book Name</th>
+                <th>Author</th>
+                <th>Translator</th>
+                <th>Publisher</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${requests.map(req => `
+                <tr>
+                  <td>${new Date(req.created_at).toLocaleDateString()}</td>
+                  <td>${req.user_name}</td>
+                  <td>${req.email}</td>
+                  <td><strong>${req.book_name}</strong></td>
+                  <td>${req.author || '-'}</td>
+                  <td>${req.translator || '-'}</td>
+                  <td>${req.publisher || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-30 pt-[140px] md:pt-[100px] flex justify-center bg-black/40 backdrop-blur-sm px-4 pb-10">
+      <div className="bg-slate-50 rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col h-full overflow-hidden border border-gray-200 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-white shrink-0 shadow-sm z-10">
+          <div>
+            <h2 className="text-2xl font-bold text-theme-deep flex items-center gap-2"><BookOpen className="text-brand-gold" /> Book Requests</h2>
+            <p className="text-sm text-gray-500 mt-1">Customer requests for books not currently in stock.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white text-sm font-bold rounded-xl hover:bg-slate-700 transition shadow-md cursor-pointer">
+              <Printer size={16} /> Print PDF
+            </button>
+            <button onClick={onClose} className="p-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition cursor-pointer">
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+          {loading ? (
+            <div className="flex justify-center p-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-theme-deep"></div></div>
+          ) : requests.length === 0 ? (
+            <div className="text-center p-20 text-gray-500 font-medium">No book requests found.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {requests.map(req => (
+                <div key={req.id} className="border border-gray-200 rounded-xl p-5 shadow-sm bg-white relative hover:shadow-md transition-shadow">
+                  <div className="absolute top-4 right-4">
+                    <button onClick={() => handleDelete(req.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition cursor-pointer">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                  <h3 className="font-bold text-lg text-theme-darkest mb-1 pr-10">{req.book_name}</h3>
+                  <div className="text-xs font-semibold text-gray-400 mb-4">{new Date(req.created_at).toLocaleString()}</div>
+                  
+                  <div className="space-y-2 text-sm text-gray-700 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <p className="flex justify-between"><span className="font-semibold text-gray-500">Requested By:</span> <span className="font-medium">{req.user_name}</span></p>
+                    <p className="flex justify-between"><span className="font-semibold text-gray-500">Email:</span> <a href={`mailto:${req.email}`} className="text-blue-600 hover:underline">{req.email}</a></p>
+                    {req.author && <p className="flex justify-between"><span className="font-semibold text-gray-500">Author:</span> <span>{req.author}</span></p>}
+                    {req.translator && <p className="flex justify-between"><span className="font-semibold text-gray-500">Translator:</span> <span>{req.translator}</span></p>}
+                    {req.publisher && <p className="flex justify-between"><span className="font-semibold text-gray-500">Publisher:</span> <span>{req.publisher}</span></p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

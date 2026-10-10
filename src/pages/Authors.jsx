@@ -10,6 +10,14 @@ export default function Authors() {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [personBooks, setPersonBooks] = useState([]);
   const [booksLoading, setBooksLoading] = useState(false);
+  const [selectedLetter, setSelectedLetter] = useState('All');
+
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+  const filteredAuthors = authors.filter(person => {
+    if (selectedLetter === 'All') return true;
+    return person.name_en && person.name_en.toUpperCase().startsWith(selectedLetter);
+  });
 
   useEffect(() => {
     const fetchAuthorsAndTranslators = async () => {
@@ -29,6 +37,7 @@ export default function Authors() {
       .from('books')
       .select('*')
       .or(`author.eq."${person.name_en}",translator.eq."${person.name_en}"`)
+      .or('is_special.is.null,is_special.eq.false')
       .order('created_at', { ascending: false });
     if (data) setPersonBooks(data);
     setBooksLoading(false);
@@ -57,10 +66,45 @@ export default function Authors() {
         </p>
       </div>
 
+      {/* ALPHABET FILTER */}
+      {!selectedPerson && (
+        <div className="flex flex-wrap justify-center gap-2 pb-4">
+          <button 
+            onClick={() => setSelectedLetter('All')}
+            className={`px-5 py-2 rounded-full text-sm font-bold transition-all cursor-pointer ${
+              selectedLetter === 'All' 
+                ? 'bg-theme-deep text-white shadow-md' 
+                : 'bg-white text-theme-medium hover:bg-theme-light/30 border border-slate-200'
+            }`}
+          >
+            All
+          </button>
+          {alphabet.map(letter => {
+            const hasAuthors = authors.some(a => a.name_en && a.name_en.toUpperCase().startsWith(letter));
+            return (
+              <button
+                key={letter}
+                onClick={() => setSelectedLetter(letter)}
+                disabled={!hasAuthors}
+                className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all ${
+                  !hasAuthors 
+                    ? 'bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed'
+                    : selectedLetter === letter 
+                      ? 'bg-theme-deep text-white shadow-md cursor-pointer' 
+                      : 'bg-white text-theme-medium hover:bg-theme-light/30 border border-slate-200 cursor-pointer'
+                }`}
+              >
+                {letter}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         {!selectedPerson ? (
           <motion.div key="grid" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
-            {authors.map(person => (
+            {filteredAuthors.map(person => (
               <div 
                 key={person.id} 
                 onClick={() => handlePersonClick(person)}

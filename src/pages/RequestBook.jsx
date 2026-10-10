@@ -73,7 +73,7 @@ export default function RequestBook() {
           <button
             onClick={() => {
               setSubmitted(false);
-              setFormData({ user_name: '', email: '', book_name: '', author: '', translator: '', publisher: '' });
+              setFormData(prev => ({ ...prev, book_name: '', author: '', translator: '', publisher: '' }));
             }}
             className="bg-theme-deep text-white px-8 py-3 rounded-full font-bold tracking-wide hover:bg-theme-darkest transition-colors shadow-md cursor-pointer"
           >

@@ -4,7 +4,7 @@ export default function SubNavbar() {
   const navItems = [
     { name: 'Home', path: '/' },
     { name: 'All Books', path: '/books' },
-    { name: 'PUBLISHERS', path: '/publishers' },
+    { name: 'Publishers', path: '/publishers' },
     { name: 'Authors', path: '/authors' },
     { name: 'Offers', path: '/offers' },
     { name: 'Request Book', path: '/request-book' },

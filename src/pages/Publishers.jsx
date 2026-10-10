@@ -23,7 +23,7 @@ export default function Publishers() {
   const handlePublisherClick = async (publisher) => {
     setSelectedPublisher(publisher);
     setBooksLoading(true);
-    const { data, error } = await supabase.from('books').select('*').eq('publisher', publisher.name).order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('books').select('*').eq('publisher', publisher.name).or('is_special.is.null,is_special.eq.false').order('created_at', { ascending: false });
     if (data) setPublisherBooks(data);
     setBooksLoading(false);
   };
