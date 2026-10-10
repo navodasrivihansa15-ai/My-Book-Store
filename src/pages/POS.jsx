@@ -7,6 +7,7 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 import { formatPrice } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import AddBookModal from '../components/AddBookModal';
+import { useAuth } from '../context/AuthContext';
 
 const defaultShortcuts = {
   openShortcutsMenu: 'Alt+k',
@@ -156,7 +157,7 @@ const ShortcutSettingsModal = ({ shortcuts, setShortcuts, onClose, showNotificat
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Keyboard size={20} className="text-brand-gold" />
+            <Keyboard size={20} className="text-theme-medium" />
             <h2 className="text-lg font-bold">Keyboard Shortcuts</h2>
           </div>
           <button onClick={onClose} className="hover:bg-slate-800 p-1 rounded-full"><X size={20} /></button>
@@ -175,7 +176,7 @@ const ShortcutSettingsModal = ({ shortcuts, setShortcuts, onClose, showNotificat
                 value={localShortcuts[key] === ' ' ? 'Space' : (localShortcuts[key] || '')}
                 onKeyDown={(e) => handleKeyCapture(e, key)}
                 readOnly // Prevent normal typing
-                className="w-40 border-2 p-2 rounded-lg text-center cursor-pointer font-mono font-bold text-sm text-brand-blue bg-gray-50 focus:bg-white focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/30 outline-none transition-all shadow-sm"
+                className="w-40 border-2 p-2 rounded-lg text-center cursor-pointer font-mono font-bold text-sm text-theme-deep bg-gray-50 focus:bg-white focus:border-theme-deep focus:ring-2 focus:ring-theme-deep/30 outline-none transition-all shadow-sm"
                 title="Click here and press any key combination to change"
               />
             </div>
@@ -226,6 +227,15 @@ export default function POS() {
     return saved ? JSON.parse(saved) : defaultShortcuts;
   });
   const mobileScannerUrl = window.location.origin + '/admin/scanner';
+  const { user, userFullName } = useAuth();
+  let activeStaffName = null;
+  try { 
+    const stored = JSON.parse(sessionStorage.getItem('active_staff'))?.name;
+    if (stored && !stored.includes('@')) {
+      activeStaffName = stored;
+    }
+  } catch(e) {}
+  const handlerName = activeStaffName || userFullName || user?.email || user?.user_metadata?.full_name || 'Unknown Staff';
 
   const searchInputRef = useRef(null);
   const booksRef = useRef(books);
@@ -372,6 +382,17 @@ export default function POS() {
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
+  const triggerCheckout = () => {
+    if (cart.length === 0 || processing) return;
+    if (paymentMethod === 'Cash') {
+      setIsPaymentModalOpen(true);
+      setAmountPaid('');
+    } else {
+      // For Card payments, bypass the cash popup and finalize immediately
+      handleCompleteSale(total, 0);
+    }
+  };
+
   const handleCompleteSale = async (paidAmount, calculatedBalance) => {
     if (cart.length === 0) return;
     setProcessing(true);
@@ -391,7 +412,8 @@ export default function POS() {
         payment_method: paymentMethod,
         payment_status: 'Verified',
         order_status: 'Completed',
-        order_source: 'POS'
+        order_source: 'POS',
+        handled_by: handlerName
       }).select().single();
 
       if (orderError) throw new Error(orderError.message);
@@ -405,6 +427,13 @@ export default function POS() {
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
       if (itemsError) throw new Error(itemsError.message);
+
+      try {
+        const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
+        if (activeStaff.session_id) {
+          await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'pos_handled' });
+        }
+      } catch (e) {}
 
       // Deduct stock
       for (const item of cart) {
@@ -545,10 +574,7 @@ export default function POS() {
     // Complete Sale (Enter)
     else if (keyStr === shortcuts.checkout && search === '') {
       e.preventDefault();
-      if (cart.length > 0) {
-        setIsPaymentModalOpen(true);
-        setAmountPaid('');
-      }
+      triggerCheckout();
     }
   };
 
@@ -564,7 +590,10 @@ export default function POS() {
 
       if (isMatch('reprintBill')) {
         e.preventDefault();
+        const originalTitle = document.title;
+        document.title = completedOrder.display_id || 'Invoice';
         window.print();
+        document.title = originalTitle;
       } else if (isMatch('clearOrder')) {
         e.preventDefault();
         handleVoidSale();
@@ -620,10 +649,7 @@ export default function POS() {
         // 2. Global Actions (When not typing in a box)
         if (isMatch('checkout')) {
           e.preventDefault();
-          if (cart.length > 0) {
-            setIsPaymentModalOpen(true);
-            setAmountPaid('');
-          }
+          triggerCheckout();
         } else if (isMatch('clearOrder')) {
           e.preventDefault();
           if (completedOrder) handleVoidSale();
@@ -639,7 +665,7 @@ export default function POS() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [shortcuts, cart, completedOrder, isAddBookModalOpen, showScanner, showShortcutsModal, showMobileQR, paymentMethod]);
 
-  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-gray-50 text-brand-blue font-bold">Loading POS...</div>;
+  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-gray-50 text-theme-deep font-bold">Loading POS...</div>;
 
   return (
     <div className="h-screen w-full flex overflow-hidden bg-gray-100 no-print">
@@ -664,7 +690,12 @@ export default function POS() {
 
             {/* Fixed Button Layout */}
             <div className="flex flex-col gap-3 max-w-sm mx-auto">
-              <button onClick={() => window.print()} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 shadow-md">
+              <button onClick={() => {
+                const originalTitle = document.title;
+                document.title = completedOrder.display_id || 'Invoice';
+                window.print();
+                document.title = originalTitle;
+              }} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 shadow-md">
                 🖨️ Print / Reprint <span className="opacity-70 text-sm font-normal">(P / R)</span>
               </button>
               <button onClick={handleVoidSale} disabled={processing} className="w-full py-3 bg-red-100 text-red-700 rounded-xl font-semibold hover:bg-red-200 disabled:opacity-50">
@@ -717,7 +748,7 @@ export default function POS() {
               onClick={() => {
                 showNotification('success', 'Hardware Scanner Mode Ready');
               }}
-              className="bg-brand-blue text-white px-4 py-3 rounded-xl flex items-center gap-2 font-bold hover:bg-brand-blue/90 transition-colors shadow-sm cursor-pointer shrink-0"
+              className="bg-theme-deep text-white px-4 py-3 rounded-xl flex items-center gap-2 font-bold hover:bg-theme-darkest transition-colors shadow-sm cursor-pointer shrink-0"
             >
               📠 <span className="hidden lg:inline">Barcode Scanner</span> <span className="text-xs opacity-70">({shortcuts.hardwareScanner})</span>
             </button>
@@ -735,7 +766,7 @@ export default function POS() {
           <div className="fixed inset-0 z-[50] flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in p-4">
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-sm">
               <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50">
-                <h2 className="font-bold text-lg text-brand-blue flex items-center gap-2"><Smartphone size={20} /> Mobile Scanner</h2>
+                <h2 className="font-bold text-lg text-theme-deep flex items-center gap-2"><Smartphone size={20} /> Mobile Scanner</h2>
                 <button onClick={() => setShowMobileQR(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors cursor-pointer text-gray-500"><X size={20} /></button>
               </div>
               <div className="p-8 flex flex-col items-center text-center">
@@ -795,7 +826,7 @@ export default function POS() {
       <div className="w-[400px] flex flex-col h-full bg-gray-50 shadow-[-10px_0_30px_rgba(0,0,0,0.05)] z-10">
         <div className="p-6 border-b border-gray-200 bg-white flex justify-between items-start">
           <div>
-            <h2 className="text-2xl font-bold text-brand-blue tracking-tight">Current Sale</h2>
+            <h2 className="text-2xl font-bold text-theme-deep tracking-tight">Current Sale</h2>
             <p className="text-sm text-gray-500">{cart.length} items</p>
           </div>
           {cart.length > 0 && (
@@ -832,7 +863,7 @@ export default function POS() {
                         searchInputRef.current?.focus();
                       }
                     }}
-                    className="font-bold text-sm w-12 text-center bg-transparent border-none focus:ring-2 focus:ring-brand-blue rounded outline-none"
+                    className="font-bold text-sm w-12 text-center bg-transparent border-none focus:ring-2 focus:ring-theme-deep rounded outline-none"
                   />
                   <button onClick={() => updateQuantity(item.book.id, 1)} className="p-1 hover:bg-white rounded shadow-sm text-gray-600"><Plus size={14} /></button>
                 </div>
@@ -865,10 +896,10 @@ export default function POS() {
 
           <button 
             disabled={cart.length === 0 || processing}
-            onClick={() => { setIsPaymentModalOpen(true); setAmountPaid(''); }}
+            onClick={triggerCheckout}
             className="w-full py-5 rounded-xl font-bold text-lg flex items-center justify-center gap-2 bg-green-500 text-white hover:bg-green-600 shadow-[0_10px_20px_rgba(34,197,94,0.3)] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {processing ? 'Processing...' : <><CheckCircle2 size={24} /> Complete Sale <span className="text-sm opacity-70 ml-1">({shortcuts.completeSale})</span></>}
+            {processing ? 'Processing...' : <><CheckCircle2 size={24} /> Complete Sale <span className="text-sm opacity-70 ml-1">({shortcuts.checkout})</span></>}
           </button>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '../lib/utils';
 
 export default function MyAccount() {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'orders'
 
   if (!user) return <div className="text-center py-20 text-xl font-bold">Please log in to view this page.</div>;
@@ -44,12 +44,21 @@ export default function MyAccount() {
             </button>
           </div>
           
-          {user?.email === 'navodasrivihansa15@gmail.com' && (
+          {(userRole === 'OWNER' || userRole === 'ADMIN') && (
             <Link 
               to="/admin"
-              className="w-full mb-6 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold text-center flex items-center justify-center gap-2 shadow-lg"
+              className="w-full mb-6 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold text-center flex items-center justify-center gap-2 shadow-lg hover:bg-gray-800 transition-colors"
             >
               <Shield size={16} /> Admin Dashboard
+            </Link>
+          )}
+
+          {userRole === 'STAFF' && (
+            <Link 
+              to="/admin/pos"
+              className="w-full mb-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold text-center flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-colors"
+            >
+              <Package size={16} /> Launch POS
             </Link>
           )}
         </div>
@@ -415,7 +424,12 @@ function UserOrders({ user }) {
             <div className="sticky top-0 bg-white/90 backdrop-blur-md p-4 border-b border-gray-100 flex justify-between items-center z-10 no-print rounded-t-2xl">
               <h2 className="font-bold text-lg text-theme-deep flex items-center gap-2"><Receipt size={20}/> Order Invoice</h2>
               <div className="flex gap-2">
-                <button onClick={() => window.print()} className="bg-theme-deep text-white p-2 rounded-lg hover:bg-theme-darkest transition-colors shadow-sm cursor-pointer"><Printer size={18}/></button>
+                <button onClick={() => {
+                  const originalTitle = document.title;
+                  document.title = selectedBill.display_id || 'Invoice';
+                  window.print();
+                  document.title = originalTitle;
+                }} className="bg-theme-deep text-white p-2 rounded-lg hover:bg-theme-darkest transition-colors shadow-sm cursor-pointer"><Printer size={18}/></button>
                 <button onClick={() => setSelectedBill(null)} className="bg-gray-100 text-gray-600 p-2 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"><X size={18}/></button>
               </div>
             </div>

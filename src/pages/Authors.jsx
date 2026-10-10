@@ -13,20 +13,10 @@ export default function Authors() {
 
   useEffect(() => {
     const fetchAuthorsAndTranslators = async () => {
-      const [authorsRes, translatorsRes] = await Promise.all([
-        supabase.from('authors').select('*').order('name_en'),
-        supabase.from('translators').select('*').order('name_en')
-      ]);
-      
-      let combined = [];
-      if (authorsRes.data) {
-        combined = [...combined, ...authorsRes.data.map(a => ({ ...a, role: 'Author' }))];
+      const { data, error } = await supabase.from('contributors').select('*').order('name_en');
+      if (data) {
+        setAuthors(data);
       }
-      if (translatorsRes.data) {
-        combined = [...combined, ...translatorsRes.data.map(t => ({ ...t, role: 'Translator' }))];
-      }
-      
-      setAuthors(combined.sort((a, b) => a.name_en.localeCompare(b.name_en)));
       setLoading(false);
     };
     fetchAuthorsAndTranslators();

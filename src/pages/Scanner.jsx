@@ -144,20 +144,18 @@ export default function Scanner() {
       </AnimatePresence>
 
       {/* HEADER */}
-      <div className="px-6 py-5 flex items-center justify-between relative z-10">
-        <div className="flex items-center gap-4">
-          <Link to="/admin" className="p-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full transition-all shadow-lg active:scale-95">
-            <ChevronLeft size={22} className="text-gray-300" />
-          </Link>
-          <div className="flex flex-col">
-            <h1 className="text-xl md:text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-brand-gold to-yellow-200 bg-clip-text text-transparent">Scanner</h1>
-            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Wireless Link</span>
-          </div>
+      <div className="px-6 py-5 flex items-center justify-center relative z-10 w-full">
+        <Link to="/admin" className="absolute left-6 p-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full transition-all shadow-lg active:scale-95 z-20">
+          <ChevronLeft size={22} className="text-gray-300" />
+        </Link>
+        <div className="flex flex-col items-center">
+          <h1 className="text-xl md:text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-brand-gold to-yellow-200 bg-clip-text text-transparent">Scanner</h1>
+          <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Wireless Link</span>
         </div>
         {deferredPrompt && (
           <button 
             onClick={handleInstallClick}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95"
+            className="absolute right-6 flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white px-3 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95 z-20"
           >
             <Download size={16} /> <span className="hidden sm:inline">Install App</span>
           </button>
@@ -209,15 +207,15 @@ export default function Scanner() {
             <div className="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></div>
             Manual Override
           </h2>
-          <form onSubmit={handleManualSubmit} className="flex gap-3">
+          <form onSubmit={handleManualSubmit} className="flex flex-col sm:flex-row gap-3">
             <input 
               type="text" 
               placeholder="Enter barcode / ISBN..." 
               value={manualBarcode}
               onChange={(e) => setManualBarcode(e.target.value)}
-              className="flex-1 bg-black/40 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/50 transition-all placeholder-gray-600 font-medium"
+              className="flex-1 w-full bg-black/40 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/50 transition-all placeholder-gray-600 font-medium min-w-0"
             />
-            <button type="submit" className="bg-gradient-to-r from-amber-400 to-yellow-500 text-black px-6 py-4 rounded-xl font-black uppercase tracking-wider text-sm shadow-[0_5px_15px_rgba(251,191,36,0.3)] hover:shadow-[0_5px_25px_rgba(251,191,36,0.5)] active:scale-95 transition-all">
+            <button type="submit" className="w-full sm:w-auto bg-gradient-to-r from-amber-400 to-yellow-500 text-black px-6 py-4 rounded-xl font-black uppercase tracking-wider text-sm shadow-[0_5px_15px_rgba(251,191,36,0.3)] hover:shadow-[0_5px_25px_rgba(251,191,36,0.5)] active:scale-95 transition-all shrink-0">
               Send
             </button>
           </form>

@@ -23,12 +23,12 @@ export default function BookDetails() {
         setBook(bookData);
         
         // Fetch Author
-        const { data: authorData } = await supabase.from('authors').select('*').eq('name_en', bookData.author).single();
+        const { data: authorData } = await supabase.from('contributors').select('*').eq('name_en', bookData.author).single();
         if (authorData) setAuthorInfo(authorData);
 
         // Fetch Translator
         if (bookData.translator) {
-          const { data: translatorData } = await supabase.from('translators').select('*').eq('name_en', bookData.translator).single();
+          const { data: translatorData } = await supabase.from('contributors').select('*').eq('name_en', bookData.translator).single();
           if (translatorData) setTranslatorInfo(translatorData);
         }
       }

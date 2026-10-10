@@ -28,7 +28,7 @@ export default function MobileExplore() {
     const fetchData = async () => {
       try {
         const [authorsRes, publishersRes] = await Promise.all([
-          supabase.from('authors').select('*').order('name').limit(6),
+          supabase.from('contributors').select('*').order('name_en').limit(6),
           supabase.from('publishers').select('*').order('name').limit(6)
         ]);
 

@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, ShieldAlert, User, ShieldCheck, UserPlus, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { Shield, ShieldAlert, User, ShieldCheck, UserPlus, ChevronLeft, AlertTriangle, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
+import DigitalRecordBook from '../components/DigitalRecordBook';
 
 export default function AdminUsers() {
   const { user, userRole } = useAuth();
@@ -11,6 +12,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({ type: '', message: '' });
+  const [activeTab, setActiveTab] = useState('users');
 
   useEffect(() => {
     if (userRole === 'STAFF' || userRole === 'USER') {
@@ -23,10 +25,10 @@ export default function AdminUsers() {
 
     // Realtime listener
     const rolesChannel = supabase
-      .channel('public-user-roles')
+      .channel('public-user-profiles')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'user_roles' },
+        { event: '*', schema: 'public', table: 'user_profiles' },
         (payload) => {
           console.log("⚡ Realtime Payload Received:", payload);
           // CRITICAL: Call the function that updates your React state (e.g., setUsers)
@@ -45,10 +47,10 @@ export default function AdminUsers() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    // Assuming user_roles has email and created_at columns, or a view is used.
+    // Assuming user_profiles has email and created_at columns, or a view is used.
     // In Supabase, usually you join auth.users via a view or RPC if auth.users is protected.
-    // For this implementation, we query 'user_roles' directly assuming it stores necessary metadata.
-    const { data, error } = await supabase.from('user_roles').select('*').order('created_at', { ascending: false });
+    // For this implementation, we query 'user_profiles' directly assuming it stores necessary metadata.
+    const { data, error } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false });
     
     if (error) {
       console.error("Error fetching users:", error);
@@ -68,7 +70,7 @@ export default function AdminUsers() {
     try {
       // Execute the update query
       const { data, error } = await supabase
-        .from('user_roles')
+        .from('user_profiles')
         .update({ role: newRole })
         .eq('id', targetUserId)
         .select();
@@ -81,7 +83,7 @@ export default function AdminUsers() {
 
       if (!data || data.length === 0) {
         console.warn("Update failed silently. Probably blocked by Row Level Security (RLS) in Supabase.");
-        showNotification('error', "Update blocked! Please add an UPDATE policy for user_roles in Supabase.");
+        showNotification('error', "Update blocked! Please add an UPDATE policy for user_profiles in Supabase.");
         return;
       }
 
@@ -149,7 +151,25 @@ export default function AdminUsers() {
           )}
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+        {userRole === 'OWNER' && (
+          <div className="flex items-center gap-4 mb-8 border-b-2 border-slate-800 pb-0">
+            <button 
+              onClick={() => setActiveTab('users')} 
+              className={`pb-3 px-4 text-sm font-black uppercase tracking-widest transition-colors border-b-2 ${activeTab === 'users' ? 'border-brand-gold text-brand-gold bg-brand-gold/10' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+            >
+              User Management
+            </button>
+            <button 
+              onClick={() => setActiveTab('vault')} 
+              className={`pb-3 px-4 text-sm font-black uppercase tracking-widest transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'vault' ? 'border-brand-gold text-brand-gold bg-brand-gold/10' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+            >
+              <Shield size={16}/> 🛡️ Store Audit & Activity Logs
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'users' ? (
+          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -194,7 +214,7 @@ export default function AdminUsers() {
                     return (
                       <tr key={targetUser.id} className="border-b border-slate-800/50 hover:bg-slate-800/50 transition-colors">
                         <td className="p-4">
-                          <div className="font-medium">{targetUser.email || 'N/A'}</div>
+                          <div className="font-medium">{targetUser.email || targetUser.full_name || 'N/A'}</div>
                           {isSelf && <span className="text-[10px] text-brand-gold uppercase tracking-widest font-bold mt-1 block">It's You</span>}
                         </td>
                         <td className="p-4">
@@ -206,22 +226,22 @@ export default function AdminUsers() {
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-2 flex-wrap">
                             {canPromoteToAdmin && (
-                              <button onClick={() => updateRole(targetUser.id, 'ADMIN')} className="bg-blue-500/10 text-blue-500 border border-blue-500/30 hover:bg-blue-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors">
+                              <button onClick={() => updateRole(targetUser.id, 'ADMIN')} className="bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all">
                                 Make Admin
                               </button>
                             )}
                             {canPromoteToStaff && (
-                              <button onClick={() => updateRole(targetUser.id, 'STAFF')} className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors">
+                              <button onClick={() => updateRole(targetUser.id, 'STAFF')} className="bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_15px_rgba(5,150,105,0.3)] hover:shadow-[0_0_20px_rgba(5,150,105,0.5)] px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all">
                                 Make Staff
                               </button>
                             )}
                             {canDemoteToStaff && (
-                              <button onClick={() => updateRole(targetUser.id, 'STAFF')} className="bg-orange-500/10 text-orange-500 border border-orange-500/30 hover:bg-orange-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors">
+                              <button onClick={() => updateRole(targetUser.id, 'STAFF')} className="bg-orange-600 hover:bg-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.3)] hover:shadow-[0_0_20px_rgba(234,88,12,0.5)] px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all">
                                 Demote to Staff
                               </button>
                             )}
                             {canDemoteToUser && (
-                              <button onClick={() => updateRole(targetUser.id, 'USER')} className="bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors">
+                              <button onClick={() => updateRole(targetUser.id, 'USER')} className="bg-red-600 hover:bg-red-500 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)] hover:shadow-[0_0_20px_rgba(220,38,38,0.5)] px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all">
                                 Demote to User
                               </button>
                             )}
@@ -241,6 +261,9 @@ export default function AdminUsers() {
             </table>
           </div>
         </div>
+        ) : (
+          <DigitalRecordBook />
+        )}
       </div>
     </div>
   );

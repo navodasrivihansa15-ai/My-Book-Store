@@ -50,10 +50,10 @@ function AnimatedRoutes() {
         <Route path="/author/:name" element={<ProfilePage type="author" />} />
         <Route path="/translator/:name" element={<ProfilePage type="translator" />} />
         <Route path="/publishers/:name" element={<ProfilePage type="publisher" />} />
-        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-        <Route path="/admin/pos" element={<AdminRoute><POS /></AdminRoute>} />
-        <Route path="/admin/scanner" element={<AdminRoute><Scanner /></AdminRoute>} />
-        <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+        <Route path="/admin" element={<AdminRoute allowedRoles={['OWNER', 'ADMIN']}><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/pos" element={<AdminRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}><POS /></AdminRoute>} />
+        <Route path="/admin/scanner" element={<Scanner />} />
+        <Route path="/admin/users" element={<AdminRoute allowedRoles={['OWNER', 'ADMIN']}><AdminUsers /></AdminRoute>} />
         <Route path="/explore" element={<MobileExplore />} />
       </Routes>
     </AnimatePresence>

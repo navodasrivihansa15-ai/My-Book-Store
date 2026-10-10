@@ -27,6 +27,11 @@ export default function Login() {
       setError(result.error.message);
       setLoading(false);
     } else {
+      // RECORD ACTIVITY HOOK (Login)
+      if (!isSignUp && result.data?.user) {
+        const displayName = result.data.user.user_metadata?.full_name || result.data.user.email;
+        await supabase.from('audit_logs').insert([{ username: displayName, action_type: 'LOGIN' }]);
+      }
       navigate('/');
     }
   };

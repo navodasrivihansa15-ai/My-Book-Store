@@ -19,11 +19,8 @@ export default function ProfilePage({ type }) {
       setLoading(true);
 
       // Fetch the specific entity's profile information if available
-      if (type === 'author') {
-        const { data } = await supabase.from('authors').select('*').eq('name_en', decodedName).single();
-        if (data) setProfileInfo(data);
-      } else if (type === 'translator') {
-        const { data } = await supabase.from('translators').select('*').eq('name_en', decodedName).single();
+      if (type === 'author' || type === 'translator') {
+        const { data } = await supabase.from('contributors').select('*').eq('name_en', decodedName).single();
         if (data) setProfileInfo(data);
       }
 

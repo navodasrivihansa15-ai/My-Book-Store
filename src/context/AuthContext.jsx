@@ -7,14 +7,16 @@ const AuthContext = createContext({});
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [userFullName, setUserFullName] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchRole = async (userId, userEmail) => {
     if (!userId) {
       setUserRole(null);
+      setUserFullName(null);
       return;
     }
-    const { data, error } = await supabase.from('user_roles').select('role').eq('id', userId).single();
+    const { data, error } = await supabase.from('user_profiles').select('role, full_name').eq('id', userId).single();
     if (error || !data) {
       console.error("Error fetching user role", error);
       if (userEmail === 'navodasrivihansa15@gmail.com') {
@@ -22,8 +24,10 @@ export const AuthProvider = ({ children }) => {
       } else {
         setUserRole('CUSTOMER');
       }
+      setUserFullName(userEmail);
     } else {
       setUserRole(data.role || 'CUSTOMER');
+      setUserFullName(data.full_name || userEmail);
     }
   };
 
@@ -46,6 +50,7 @@ export const AuthProvider = ({ children }) => {
         await fetchRole(currentUser.id, currentUser.email);
       } else {
         setUserRole(null);
+        setUserFullName(null);
       }
     });
 
@@ -53,7 +58,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userRole, loading }}>
+    <AuthContext.Provider value={{ user, userRole, userFullName, loading }}>
       <AnimatePresence mode="wait">
         {loading ? (
           <motion.div 

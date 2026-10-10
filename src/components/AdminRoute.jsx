@@ -1,9 +1,15 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield } from 'lucide-react';
+import { useState } from 'react';
+import StaffPinOverlay from './StaffPinOverlay';
 
-export default function AdminRoute({ children }) {
+export default function AdminRoute({ children, allowedRoles }) {
   const { user, userRole, loading } = useAuth();
+  const [activeStaff, setActiveStaff] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('active_staff')); }
+    catch { return null; }
+  });
 
   if (loading) {
     return (
@@ -18,8 +24,17 @@ export default function AdminRoute({ children }) {
   
   if (!user) return <Navigate replace to="/login"/>;
   
-  // Kick out normal users and STAFF from the main admin routes
-  if (userRole !== 'OWNER' && userRole !== 'ADMIN') return <Navigate replace to="/"/>; 
+  // If user doesn't have the required role
+  if (!allowedRoles.includes(userRole)) {
+    // Redirect staff to POS if they snoop in unauthorized admin areas
+    if (userRole === 'STAFF') return <Navigate replace to="/admin/pos"/>;
+    // Kick normal users out
+    return <Navigate replace to="/"/>; 
+  }
+
+  if (!activeStaff) {
+    return <StaffPinOverlay onAuthenticated={(staff) => setActiveStaff(staff)} />;
+  }
 
   return children;
 }

@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
+    "file-saver": "^2.0.5",
     "framer-motion": "^14.0.0",
     "html5-qrcode": "^2.3.8",
+    "jszip": "^3.10.2",
     "lucide-react": "^1.52.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -27,6 +29,7 @@
     "oxlint": "^1.81.0",
     "postcss": "^8.5.29",
     "tailwindcss": "^4.3.3",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "vite-plugin-pwa": "^2.0.0"
   }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, User, Shield, Search, Menu, X, LogOut, LogIn } from 'lucide-react';
+import { ShoppingCart, User, Shield, Search, Menu, X, LogOut, LogIn, Lock } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -13,7 +13,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const { cart } = useCart();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,6 +42,18 @@ export default function Navbar() {
   };
 
   const handleLogout = async () => {
+    // RECORD ACTIVITY HOOK (Logout)
+    if (user) {
+      const displayName = user.user_metadata?.full_name || user.email;
+      await supabase.from('audit_logs').insert([{ username: displayName, action_type: 'LOGOUT' }]);
+      try {
+        const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
+        if (activeStaff.session_id) {
+          await supabase.from('staff_sessions').update({ logout_time: new Date().toISOString() }).eq('id', activeStaff.session_id);
+        }
+      } catch (e) {}
+    }
+    sessionStorage.removeItem('active_staff');
     await supabase.auth.signOut();
   };
 
@@ -120,11 +132,16 @@ export default function Navbar() {
 
             {user ? (
               <div className="flex items-center gap-6">
-                {user.email === 'navodasrivihansa15@gmail.com' && (
+                {(userRole === 'OWNER' || userRole === 'ADMIN') && (
                   <Link to="/admin" className={`relative group flex items-center gap-1.5 text-sm font-semibold tracking-wide transition-colors ${isActive('/admin') ? 'text-white' : 'text-white/90 hover:text-white'}`}>
                     <Shield size={16} />
                     <span className="hidden sm:inline">Admin</span>
                     <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white transition-all group-hover:w-full"></span>
+                  </Link>
+                )}
+                {userRole === 'STAFF' && (
+                  <Link to="/admin/pos" className="bg-blue-600 text-white px-4 py-2 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition shadow cursor-pointer border border-blue-500/50">
+                    Launch POS
                   </Link>
                 )}
                 <Link to="/account" className={`relative group flex items-center gap-1.5 text-sm font-semibold tracking-wide transition-colors ${isActive('/account') ? 'text-white' : 'text-white/90 hover:text-white'}`}>
@@ -132,6 +149,20 @@ export default function Navbar() {
                   <span className="hidden sm:inline">Account</span>
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white transition-all group-hover:w-full"></span>
                 </Link>
+                {sessionStorage.getItem('active_staff') && (
+                  <button onClick={async () => {
+                    try {
+                      const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
+                      if (activeStaff.session_id) {
+                        await supabase.from('staff_sessions').update({ logout_time: new Date().toISOString() }).eq('id', activeStaff.session_id);
+                      }
+                    } catch (e) {}
+                    sessionStorage.removeItem('active_staff');
+                    window.location.reload();
+                  }} className="text-xs uppercase tracking-widest text-yellow-400 hover:text-white border border-yellow-400/50 px-4 py-2 rounded-full transition-colors hover:border-white cursor-pointer font-semibold flex items-center gap-1">
+                    <Lock size={14} /> Lock System
+                  </button>
+                )}
                 <button onClick={handleLogout} className="text-xs uppercase tracking-widest text-white/80 hover:text-white border border-white/30 px-4 py-2 rounded-full transition-colors hover:border-white cursor-pointer font-semibold">
                   Sign Out
                 </button>

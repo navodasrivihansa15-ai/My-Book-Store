@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck } from 'lucide-react';
+import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck, Database, Download, Upload, AlertTriangle } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import StoreCopyPrint from '../components/StoreCopyPrint';
 
 export default function AdminDashboard() {
   const { userRole } = useAuth();
@@ -14,8 +17,8 @@ export default function AdminDashboard() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-7xl mx-auto pt-4 md:pt-8 pb-24 md:pb-8 px-4 md:px-0">
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-8 gap-4 md:gap-6 no-print">
         <div>
-          <h1 className="text-3xl md:text-4xl font-serif text-brand-blue font-bold mb-1 md:mb-2">Command Center</h1>
-          <p className="text-sm md:text-base text-gray-500 tracking-wide">Manage your bookstore inventory, banners, and orders.</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-brand-blue font-bold mb-1 md:mb-2 whitespace-nowrap">Command Center</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-500 tracking-wide">Manage your bookstore inventory, banners, and orders.</p>
           <div className="mt-4 flex flex-wrap gap-3">
              <Link to="/admin/pos" className="bg-brand-gold text-black px-4 py-2 rounded-lg font-bold text-sm tracking-widest uppercase shadow hover:bg-yellow-500 transition-colors flex items-center gap-2">
                🛒 Launch POS
@@ -48,6 +51,11 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('shipping')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'shipping' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Truck size={16} /> Shipping
           </button>
+          {['OWNER', 'ADMIN'].includes(userRole) && (
+            <button onClick={() => setActiveTab('database')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'database' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+              <Database size={16} /> Database
+            </button>
+          )}
         </div>
 
         {/* Desktop Navigation */}
@@ -70,6 +78,11 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('shipping')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'shipping' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Truck size={18} /> Shipping
           </button>
+          {['OWNER', 'ADMIN'].includes(userRole) && (
+            <button onClick={() => setActiveTab('database')} className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'database' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+              <Database size={18} /> Database
+            </button>
+          )}
         </div>
       </div>
 
@@ -80,6 +93,7 @@ export default function AdminDashboard() {
         {activeTab === 'payment' && <motion.div key="payment" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><AdminPaymentSettings /></motion.div>}
         {activeTab === 'store' && <motion.div key="store" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><StoreSettings /></motion.div>}
         {activeTab === 'shipping' && <motion.div key="shipping" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><ShippingSettings /></motion.div>}
+        {activeTab === 'database' && <motion.div key="database" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><DatabaseManagement userRole={userRole} /></motion.div>}
       </AnimatePresence>
 
       <style>{`
@@ -99,8 +113,7 @@ export default function AdminDashboard() {
 function InventoryManagement() {
   const [books, setBooks] = useState([]);
   const [publishers, setPublishers] = useState([]);
-  const [authors, setAuthors] = useState([]);
-  const [translators, setTranslators] = useState([]);
+  const [contributors, setContributors] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddPublisherModalOpen, setIsAddPublisherModalOpen] = useState(false);
@@ -139,15 +152,11 @@ function InventoryManagement() {
     fetchPublishers();
 
     const fetchDropdownData = async () => {
-      const { data: authorsData, error: aError } = await supabase.from('authors').select('*');
-      const { data: translatorsData, error: tError } = await supabase.from('translators').select('*');
+      const { data: contData, error: contError } = await supabase.from('contributors').select('*').order('name_en');
       const { data: catData, error: cError } = await supabase.from('categories').select('*').order('name');
 
-      if (!aError && authorsData) setAuthors(authorsData);
-      else if (aError) console.error("Error fetching authors:", aError);
-
-      if (!tError && translatorsData) setTranslators(translatorsData);
-      else if (tError) console.error("Error fetching translators:", tError);
+      if (!contError && contData) setContributors(contData);
+      else if (contError) console.error("Error fetching contributors:", contError);
 
       if (!cError && catData) setCategories(catData);
       else if (cError) console.error("Error fetching categories:", cError);
@@ -288,51 +297,47 @@ function InventoryManagement() {
     } finally { setLoading(false); }
   };
 
-  const handleAddAuthor = async (e) => {
+  const handleAddContributor = async (e, role) => {
     e.preventDefault();
-    if (!authorFormData.name_en || !authorFormData.name_si) {
+    const formData = role === 'AUTHOR' ? authorFormData : translatorFormData;
+    if (!formData.name_en || !formData.name_si) {
       showNotification('error', 'Both English and Sinhala names are required.');
       return;
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('authors').insert({
-        name_en: authorFormData.name_en,
-        name_si: authorFormData.name_si
-      }).select().single();
+      // Check if contributor already exists
+      const { data: existing } = await supabase.from('contributors').select('*').ilike('name_en', formData.name_en).single();
+      
+      let finalData;
+      if (existing) {
+         if (existing.role !== 'BOTH' && existing.role !== role) {
+            const { data } = await supabase.from('contributors').update({ role: 'BOTH' }).eq('id', existing.id).select().single();
+            finalData = data;
+         } else {
+            finalData = existing;
+         }
+      } else {
+         const { data, error } = await supabase.from('contributors').insert({
+           name_en: formData.name_en,
+           name_si: formData.name_si,
+           role: role
+         }).select().single();
+         if (error) throw new Error(error.message);
+         finalData = data;
+         setContributors([...contributors, finalData]);
+      }
 
-      if (error) throw new Error(error.message);
-
-      showNotification('success', 'Author added successfully.');
-      setAuthors([...authors, data]);
-      setFormData(prev => ({ ...prev, author: data.name_en }));
-      setIsAuthorModalOpen(false);
-      setAuthorFormData({ name_en: '', name_si: '' });
-    } catch (err) {
-      showNotification('error', err.message);
-    } finally { setLoading(false); }
-  };
-
-  const handleAddTranslator = async (e) => {
-    e.preventDefault();
-    if (!translatorFormData.name_en || !translatorFormData.name_si) {
-      showNotification('error', 'Both English and Sinhala names are required.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.from('translators').insert({
-        name_en: translatorFormData.name_en,
-        name_si: translatorFormData.name_si
-      }).select().single();
-
-      if (error) throw new Error(error.message);
-
-      showNotification('success', 'Translator added successfully.');
-      setTranslators([...translators, data]);
-      setFormData(prev => ({ ...prev, translator: data.name_en }));
-      setIsTranslatorModalOpen(false);
-      setTranslatorFormData({ name_en: '', name_si: '' });
+      showNotification('success', `${role === 'AUTHOR' ? 'Author' : 'Translator'} added successfully.`);
+      if (role === 'AUTHOR') {
+        setFormData(prev => ({ ...prev, author: finalData.name_en }));
+        setIsAuthorModalOpen(false);
+        setAuthorFormData({ name_en: '', name_si: '' });
+      } else {
+        setFormData(prev => ({ ...prev, translator: finalData.name_en }));
+        setIsTranslatorModalOpen(false);
+        setTranslatorFormData({ name_en: '', name_si: '' });
+      }
     } catch (err) {
       showNotification('error', err.message);
     } finally { setLoading(false); }
@@ -388,7 +393,7 @@ function InventoryManagement() {
               <div className="flex gap-2">
                 <select name="author" value={formData.author || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
                   <option value="">Select Author (Optional)</option>
-                  {authors.map(a => <option key={a.id} value={a.name_en}>{a.name_en} - {a.name_si}</option>)}
+                  {contributors.map(c => <option key={c.id} value={c.name_en}>{c.name_en} - {c.name_si}</option>)}
                 </select>
                 <button type="button" onClick={() => setIsAuthorModalOpen(true)} className="bg-theme-deep text-theme-bg px-4 py-2.5 rounded hover:bg-theme-darkest transition-colors shadow font-bold text-sm whitespace-nowrap cursor-pointer">
                   + Add
@@ -398,7 +403,7 @@ function InventoryManagement() {
               <div className="flex gap-2">
                 <select name="translator" value={formData.translator || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
                   <option value="">Select Translator (Optional)</option>
-                  {translators.map(t => <option key={t.id} value={t.name_en}>{t.name_en} - {t.name_si}</option>)}
+                  {contributors.map(c => <option key={c.id} value={c.name_en}>{c.name_en} - {c.name_si}</option>)}
                 </select>
                 <button type="button" onClick={() => setIsTranslatorModalOpen(true)} className="bg-theme-deep text-theme-bg px-4 py-2.5 rounded hover:bg-theme-darkest transition-colors shadow font-bold text-sm whitespace-nowrap cursor-pointer">
                   + Add
@@ -539,11 +544,11 @@ function InventoryManagement() {
 
                   <select name="author" value={editingBook.author || ''} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
                     <option value="">Select Author (Optional)</option>
-                    {authors.map(a => <option key={a.id} value={a.name_en}>{a.name_en} - {a.name_si}</option>)}
+                    {contributors.map(c => <option key={c.id} value={c.name_en}>{c.name_en} - {c.name_si}</option>)}
                   </select>
                   <select name="translator" value={editingBook.translator || ''} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
                     <option value="">Select Translator (Optional)</option>
-                    {translators.map(t => <option key={t.id} value={t.name_en}>{t.name_en} - {t.name_si}</option>)}
+                    {contributors.map(c => <option key={c.id} value={c.name_en}>{c.name_en} - {c.name_si}</option>)}
                   </select>
 
                   <select name="publisher" value={editingBook.publisher || ''} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
@@ -940,6 +945,17 @@ function OrderManagement() {
   const [storeSettings, setStoreSettings] = useState({ name: 'Alexandria Books', slogan: '', address: '', phone: '', email: '' });
   const navigate = useNavigate();
   const [isPreparingPrint, setIsPreparingPrint] = useState(false);
+  const [storePrintSize, setStorePrintSize] = useState(null);
+
+  const { user, userFullName } = useAuth();
+  let activeStaffName = null;
+  try { 
+    const stored = JSON.parse(sessionStorage.getItem('active_staff'))?.name;
+    if (stored && !stored.includes('@')) {
+      activeStaffName = stored;
+    }
+  } catch(e) {}
+  const handlerName = activeStaffName || userFullName || user?.email || user?.user_metadata?.full_name || 'Unknown Staff';
 
   const fetchOrders = async () => {
     const { data } = await supabase.from('orders').select('*, order_items (quantity, price, books (title, price, discount_percentage))').order('created_at', { ascending: false });
@@ -972,14 +988,41 @@ function OrderManagement() {
   }, []);
 
   const updateStatus = async (id, field, value) => {
-    const { error } = await supabase.from('orders').update({ [field]: value }).eq('id', id);
-    if (!error) { fetchOrders(); if (selectedOrder) setSelectedOrder({ ...selectedOrder, [field]: value }); }
+    let updates = { [field]: value };
+    let statToIncrement = null;
+    if (field === 'order_status' && value === 'Packed') {
+      updates.packed_by = handlerName;
+      updates.handled_by = handlerName;
+      statToIncrement = 'web_packed';
+    }
+    const { error } = await supabase.from('orders').update(updates).eq('id', id);
+    if (!error) { 
+      fetchOrders(); 
+      if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates }); 
+      try {
+        const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
+        if (activeStaff.session_id) {
+          if (statToIncrement) await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: statToIncrement });
+          await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_handled' });
+        }
+      } catch(e) {}
+    }
   };
 
   const handleVerifyPayment = async (id) => {
-    const updates = { payment_status: 'Verified', order_status: 'Processing', reject_reason: null };
+    const updates = { payment_status: 'Verified', order_status: 'Processing', reject_reason: null, payment_verified_by: handlerName, handled_by: handlerName };
     const { error } = await supabase.from('orders').update(updates).eq('id', id);
-    if (!error) { fetchOrders(); if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates }); }
+    if (!error) { 
+      fetchOrders(); 
+      if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates }); 
+      try {
+        const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
+        if (activeStaff.session_id) {
+          await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'payments_verified' });
+          await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_handled' });
+        }
+      } catch(e) {}
+    }
   };
 
   if (selectedOrder) {
@@ -1200,18 +1243,36 @@ function OrderManagement() {
       </div>
     );
 
+    const performPrint = () => {
+      const originalTitle = document.title;
+      document.title = selectedOrder.display_id || 'Invoice';
+      window.print();
+      document.title = originalTitle;
+    };
+
     const handlePrint = () => {
       setIsPreparingPrint(true);
       const img = new Image();
       img.src = mailingBgUrl;
       img.onload = () => {
         setIsPreparingPrint(false);
-        setTimeout(() => window.print(), 300);
+        setTimeout(performPrint, 300);
       };
       img.onerror = () => {
         setIsPreparingPrint(false);
-        window.print();
+        performPrint();
       };
+    };
+
+    const handlePrintStoreCopy = (size) => {
+      setStorePrintSize(size);
+      setTimeout(() => {
+        const originalTitle = document.title;
+        document.title = selectedOrder?.display_id || 'Store_Copy';
+        window.print();
+        document.title = originalTitle;
+        setTimeout(() => setStorePrintSize(null), 500); // Clear after print
+      }, 300);
     };
 
     return (
@@ -1220,9 +1281,16 @@ function OrderManagement() {
           <button onClick={() => setSelectedOrder(null)} className="flex items-center gap-2 text-black hover:text-gray-600 font-bold uppercase text-xs tracking-wider cursor-pointer">
             <ChevronLeft size={16} /> Back to Orders
           </button>
-          <button onClick={handlePrint} disabled={isPreparingPrint} className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-800 transition-colors cursor-pointer border border-black disabled:opacity-50 disabled:cursor-not-allowed">
-            <Printer size={16} /> {isPreparingPrint ? "Preparing Print..." : "Print Packing Sheet"}
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 border-r border-gray-300 pr-3 mr-1">
+              <span className="text-xs font-bold uppercase text-gray-500 hidden md:block mr-1">Store Copy:</span>
+              <button onClick={() => handlePrintStoreCopy('A4')} className="bg-gray-200 text-black px-3 py-2 rounded-none font-bold text-xs uppercase hover:bg-gray-300 transition-colors border border-gray-400 cursor-pointer">A4</button>
+              <button onClick={() => handlePrintStoreCopy('A5')} className="bg-gray-200 text-black px-3 py-2 rounded-none font-bold text-xs uppercase hover:bg-gray-300 transition-colors border border-gray-400 cursor-pointer">A5</button>
+            </div>
+            <button onClick={handlePrint} disabled={isPreparingPrint} className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-800 transition-colors cursor-pointer border border-black disabled:opacity-50 disabled:cursor-not-allowed">
+              <Printer size={16} /> {isPreparingPrint ? "Preparing Print..." : "Print Packing Sheet"}
+            </button>
+          </div>
         </div>
 
         {/* SCREEN VIEW (NO PRINT) */}
@@ -1300,37 +1368,51 @@ function OrderManagement() {
         </div>
 
         {/* PRINT ONLY: A4 DUAL A5 SHEET */}
-        <div className="hidden print:block print-only-packing-sheet print-container bg-gray-200">
-          {a4Pages.map((pageSections, a4Index) => (
-            <div key={a4Index} className="a4-print-page">
-              
-              {/* TOP HALF OF A4 */}
-              <div className="a5-container border-b-2 border-dashed border-gray-400">
-                {pageSections[0] === 'COVER' ? (
-                  <MailingCover order={selectedOrder} storeSettings={storeSettings} mailingBgUrl={mailingBgUrl} billLogoExt={billLogoExt} imgTimestamp={imgTimestamp} />
-                ) : (
-                  <RotatedA5Bill order={selectedOrder} pageData={pageSections[0]} storeSettings={storeSettings} pageIndex={billPages.indexOf(pageSections[0]) + 1} totalPages={billPages.length} logoUrl={logoUrl} />
-                )}
+        {!storePrintSize && (
+          <div className="hidden print:block print-only-packing-sheet print-container bg-gray-200">
+            {a4Pages.map((pageSections, a4Index) => (
+              <div key={a4Index} className="a4-print-page">
+                
+                {/* TOP HALF OF A4 */}
+                <div className="a5-container border-b-2 border-dashed border-gray-400">
+                  {pageSections[0] === 'COVER' ? (
+                    <MailingCover order={selectedOrder} storeSettings={storeSettings} mailingBgUrl={mailingBgUrl} billLogoExt={billLogoExt} imgTimestamp={imgTimestamp} />
+                  ) : (
+                    <RotatedA5Bill order={selectedOrder} pageData={pageSections[0]} storeSettings={storeSettings} pageIndex={billPages.indexOf(pageSections[0]) + 1} totalPages={billPages.length} logoUrl={logoUrl} />
+                  )}
+                </div>
+
+                {/* BOTTOM HALF OF A4 */}
+                <div className="a5-container">
+                  {pageSections[1] ? (
+                    <RotatedA5Bill order={selectedOrder} pageData={pageSections[1]} storeSettings={storeSettings} pageIndex={billPages.indexOf(pageSections[1]) + 1} totalPages={billPages.length} logoUrl={logoUrl} />
+                  ) : null}
+                </div>
+
               </div>
+            ))}
+          </div>
+        )}
 
-              {/* BOTTOM HALF OF A4 */}
-              <div className="a5-container">
-                {pageSections[1] ? (
-                  <RotatedA5Bill order={selectedOrder} pageData={pageSections[1]} storeSettings={storeSettings} pageIndex={billPages.indexOf(pageSections[1]) + 1} totalPages={billPages.length} logoUrl={logoUrl} />
-                ) : null}
-              </div>
-
-            </div>
-          ))}
-        </div>
-
+        {/* PRINT ONLY: STORE COPY */}
+        {storePrintSize && (
+          <StoreCopyPrint order={selectedOrder} storeSettings={storeSettings} storePrintSize={storePrintSize} />
+        )}
 
         <div className="no-print bg-gray-50 border border-gray-300 p-4 md:p-6 rounded-none text-black">
           <h3 className="text-lg font-bold mb-4 border-b border-gray-300 pb-2">Order Management</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 text-sm">
             <div><p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Method</p><p className="font-bold">{selectedOrder.payment_method}</p></div>
-            <div><p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Payment Status</p><span className="font-bold">{selectedOrder.payment_status}</span></div>
-            <div><p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Shipping Status</p><span className="font-bold">{selectedOrder.order_status}</span></div>
+            <div>
+              <p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Payment Status</p>
+              <p className="font-bold">{selectedOrder.payment_status}</p>
+              {selectedOrder.payment_verified_by && <p className="text-[10px] text-gray-500 mt-1">Verified By: {selectedOrder.payment_verified_by}</p>}
+            </div>
+            <div>
+              <p className="text-gray-600 uppercase tracking-wider text-xs font-bold mb-1">Shipping Status</p>
+              <p className="font-bold">{selectedOrder.order_status}</p>
+              {selectedOrder.packed_by && <p className="text-[10px] text-gray-500 mt-1">Packed By: {selectedOrder.packed_by}</p>}
+            </div>
           </div>
           {selectedOrder.payment_slip_url && (
             <div className="mb-6">
@@ -1348,11 +1430,17 @@ function OrderManagement() {
             {selectedOrder.payment_status === 'Verified' && (
               <button onClick={() => updateStatus(selectedOrder.id, 'payment_status', 'Pending')} className="bg-white text-black px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-100 cursor-pointer border border-black">Mark as Unpaid (Reverse)</button>
             )}
+            {(selectedOrder.order_status === 'Pending' || selectedOrder.order_status === 'Processing') && (
+              <button onClick={() => updateStatus(selectedOrder.id, 'order_status', 'Packed')} className="bg-blue-600 text-white px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-blue-700 cursor-pointer border border-blue-600 shadow-sm">Mark as Packed</button>
+            )}
+            {selectedOrder.order_status === 'Packed' && (
+              <button onClick={() => updateStatus(selectedOrder.id, 'order_status', 'Processing')} className="bg-white text-black px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-100 cursor-pointer border border-black">Undo Packing</button>
+            )}
             {selectedOrder.order_status !== 'Shipped' && (
               <button onClick={() => setShippedModalOpen(true)} className="bg-black text-white px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-800 cursor-pointer border border-black">Mark as Shipped</button>
             )}
             {selectedOrder.order_status === 'Shipped' && (
-              <button onClick={() => updateStatus(selectedOrder.id, 'order_status', 'Pending')} className="bg-white text-black px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-100 cursor-pointer border border-black">Undo Shipping</button>
+              <button onClick={() => updateStatus(selectedOrder.id, 'order_status', 'Packed')} className="bg-white text-black px-5 py-2 rounded-none font-bold uppercase text-xs tracking-wider hover:bg-gray-100 cursor-pointer border border-black">Undo Shipping</button>
             )}
           </div>
         </div>
@@ -1417,12 +1505,25 @@ function OrderManagement() {
                 <button
                   onClick={async () => {
                     const updates = { order_status: 'Shipped', ...trackingForm };
+                    let skippedPacked = false;
+                    if (!selectedOrder.packed_by) {
+                      updates.packed_by = handlerName;
+                      skippedPacked = true;
+                    }
                     const { error } = await supabase.from('orders').update(updates).eq('id', selectedOrder.id);
                     if (!error) {
                       fetchOrders();
                       setSelectedOrder({ ...selectedOrder, ...updates });
                       setShippedModalOpen(false);
                       setTrackingForm({ tracking_service: '', tracking_number: '', tracking_link: '' });
+                      
+                      try {
+                        const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
+                        if (activeStaff.session_id) {
+                          if (skippedPacked) await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_packed' });
+                          await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_handled' });
+                        }
+                      } catch(e) {}
                     }
                   }}
                   className="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold uppercase text-sm tracking-wider hover:bg-blue-700 shadow-sm cursor-pointer"
@@ -2026,6 +2127,313 @@ function ShippingSettings() {
           </div>
           <button onClick={() => handleSave('sl_post_cod', slPostCodConfig)} disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-3 rounded mt-6 hover:bg-theme-darkest uppercase tracking-widest text-sm transition-colors shadow-sm">Save SL Post COD</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// DATABASE MANAGEMENT (Backup & Restore)
+// ==========================================
+function DatabaseManagement({ userRole }) {
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [notification, setNotification] = useState({ type: '', message: '' });
+  const [restoreMode, setRestoreMode] = useState('merge');
+
+  const showNotification = (type, message) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification({ type: '', message: '' }), 6000);
+  };
+
+  const tablesToBackup = ['books', 'categories', 'orders', 'order_items', 'store_settings', 'publishers', 'contributors'];
+  const bucketsToBackup = ['book-covers', 'publisher-logos', 'banners', 'payment-proofs'];
+
+  const downloadFileAsBlob = async (bucket, path) => {
+    try {
+      const { data, error } = await supabase.storage.from(bucket).download(path);
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.warn(`Failed to download ${path} from ${bucket}:`, e);
+      return null;
+    }
+  };
+
+  const handleBackup = async () => {
+    if (!window.confirm("Do you want to start a full system backup? This might take a few minutes.")) return;
+    setLoading(true);
+    setProgress('Initializing backup...');
+    
+    try {
+      const zip = new JSZip();
+      
+      // 1. Backup Tables
+      setProgress('Backing up database tables...');
+      const dbData = {};
+      for (const table of tablesToBackup) {
+        const { data, error } = await supabase.from(table).select('*');
+        if (error) throw new Error(`Error backing up table ${table}: ${error.message}`);
+        dbData[table] = data;
+      }
+      zip.file('database_backup.json', JSON.stringify(dbData, null, 2));
+
+      // 2. Backup Buckets
+      setProgress('Backing up storage buckets (this may take a while)...');
+      const storageFolder = zip.folder('storage');
+      
+      for (const bucket of bucketsToBackup) {
+        const { data: files, error } = await supabase.storage.from(bucket).list();
+        if (error) {
+          console.warn(`Could not list bucket ${bucket}`, error);
+          continue;
+        }
+        if (files && files.length > 0) {
+          const bucketFolder = storageFolder.folder(bucket);
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.name === '.emptyFolderPlaceholder') continue;
+            setProgress(`Downloading ${bucket}/${file.name} (${i + 1}/${files.length})...`);
+            const blob = await downloadFileAsBlob(bucket, file.name);
+            if (blob) {
+              bucketFolder.file(file.name, blob);
+            }
+          }
+        }
+      }
+
+      setProgress('Compressing files into a ZIP archive...');
+      const content = await zip.generateAsync({ type: 'blob' });
+      const dateStr = new Date().toISOString().split('T')[0];
+      saveAs(content, `bookstore_full_backup_${dateStr}.zip`);
+      
+      showNotification('success', 'Backup completed successfully!');
+    } catch (err) {
+      console.error(err);
+      showNotification('error', `Backup failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+      setProgress('');
+    }
+  };
+
+  const handleRestore = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (!window.confirm(`WARNING: You selected ${restoreMode.toUpperCase()} mode. Are you sure you want to proceed?`)) {
+      e.target.value = null;
+      return;
+    }
+
+    setLoading(true);
+    setProgress('Reading ZIP file...');
+    
+    try {
+      const zip = await JSZip.loadAsync(file);
+      
+      // 1. Restore Database Tables
+      if (zip.file('database_backup.json')) {
+        setProgress('Restoring database tables...');
+        const dbDataRaw = await zip.file('database_backup.json').async('string');
+        const dbData = JSON.parse(dbDataRaw);
+        
+        if (restoreMode === 'overwrite') {
+           setProgress('Wiping current database tables (Overwrite mode)...');
+           const deleteOrder = ['order_items', 'orders', 'books', 'publishers', 'contributors', 'categories', 'store_settings'];
+           for (const table of deleteOrder) {
+             const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+             if (error) console.warn(`Wipe warning on ${table}:`, error);
+           }
+        }
+        
+        // Disable foreign key checks is tricky via REST API, we rely on upsert and order
+        const insertOrder = ['categories', 'contributors', 'publishers', 'store_settings', 'books', 'orders', 'order_items'];
+        
+        for (const table of insertOrder) {
+          if (dbData[table] && dbData[table].length > 0) {
+            setProgress(`Restoring table: ${table}...`);
+            const { error } = await supabase.from(table).upsert(dbData[table], { ignoreDuplicates: false });
+            if (error) console.error(`Failed to restore table ${table}:`, error);
+          }
+        }
+      }
+
+      // 2. Restore Storage Buckets
+      setProgress('Restoring storage buckets...');
+      for (const bucket of bucketsToBackup) {
+        const folder = zip.folder(`storage/${bucket}`);
+        if (folder) {
+          const files = Object.keys(folder.files).filter(k => !folder.files[k].dir);
+          for (let i = 0; i < files.length; i++) {
+            const pathKey = files[i];
+            const fileName = pathKey.split('/').pop();
+            setProgress(`Uploading ${bucket}/${fileName} (${i + 1}/${files.length})...`);
+            
+            const fileObj = folder.files[pathKey];
+            const fileData = await fileObj.async('blob');
+            const { error } = await supabase.storage.from(bucket).upload(fileName, fileData, {
+              upsert: true
+            });
+            if (error) console.error(`Failed to upload ${fileName} to ${bucket}:`, error);
+          }
+        }
+      }
+
+      showNotification('success', 'Restore completed successfully!');
+    } catch (err) {
+      console.error(err);
+      showNotification('error', `Restore failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+      setProgress('');
+      e.target.value = null;
+    }
+  };
+
+  const handleWipeData = async () => {
+    if (userRole !== 'OWNER') return;
+    
+    const confirm1 = window.prompt("DANGER ZONE: Type 'DELETE ALL' to confirm you want to wipe all store data (books, orders, etc.). This cannot be undone.");
+    if (confirm1 !== 'DELETE ALL') return;
+
+    setLoading(true);
+    setProgress('Wiping database...');
+    
+    try {
+      // Order matters to avoid foreign key violations
+      const deleteOrder = ['order_items', 'orders', 'books', 'publishers', 'contributors', 'categories'];
+      
+      for (const table of deleteOrder) {
+        setProgress(`Wiping table: ${table}...`);
+        // Note: To delete all rows safely using Supabase JS without equality filters, we use not('id', 'is', null) or similar.
+        const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Hack to delete all rows
+        if (error) throw error;
+      }
+      
+      showNotification('success', 'All store data has been wiped.');
+    } catch (err) {
+      console.error(err);
+      showNotification('error', `Wipe failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+      setProgress('');
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl">
+      <div className="p-6 border-b border-gray-200 bg-slate-50 flex items-center gap-3">
+        <Database size={24} className="text-theme-deep" />
+        <div>
+          <h2 className="text-xl font-bold text-brand-blue">System Backup & Restore</h2>
+          <p className="text-sm text-gray-500">Backup your entire database and uploaded files to a ZIP file.</p>
+        </div>
+      </div>
+      
+      <div className="p-6 space-y-8">
+        {notification.message && (
+          <div className={`p-4 rounded-lg border flex items-center gap-3 ${notification.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+            {notification.type === 'success' ? <Check size={20} /> : <AlertCircle size={20} />}
+            <span className="font-medium">{notification.message}</span>
+          </div>
+        )}
+
+        {loading && (
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between animate-pulse">
+            <span className="font-bold text-blue-800">{progress}</span>
+            <div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* BACKUP */}
+          <div className="border border-slate-200 rounded-xl p-6 bg-slate-50 flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                <Download size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Create Full Backup</h3>
+              <p className="text-sm text-slate-600 mb-6">
+                Downloads all database tables (books, orders, etc.) and all uploaded files (images, logos) into a single ZIP archive.
+              </p>
+            </div>
+            <button 
+              disabled={loading} 
+              onClick={handleBackup}
+              className="w-full bg-theme-deep text-white font-bold py-3 rounded-lg hover:bg-theme-darkest transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Download size={18} /> Download Backup (ZIP)
+            </button>
+          </div>
+
+          {/* RESTORE */}
+          <div className="border border-slate-200 rounded-xl p-6 bg-slate-50 flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
+                <Upload size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Restore from Backup</h3>
+              <p className="text-sm text-slate-600 mb-4">
+                Upload a `.zip` backup to restore tables and files.
+              </p>
+              
+              <div className="bg-white p-3 rounded-lg border border-slate-200 mb-6 space-y-2">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input type="radio" name="restoreMode" value="merge" checked={restoreMode === 'merge'} onChange={(e) => setRestoreMode(e.target.value)} className="mt-1 accent-green-600" />
+                  <div>
+                    <span className="block font-bold text-sm text-slate-800">Merge Data (Safe)</span>
+                    <span className="block text-xs text-slate-500">Updates existing records and adds new ones. Does not delete current data.</span>
+                  </div>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer border-t border-slate-100 pt-2">
+                  <input type="radio" name="restoreMode" value="overwrite" checked={restoreMode === 'overwrite'} onChange={(e) => setRestoreMode(e.target.value)} className="mt-1 accent-red-600" />
+                  <div>
+                    <span className="block font-bold text-sm text-red-600">Overwrite All Data (Dangerous)</span>
+                    <span className="block text-xs text-slate-500">Wipes all current books, orders, etc., before inserting backup data.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div className="relative mt-auto">
+              <input 
+                type="file" 
+                accept=".zip" 
+                disabled={loading}
+                onChange={handleRestore}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" 
+              />
+              <button 
+                disabled={loading}
+                className="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 pointer-events-none"
+              >
+                <Upload size={18} /> Upload & Restore
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* FACTORY RESET (OWNER ONLY) */}
+        {userRole === 'OWNER' && (
+          <div className="mt-8 border-2 border-red-200 rounded-xl p-6 bg-red-50 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 text-red-600 mb-2">
+                <AlertTriangle size={24} />
+                <h3 className="text-lg font-bold">Danger Zone: Wipe All Data</h3>
+              </div>
+              <p className="text-sm text-red-800">
+                Permanently deletes all books, orders, contributors, publishers, and categories from the database. Use this to factory reset the system. This action cannot be undone.
+              </p>
+            </div>
+            <button 
+              disabled={loading}
+              onClick={handleWipeData}
+              className="bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
+            >
+              <Trash2 size={18} /> Wipe All Data
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
