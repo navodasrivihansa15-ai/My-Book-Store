@@ -6,16 +6,19 @@ const gotTheLock = app.requestSingleInstanceLock();
 
 let mainWindow = null;
 
-const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged;
+const iconPath = isDev 
+  ? path.join(__dirname, '../public/Icon-512.png') 
+  : path.join(__dirname, '../dist/Icon-512.png');
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1366,
-    height: 850,
+    width: 1200,
+    height: 800,
     minWidth: 1024,
     minHeight: 700,
     title: 'Alexandria Books POS',
-    icon: path.join(__dirname, '../public/Icon-512.png'),
+    icon: iconPath, // Sets the app & taskbar icon
     backgroundColor: '#0f172a',
     autoHideMenuBar: true,
     webPreferences: {
