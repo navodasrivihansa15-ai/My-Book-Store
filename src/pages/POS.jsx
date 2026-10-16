@@ -706,8 +706,18 @@ export default function POS() {
     if (!keyStr) return;
 
     // Add Item (Spacebar / addScannedItem)
-    if (keyStr === shortcuts.addScannedItem) {
-      e.preventDefault(); // Prevent typing a space
+    if (keyStr === shortcuts.addScannedItem || e.key === ' ' || e.code === 'Space') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
+
+      // LOCK: If Spacebar already added an item in the last 500ms, STOP the second duplicate add!
+      const now = Date.now();
+      if (window.__lastPosSpacePress && (now - window.__lastPosSpacePress < 500)) {
+        return; 
+      }
+      window.__lastPosSpacePress = now;
+
       const exactBarcodeBook = search.trim() !== '' ? books.find(b => b.barcode === search.trim()) : null;
       if (exactBarcodeBook) {
         handleBarcodeScan(search.trim());
