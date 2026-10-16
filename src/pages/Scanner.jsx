@@ -107,6 +107,13 @@ export default function Scanner() {
     };
   }, []);
 
+  useEffect(() => {
+    const appleIcon = document.querySelector("link[rel='apple-touch-icon']");
+    if (appleIcon) appleIcon.setAttribute('href', '/Icon-512.jpg');
+    const favIcon = document.querySelector("link[rel='icon']");
+    if (favIcon) favIcon.setAttribute('href', '/Icon-512.jpg');
+  }, []);
+
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
@@ -149,6 +156,11 @@ export default function Scanner() {
           <ChevronLeft size={22} className="text-gray-300" />
         </Link>
         <div className="flex flex-col items-center">
+          <img 
+            src="/Icon-512.jpg" 
+            alt="Alexandria Books" 
+            className="w-12 h-12 rounded-2xl object-cover mb-2 border border-brand-gold/30 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-white/10" 
+          />
           <h1 className="text-2xl md:text-3xl font-black tracking-[0.25em] uppercase text-brand-gold drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]">Scanner</h1>
           <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Wireless Link</span>
         </div>
@@ -157,7 +169,8 @@ export default function Scanner() {
             onClick={handleInstallClick}
             className="absolute right-6 flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white px-3 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95 z-20"
           >
-            <Download size={16} /> <span className="hidden sm:inline">Install App</span>
+            <img src="/Icon-512.jpg" alt="App Icon" className="w-4 h-4 rounded-full object-cover" />
+            <span className="hidden sm:inline">Install App</span>
           </button>
         )}
       </div>
