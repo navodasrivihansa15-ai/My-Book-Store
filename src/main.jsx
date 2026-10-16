@@ -17,6 +17,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 )
 
 
-if ('serviceWorker' in navigator) {
+// Register PWA service worker only on Web; skip in Electron to prevent file:// protocol issues
+if ('serviceWorker' in navigator && !window.electronAPI?.isElectron) {
   registerSW({ immediate: true })
 }

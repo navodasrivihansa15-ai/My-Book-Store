@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import SmartRouter from './components/SmartRouter';
 import { AnimatePresence } from 'framer-motion';
 import Navbar from './components/Navbar';
 import SubNavbar from './components/SubNavbar';
@@ -85,10 +86,10 @@ function AppLayout() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <SmartRouter>
       <ScrollToTop />
       <AppLayout />
-    </BrowserRouter>
+    </SmartRouter>
   );
 }
 

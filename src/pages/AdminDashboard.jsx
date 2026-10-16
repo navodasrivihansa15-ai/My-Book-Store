@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import StoreCopyPrint from '../components/StoreCopyPrint';
+import { printReceipt } from '../utils/electronBridge';
 
 export default function AdminDashboard() {
   const { userRole } = useAuth();
@@ -1270,10 +1271,10 @@ function OrderManagement() {
       </div>
     );
 
-    const performPrint = () => {
+    const performPrint = async () => {
       const originalTitle = document.title;
       document.title = selectedOrder.display_id || 'Invoice';
-      window.print();
+      await printReceipt();
       document.title = originalTitle;
     };
 
@@ -1293,10 +1294,10 @@ function OrderManagement() {
 
     const handlePrintStoreCopy = (size) => {
       setStorePrintSize(size);
-      setTimeout(() => {
+      setTimeout(async () => {
         const originalTitle = document.title;
         document.title = selectedOrder?.display_id || 'Store_Copy';
-        window.print();
+        await printReceipt();
         document.title = originalTitle;
         setTimeout(() => setStorePrintSize(null), 500); // Clear after print
       }, 300);

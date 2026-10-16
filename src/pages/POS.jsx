@@ -7,7 +7,9 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 import { formatPrice } from '../lib/utils';
 import { Link } from 'react-router-dom';
 import AddBookModal from '../components/AddBookModal';
+import PrinterSetupModal from '../components/PrinterSetupModal';
 import { useAuth } from '../context/AuthContext';
+import { isElectron, printReceipt } from '../utils/electronBridge';
 
 const defaultShortcuts = {
   openShortcutsMenu: 'Alt+k',
@@ -259,6 +261,7 @@ export default function POS() {
   const [isAddBookModalOpen, setIsAddBookModalOpen] = useState(false);
   const [unrecognizedBarcode, setUnrecognizedBarcode] = useState('');
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showPrinterModal, setShowPrinterModal] = useState(false);
   const [shortcuts, setShortcuts] = useState(() => {
     const saved = localStorage.getItem('pos_shortcuts');
     if (saved) {
@@ -612,6 +615,14 @@ export default function POS() {
     }
   };
 
+  const handlePrintReceipt = async () => {
+    if (!completedOrder) return;
+    const originalTitle = document.title;
+    document.title = completedOrder.display_id || 'Invoice';
+    await printReceipt();
+    document.title = originalTitle;
+  };
+
   const handleVoidSale = async () => {
     if (!completedOrder) return;
     if (!window.confirm('Are you sure you want to cancel this sale and restock the items?')) return;
@@ -746,10 +757,7 @@ export default function POS() {
     if (completedOrder) {
       if (isMatch('reprintBill')) {
         e.preventDefault();
-        const originalTitle = document.title;
-        document.title = completedOrder.display_id || 'Invoice';
-        window.print();
-        document.title = originalTitle;
+        handlePrintReceipt();
       } else if (isMatch('clearOrder')) {
         e.preventDefault();
         handleVoidSale();
@@ -906,12 +914,7 @@ export default function POS() {
 
             {/* Fixed Button Layout */}
             <div className="flex flex-col gap-3 max-w-sm mx-auto">
-              <button onClick={() => {
-                const originalTitle = document.title;
-                document.title = completedOrder.display_id || 'Invoice';
-                window.print();
-                document.title = originalTitle;
-              }} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 shadow-md">
+              <button onClick={handlePrintReceipt} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 shadow-md">
                 🖨️ Print / Reprint <span className="opacity-70 text-sm font-normal">(P / R)</span>
               </button>
               <button onClick={handleVoidSale} disabled={processing} className="w-full py-3 bg-red-100 text-red-700 rounded-xl font-semibold hover:bg-red-200 disabled:opacity-50">
@@ -953,6 +956,18 @@ export default function POS() {
             />
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0 justify-end w-full md:w-auto">
+            <button 
+              onClick={() => setShowPrinterModal(true)}
+              className={`px-4 py-3 rounded-xl flex items-center gap-2 font-bold transition-colors shadow-sm cursor-pointer shrink-0 ${
+                isElectron() 
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+              title="Receipt Printer Setup"
+            >
+              <Printer size={20} /> 
+              <span className="hidden lg:inline">{isElectron() ? 'Thermal Printer ⚡' : 'Printer Setup'}</span>
+            </button>
             <button 
               onClick={() => setShowShortcutsModal(true)}
               className="bg-gray-200 text-gray-700 px-4 py-3 rounded-xl flex items-center gap-2 font-bold hover:bg-gray-300 transition-colors shadow-sm cursor-pointer shrink-0"
@@ -1218,6 +1233,11 @@ export default function POS() {
           setShortcuts={setShortcuts} 
           onClose={() => setShowShortcutsModal(false)} 
         />
+      )}
+
+      {/* PRINTER SETUP MODAL */}
+      {showPrinterModal && (
+        <PrinterSetupModal onClose={() => setShowPrinterModal(false)} />
       )}
     </div>
   );

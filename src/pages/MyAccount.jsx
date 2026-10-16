@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { User, Package, ShieldCheck, Shield, Phone, Save, Edit2, CheckCircle, XCircle, X, Check, ExternalLink, Receipt, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '../lib/utils';
+import { printReceipt } from '../utils/electronBridge';
 
 export default function MyAccount() {
   const { user, userRole } = useAuth();
@@ -424,10 +425,10 @@ function UserOrders({ user }) {
             <div className="sticky top-0 bg-white/90 backdrop-blur-md p-4 border-b border-gray-100 flex justify-between items-center z-10 no-print rounded-t-2xl">
               <h2 className="font-bold text-lg text-theme-deep flex items-center gap-2"><Receipt size={20}/> Order Invoice</h2>
               <div className="flex gap-2">
-                <button onClick={() => {
+                <button onClick={async () => {
                   const originalTitle = document.title;
                   document.title = selectedBill.display_id || 'Invoice';
-                  window.print();
+                  await printReceipt();
                   document.title = originalTitle;
                 }} className="bg-theme-deep text-white p-2 rounded-lg hover:bg-theme-darkest transition-colors shadow-sm cursor-pointer"><Printer size={18}/></button>
                 <button onClick={() => setSelectedBill(null)} className="bg-gray-100 text-gray-600 p-2 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"><X size={18}/></button>
