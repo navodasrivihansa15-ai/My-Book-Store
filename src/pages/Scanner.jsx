@@ -4,6 +4,7 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 import { CheckCircle2, ChevronLeft, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import StaffMobilePwaManager from '../components/StaffMobilePwaManager';
 
 export default function Scanner() {
   const [notification, setNotification] = useState({ type: '', message: '' });
@@ -13,6 +14,120 @@ export default function Scanner() {
   const scanTargetRef = useRef('POS');
   const lastScanTime = useRef(0);
   const broadcastChannel = useRef(null);
+
+  // --- ONE-TIME PERSISTENT LOGIN STATE ---
+  const [scannerUser, setScannerUser] = useState(() => {
+    const saved = localStorage.getItem('pos_scanner_active_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [staffList, setStaffList] = useState([]);
+  const [selectedStaff, setSelectedStaff] = useState('');
+  const [pinInput, setPinInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  // Fetch users for One-Time Scanner Login from user_profiles (with staff_sessions fallback)
+  useEffect(() => {
+    if (!scannerUser) {
+      const fetchStaff = async () => {
+        let { data } = await supabase.from('user_profiles').select('*');
+        if (!data || data.length === 0) {
+          // Fallback to staff_sessions in case user_profiles RLS restricts anonymous read on mobile
+          const { data: sessionData } = await supabase.from('staff_sessions').select('staff_name, role');
+          if (sessionData && sessionData.length > 0) {
+            const map = new Map();
+            sessionData.forEach(s => {
+              if (s.staff_name && !map.has(s.staff_name)) {
+                map.set(s.staff_name, {
+                  id: s.staff_name,
+                  full_name: s.staff_name,
+                  username: s.staff_name,
+                  role: s.role || 'STAFF'
+                });
+              }
+            });
+            data = Array.from(map.values());
+          }
+        } else {
+          // Filter to staff/admin/owner if user_profiles includes customer records
+          const staffOnly = data.filter(u => ['OWNER', 'ADMIN', 'STAFF'].includes(u.role));
+          if (staffOnly.length > 0) data = staffOnly;
+        }
+        if (data) setStaffList(data);
+      };
+      fetchStaff();
+    }
+  }, [scannerUser]);
+
+  const handleScannerLogin = (e) => {
+    e.preventDefault();
+    setLoginError('');
+    const matchedUser = staffList.find(
+      (u) => (u.full_name === selectedStaff || u.username === selectedStaff) && 
+             (!u.pin || String(u.pin) === String(pinInput))
+    );
+
+    if (matchedUser) {
+      const userPayload = {
+        id: matchedUser.id,
+        full_name: matchedUser.full_name || matchedUser.username,
+        role: matchedUser.role || 'STAFF'
+      };
+      localStorage.setItem('pos_scanner_active_user', JSON.stringify(userPayload));
+      setScannerUser(userPayload);
+      setPinInput('');
+    } else {
+      setLoginError('Invalid User or PIN!');
+    }
+  };
+
+  const handleScannerLogout = () => {
+    localStorage.removeItem('pos_scanner_active_user');
+    setScannerUser(null);
+    setSelectedStaff('');
+    setPinInput('');
+  };
+
+  // CALL THIS WHEN BARCODE IS DETECTED ON PHONE:
+  const sendBarcodeToUserPOS = async (barcodeValue) => {
+    if (!scannerUser || !barcodeValue) return;
+
+    // 1. Send via Database Table (pos_remote_scans)
+    try {
+      await supabase.from('pos_remote_scans').insert([{
+        barcode: barcodeValue.trim(),
+        scanned_by: scannerUser.full_name
+      }]);
+    } catch (err) {
+      console.warn("pos_remote_scans insert error:", err);
+    }
+
+    // 2. Transmit via Supabase Broadcast channel(s) including scanned_by
+    if (broadcastChannel.current) {
+      broadcastChannel.current.send({
+        type: 'broadcast',
+        event: 'scan',
+        payload: { 
+          barcode: barcodeValue.trim(), 
+          target: scanTargetRef.current,
+          scanned_by: scannerUser.full_name 
+        }
+      });
+    }
+
+    try {
+      supabase.channel('pos-scanner-channel').send({
+        type: 'broadcast',
+        event: 'scan',
+        payload: { 
+          barcode: barcodeValue.trim(), 
+          target: scanTargetRef.current,
+          scanned_by: scannerUser.full_name 
+        }
+      });
+    } catch (err) {
+      console.warn("pos-scanner-channel broadcast error:", err);
+    }
+  };
 
   const updateScanTarget = (target) => {
     setScanTarget(target);
@@ -49,17 +164,8 @@ export default function Scanner() {
     playBeep();
     const currentTarget = scanTargetRef.current;
     
-    // Broadcast the scan event using Supabase Realtime (No database table needed!)
-    if (broadcastChannel.current) {
-      broadcastChannel.current.send({
-        type: 'broadcast',
-        event: 'scan',
-        payload: { barcode: barcodeText, target: currentTarget }
-      });
-      showNotification('success', currentTarget === 'POS' ? 'Sent to POS!' : 'Sent to Inventory!');
-    } else {
-      showNotification('error', 'Scanner not connected to Realtime!');
-    }
+    await sendBarcodeToUserPOS(barcodeText);
+    showNotification('success', currentTarget === 'POS' ? `Sent to POS (${scannerUser?.full_name})!` : 'Sent to Inventory!');
   };
 
   const handleManualSubmit = (e) => {
@@ -70,6 +176,8 @@ export default function Scanner() {
   };
 
   useEffect(() => {
+    if (!scannerUser) return;
+
     // Connect to Supabase Broadcast channel
     const channel = supabase.channel('scanner-broadcast-channel');
     channel.subscribe((status) => {
@@ -92,7 +200,7 @@ export default function Scanner() {
       scanner.clear().catch(() => {});
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [scannerUser]);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
@@ -123,6 +231,58 @@ export default function Scanner() {
     }
   };
 
+  // IF NOT LOGGED IN ON PHONE -> RENDER THIS ONE-TIME LOGIN SCREEN:
+  if (!scannerUser) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-between">
+        <StaffMobilePwaManager userRole={null} scannerRoute="/admin/scanner" />
+        <div className="flex-1 flex items-center justify-center p-4 w-full">
+          <form onSubmit={handleScannerLogin} className="bg-gray-800 p-6 rounded-xl w-full max-w-sm shadow-xl border border-gray-700">
+          <div className="flex justify-center mb-3">
+            <img 
+              src="/Icon-512.jpg" 
+              alt="Alexandria Books" 
+              className="w-12 h-12 rounded-2xl object-cover border border-amber-400/30 shadow-md"
+            />
+          </div>
+          <h2 className="text-xl font-bold mb-1 text-center">Scanner Login</h2>
+          <p className="text-xs text-gray-400 text-center mb-5">One-time setup. Links scans strictly to your POS.</p>
+          
+          {loginError && <div className="bg-red-500/20 text-red-400 text-sm p-2 rounded mb-4 text-center">{loginError}</div>}
+
+          <label className="block text-xs text-gray-400 mb-1">Select Your Account</label>
+          <select 
+            value={selectedStaff} 
+            onChange={(e) => setSelectedStaff(e.target.value)}
+            required
+            className="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 text-white mb-4"
+          >
+            <option value="">-- Choose User --</option>
+            {staffList.map((u, idx) => {
+              const name = u.full_name || u.username;
+              return <option key={idx} value={name}>{name} ({u.role})</option>;
+            })}
+          </select>
+
+          <label className="block text-xs text-gray-400 mb-1">Enter Security PIN</label>
+          <input 
+            type="password" 
+            value={pinInput}
+            onChange={(e) => setPinInput(e.target.value)}
+            placeholder="••••"
+            required
+            className="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 text-white mb-5 text-center tracking-widest text-lg"
+          />
+
+          <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold">
+            Connect Scanner to My POS
+          </button>
+        </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-[#0a0a0f] text-white overflow-hidden relative z-[50] font-sans selection:bg-brand-gold selection:text-black">
       {/* Background glow effects */}
@@ -149,6 +309,24 @@ export default function Scanner() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* STAFF MOBILE PWA MANAGER */}
+      <StaffMobilePwaManager userRole={scannerUser?.role} scannerRoute="/admin/scanner" />
+
+      {/* ACCOUNT HEADER BAR */}
+      <div className="flex items-center justify-between bg-gray-800 px-4 py-2 border-b border-gray-700 text-white relative z-20 w-full shrink-0">
+        <div className="text-xs">
+          <span className="text-gray-400">Linked POS: </span>
+          <span className="font-bold text-green-400">{scannerUser.full_name}</span>
+        </div>
+        <button 
+          type="button"
+          onClick={handleScannerLogout}
+          className="text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 px-2.5 py-1 rounded"
+        >
+          Switch User / Logout
+        </button>
+      </div>
 
       {/* HEADER */}
       <div className="px-6 py-5 flex items-center justify-center relative z-10 w-full">

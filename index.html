@@ -12,6 +12,23 @@
     <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      (function() {
+        // If the user is on the scanner route, swap the manifest before the browser evaluates PWA installability
+        if (window.location.pathname.toLowerCase().includes('scanner')) {
+          var manifestLink = document.querySelector('link[rel="manifest"]');
+          if (manifestLink) {
+            manifestLink.setAttribute('href', '/scanner-manifest.json');
+          } else {
+            var newLink = document.createElement('link');
+            newLink.rel = 'manifest';
+            newLink.href = '/scanner-manifest.json';
+            document.head.appendChild(newLink);
+          }
+          document.title = 'POS Scanner';
+        }
+      })();
+    </script>
     <title>ALEXANDRIA BOOKS</title>
   </head>
   <body>

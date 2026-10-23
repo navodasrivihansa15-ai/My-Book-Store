@@ -1,0 +1,20 @@
+{
+  "id": "/admin/scanner",
+  "name": "Alexandria POS Scanner",
+  "short_name": "POS Scanner",
+  "description": "Dedicated Barcode Scanner for Alexandria POS Staff & Owners",
+  "start_url": "/admin/scanner?pwa=scanner",
+  "scope": "/admin/scanner",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

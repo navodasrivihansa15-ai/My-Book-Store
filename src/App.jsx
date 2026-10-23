@@ -55,6 +55,7 @@ function AnimatedRoutes() {
         <Route path="/admin" element={<AdminRoute allowedRoles={['OWNER', 'ADMIN']}><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/pos" element={<AdminRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}><POS /></AdminRoute>} />
         <Route path="/admin/scanner" element={<Scanner />} />
+        <Route path="/scanner" element={<Navigate to="/admin/scanner" replace />} />
         <Route path="/admin/users" element={<AdminRoute allowedRoles={['OWNER', 'ADMIN']}><AdminUsers /></AdminRoute>} />
         <Route path="/explore" element={<MobileExplore />} />
         <Route path="/request-book" element={<RequestBook />} />

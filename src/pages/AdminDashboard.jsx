@@ -9,6 +9,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import StoreCopyPrint from '../components/StoreCopyPrint';
 import { printReceipt } from '../utils/electronBridge';
+import StaffMobilePwaManager from '../components/StaffMobilePwaManager';
 
 export default function AdminDashboard() {
   const { userRole } = useAuth();
@@ -17,6 +18,7 @@ export default function AdminDashboard() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-7xl mx-auto pt-4 md:pt-8 pb-24 md:pb-8 px-4 md:px-0">
+      <StaffMobilePwaManager userRole={userRole} scannerRoute="/admin/scanner" />
       <div className="flex flex-col mb-4 md:mb-8 gap-4 md:gap-6 no-print">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>

@@ -324,41 +324,108 @@ export default function POS() {
     }
   }, [showScanner]);
 
-  // REAL-TIME LISTENER FOR MOBILE SCANNER
+  const lastRemoteScanRef = useRef({ barcode: '', time: 0 });
+  const handleBarcodeScanRef = useRef(null);
+
+  const handleRemoteBarcodeScan = async (barcode) => {
+    if (!barcode) return;
+    const now = Date.now();
+    // Prevent duplicate processing if received via both postgres_changes and broadcast within 1 second
+    if (lastRemoteScanRef.current.barcode === barcode && (now - lastRemoteScanRef.current.time < 1000)) {
+      return;
+    }
+    lastRemoteScanRef.current = { barcode, time: now };
+    if (handleBarcodeScanRef.current) {
+      await handleBarcodeScanRef.current(barcode);
+    }
+  };
+
+  // REAL-TIME LISTENER FOR MOBILE SCANNER (Strict User Isolation)
   useEffect(() => {
-    // 1. Listen for Broadcast messages (No Database required!)
-    const scannerChannel = supabase
+    // Get the active logged-in POS user's name (mapped to existing POS active user variable)
+    const activePosUserName = activeStaffName || userFullName || user?.user_metadata?.full_name || (user?.email && !user.email.includes('@') ? user.email : null);
+    if (!activePosUserName) return;
+
+    // 1. Listen to pos_remote_scans table inserts FOR THIS USER ONLY
+    const scanSubscription = supabase
+      .channel(`pos-scans-${activePosUserName}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'pos_remote_scans' },
+        (payload) => {
+          const newScan = payload.new;
+          // STRICT ISOLATION: Ignore if scanned by another staff member or owner!
+          if (
+            newScan && 
+            newScan.scanned_by && 
+            newScan.scanned_by.trim().toLowerCase() === activePosUserName.trim().toLowerCase()
+          ) {
+            // Call our existing barcode handler to add item to this user's cart
+            handleRemoteBarcodeScan(newScan.barcode);
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Realtime Broadcast Listener with strict scanned_by filter
+    const broadcastChannel = supabase
       .channel('scanner-broadcast-channel')
       .on(
         'broadcast',
         { event: 'scan' },
-        async (payload) => {
-          console.log("🔥 REALTIME BROADCAST RECEIVED IN POS:", payload);
-          const scannedBarcode = payload.payload.barcode;
-          const target = payload.payload.target;
+        (payload) => {
+          const scannedBarcode = payload?.payload?.barcode;
+          const target = payload?.payload?.target;
+          const scannedBy = payload?.payload?.scanned_by;
           
           if (target && target !== 'POS') return; // Ignore inventory scans
 
+          // STRICT ISOLATION: Ignore if scanned by another staff member or owner!
+          if (
+            scannedBy && 
+            scannedBy.trim().toLowerCase() !== activePosUserName.trim().toLowerCase()
+          ) {
+            return;
+          }
+
           if (scannedBarcode) {
-            try {
-              // 2. Call your function to handle the barcode
-              await handleBarcodeScan(scannedBarcode);
-            } catch (err) {
-              console.error("Error processing scan broadcast:", err);
-            }
+            handleRemoteBarcodeScan(scannedBarcode);
           }
         }
       )
-      .subscribe((status, err) => {
-        console.log("📶 Supabase Realtime Status (POS Broadcast Listener):", status);
-        if (err) console.error("Realtime Error (POS Listener):", err);
-      });
+      .subscribe();
 
-    // Cleanup subscription on unmount
+    // 3. pos-scanner-channel Broadcast Listener with strict scanned_by filter
+    const posChannel = supabase
+      .channel('pos-scanner-channel')
+      .on(
+        'broadcast',
+        { event: 'scan' },
+        (payload) => {
+          const scannedBarcode = payload?.payload?.barcode;
+          const scannedBy = payload?.payload?.scanned_by;
+
+          if (
+            scannedBy && 
+            scannedBy.trim().toLowerCase() !== activePosUserName.trim().toLowerCase()
+          ) {
+            return;
+          }
+
+          if (scannedBarcode) {
+            handleRemoteBarcodeScan(scannedBarcode);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscriptions on unmount or user change
     return () => {
-      supabase.removeChannel(scannerChannel);
+      supabase.removeChannel(scanSubscription);
+      supabase.removeChannel(broadcastChannel);
+      supabase.removeChannel(posChannel);
     };
-  }, []);
+  }, [user, userFullName, activeStaffName]);
 
   useEffect(() => {
     if (search) {
@@ -700,6 +767,7 @@ export default function POS() {
       if (searchInputRef.current) searchInputRef.current.focus();
     }
   };
+  handleBarcodeScanRef.current = handleBarcodeScan;
 
   const handleSearchKeyDown = (e) => {
     const keyStr = getEventKeyString(e);
