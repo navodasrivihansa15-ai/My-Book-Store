@@ -175,9 +175,13 @@ export default function BookDetails() {
                     <ShoppingCart size={20} /> {book.stock <= 0 ? 'Unavailable' : isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
                   </button>
                   <button 
-                    onClick={() => { setBuyQty(1); setShowBuyNowModal(true); }}
-                    disabled={book.stock <= 0}
-                    className="flex-1 py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={(e) => { 
+                      e.preventDefault(); 
+                      e.stopPropagation(); 
+                      setBuyQty(1); 
+                      setShowBuyNowModal(true); 
+                    }}
+                    className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors"
                   >
                     Buy Now
                   </button>
@@ -356,9 +360,13 @@ export default function BookDetails() {
                 <ShoppingCart size={18} /> {book.stock <= 0 ? 'Unavailable' : isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
               </button>
               <button 
-                onClick={() => { setBuyQty(1); setShowBuyNowModal(true); }}
-                disabled={book.stock <= 0}
-                className="w-full py-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={(e) => { 
+                  e.preventDefault(); 
+                  e.stopPropagation(); 
+                  setBuyQty(1); 
+                  setShowBuyNowModal(true); 
+                }}
+                className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors"
               >
                 Buy Now
               </button>
@@ -370,8 +378,9 @@ export default function BookDetails() {
 
       {/* DIRECT PURCHASE QUANTITY MODAL */}
       {showBuyNowModal && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-4">
-          {/* Modal Container: Bottom sheet on Mobile (rounded-t-3xl), Centered box on Desktop (rounded-2xl) */}
+        // z-[100] ensures it sits completely above the mobile bottom nav bar (which is usually z-40 or z-50)
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-4">
+          
           <div className="bg-white w-full md:w-96 rounded-t-3xl md:rounded-2xl p-6 shadow-2xl animate-in slide-in-from-bottom-10 md:slide-in-from-bottom-0 md:zoom-in-95 pb-10 md:pb-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Direct Purchase</h3>
             
@@ -381,23 +390,26 @@ export default function BookDetails() {
               <div className="flex items-center gap-4">
                 <button 
                   onClick={() => setBuyQty(prev => Math.max(1, prev - 1))}
-                  className="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-100 active:scale-95 text-xl transition-all cursor-pointer"
+                  className="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-100 active:scale-95 text-xl transition-all"
                 >-</button>
                 <span className="font-bold text-xl w-6 text-center">{buyQty}</span>
                 <button 
-                  onClick={() => setBuyQty(prev => Math.min(book.stock || 99, prev + 1))}
-                  className="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-100 active:scale-95 text-xl transition-all cursor-pointer"
+                  onClick={() => setBuyQty(prev => prev + 1)}
+                  className="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-100 active:scale-95 text-xl transition-all"
                 >+</button>
               </div>
             </div>
 
             <div className="flex gap-3">
+              {/* Cancel Button */}
               <button 
                 onClick={() => setShowBuyNowModal(false)}
-                className="flex-1 py-3 bg-gray-200 text-gray-800 font-bold rounded-xl hover:bg-gray-300 transition-colors cursor-pointer"
+                className="flex-1 py-3 bg-gray-200 text-gray-800 font-bold rounded-xl hover:bg-gray-300 transition-colors"
               >
                 Cancel
               </button>
+              
+              {/* Checkout Button - Restored to Blue Theme */}
               <button 
                 onClick={() => {
                   const effectivePrice = book.discount_percentage > 0 && book.sale_price ? book.sale_price : book.price;
@@ -406,7 +418,7 @@ export default function BookDetails() {
                   setShowBuyNowModal(false);
                   navigate('/checkout?mode=direct');
                 }}
-                className="flex-1 py-3 bg-orange-500 text-white font-bold rounded-xl shadow-md hover:bg-orange-600 transition-colors cursor-pointer"
+                className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition-colors"
               >
                 Checkout
               </button>
