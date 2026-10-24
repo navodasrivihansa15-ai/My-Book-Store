@@ -29,12 +29,12 @@ export default function Cart() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="max-w-5xl mx-auto pt-8"
+      className="max-w-5xl mx-auto pt-8 px-4 pb-24 md:pb-8"
     >
       <h1 className="text-4xl font-serif text-brand-gold mb-12 border-b border-white/10 pb-6">Your Cart</h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 md:space-y-6">
           <AnimatePresence>
             {cart.map((item) => (
               <motion.div 
@@ -42,36 +42,88 @@ export default function Cart() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -50 }}
-                className="flex items-center gap-6 bg-white/5 border border-white/10 p-4 rounded-xl relative overflow-hidden group"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/5 rounded-full blur-3xl pointer-events-none group-hover:bg-brand-gold/10 transition-colors"></div>
-                
-                <div className="w-24 h-36 flex-shrink-0 rounded-md overflow-hidden bg-brand-black">
-                  {item.cover_image_url ? (
-                    <img src={item.cover_image_url} alt={item.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                  ) : (
-                    <div className="w-full h-full bg-white/5 flex items-center justify-center text-xs text-gray-500 uppercase tracking-widest text-center">No Cover</div>
-                  )}
+                {/* --- MOBILE CART ITEM CARD --- */}
+                <div className="flex gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm relative w-full mb-3 md:hidden">
+                  {/* Book Image */}
+                  <img 
+                    src={item.cover_image_url || item.image || 'https://placehold.co/400x600/e2e8f0/0b1d3a?text=No+Cover'} 
+                    alt={item.title} 
+                    className="w-16 h-24 object-cover rounded-md shrink-0 bg-gray-50 border border-gray-200" 
+                  />
+
+                  {/* Details & Controls Wrapper */}
+                  <div className="flex flex-col flex-1 min-w-0 justify-between">
+                    {/* Title and Price */}
+                    <div className="w-full">
+                      <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">{item.title}</h3>
+                      <p className="text-blue-600 font-bold text-sm mt-1">{formatPrice(item.price)}</p>
+                    </div>
+
+                    {/* Bottom Row: Qty Controls & Delete Button */}
+                    <div className="flex items-center justify-between mt-3 w-full">
+                      {/* Qty Selector (Touch Optimized) */}
+                      <div className="flex items-center border border-gray-200 rounded-lg bg-gray-50">
+                        <button 
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)} 
+                          className="w-8 h-8 flex items-center justify-center text-gray-600 active:bg-gray-200 rounded-l-lg font-bold transition-colors cursor-pointer"
+                        >
+                          -
+                        </button>
+                        <span className="w-8 text-center text-sm font-semibold text-gray-900">
+                          {item.quantity}
+                        </span>
+                        <button 
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)} 
+                          className="w-8 h-8 flex items-center justify-center text-gray-600 active:bg-gray-200 rounded-r-lg font-bold transition-colors cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* MOBILE DELETE BUTTON (THE FIX) */}
+                      <button
+                        onClick={() => removeFromCart(item.id)}
+                        className="flex items-center justify-center w-9 h-9 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 active:bg-red-200 active:scale-95 transition-all shrink-0 cursor-pointer"
+                        aria-label="Remove item"
+                      >
+                        <Trash2 className="w-4 h-4"/>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="flex-grow flex flex-col h-full justify-between py-2 z-10">
-                  <div>
-                    <h3 className="font-serif text-xl text-brand-offwhite mb-1">{item.title}</h3>
-                    <p className="text-gray-400 text-xs uppercase tracking-wider">{item.author}</p>
+
+                {/* --- DESKTOP CART ITEM CARD --- */}
+                <div className="hidden md:flex items-center gap-6 bg-white/5 border border-white/10 p-4 rounded-xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/5 rounded-full blur-3xl pointer-events-none group-hover:bg-brand-gold/10 transition-colors"></div>
+                  
+                  <div className="w-24 h-36 flex-shrink-0 rounded-md overflow-hidden bg-brand-black">
+                    {item.cover_image_url ? (
+                      <img src={item.cover_image_url} alt={item.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                    ) : (
+                      <div className="w-full h-full bg-white/5 flex items-center justify-center text-xs text-gray-500 uppercase tracking-widest text-center">No Cover</div>
+                    )}
                   </div>
                   
-                  <div className="flex items-end justify-between mt-4">
-                    <p className="font-serif text-2xl text-brand-gold">{formatPrice(item.price)}</p>
+                  <div className="flex-grow flex flex-col h-full justify-between py-2 z-10">
+                    <div>
+                      <h3 className="font-serif text-xl text-brand-offwhite mb-1">{item.title}</h3>
+                      <p className="text-gray-400 text-xs uppercase tracking-wider">{item.author}</p>
+                    </div>
                     
-                    <div className="flex items-center gap-6">
-                      <div className="flex items-center border border-white/10 rounded-md bg-brand-black/50 overflow-hidden">
-                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-2 text-gray-400 hover:text-brand-offwhite hover:bg-white/10 transition-colors cursor-pointer"><Minus size={14} /></button>
-                        <span className="w-10 text-center text-sm font-semibold">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 text-gray-400 hover:text-brand-offwhite hover:bg-white/10 transition-colors cursor-pointer"><Plus size={14} /></button>
+                    <div className="flex items-end justify-between mt-4">
+                      <p className="font-serif text-2xl text-brand-gold">{formatPrice(item.price)}</p>
+                      
+                      <div className="flex items-center gap-6">
+                        <div className="flex items-center border border-white/10 rounded-md bg-brand-black/50 overflow-hidden">
+                          <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-2 text-gray-400 hover:text-brand-offwhite hover:bg-white/10 transition-colors cursor-pointer"><Minus size={14} /></button>
+                          <span className="w-10 text-center text-sm font-semibold">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 text-gray-400 hover:text-brand-offwhite hover:bg-white/10 transition-colors cursor-pointer"><Plus size={14} /></button>
+                        </div>
+                        <button onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-red-400 transition-colors cursor-pointer" title="Remove Item">
+                          <Trash2 size={18} />
+                        </button>
                       </div>
-                      <button onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-red-400 transition-colors cursor-pointer" title="Remove Item">
-                        <Trash2 size={18} />
-                      </button>
                     </div>
                   </div>
                 </div>
