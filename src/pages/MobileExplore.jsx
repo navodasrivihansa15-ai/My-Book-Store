@@ -1,151 +1,198 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, Users, PenTool, ChevronRight } from 'lucide-react'; 
 import { supabase } from '../lib/supabase';
-import { ChevronRight } from 'lucide-react';
 
-export default function MobileExplore() {
+export default function MobileExplorePage() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('AUTHORS'); // 'AUTHORS' or 'TRANSLATORS'
+  const [searchQuery, setSearchQuery] = useState('');
   const [authors, setAuthors] = useState([]);
-  const [publishers, setPublishers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [translators, setTranslators] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Redirect to home if accessed on desktop
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        navigate('/');
-      }
-    };
-    
-    // Check initially
-    handleResize();
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [navigate]);
-
+  // Fetch Data - Map this to your actual Supabase tables
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const [authorsRes, publishersRes] = await Promise.all([
-          supabase.from('contributors').select('*').order('name_en').limit(6),
-          supabase.from('publishers').select('*').order('name').limit(6)
+        // TEMPORARY FALLBACK DATA (Used if no data in database)
+        const dummyAuthors = [
+          { id: 1, name: 'Martin Wickramasinghe', bookCount: 15 },
+          { id: 2, name: 'Arthur C. Clarke', bookCount: 8 },
+          { id: 3, name: 'Ediriweera Sarachchandra', bookCount: 5 }
+        ];
+        const dummyTranslators = [
+          { id: 1, name: 'Ganga Niroshani', bookCount: 12 },
+          { id: 2, name: 'K.G. Karunathilake', bookCount: 20 }
+        ];
+
+        // Fetch contributors and books from Supabase
+        const [contributorsRes, booksRes] = await Promise.all([
+          supabase.from('contributors').select('*').order('name_en'),
+          supabase.from('books').select('author, translator')
         ]);
 
-        if (authorsRes.data) setAuthors(authorsRes.data);
-        if (publishersRes.data) setPublishers(publishersRes.data);
+        const authorCounts = {};
+        const translatorCounts = {};
+
+        if (booksRes.data) {
+          booksRes.data.forEach((b) => {
+            if (b.author) authorCounts[b.author] = (authorCounts[b.author] || 0) + 1;
+            if (b.translator) translatorCounts[b.translator] = (translatorCounts[b.translator] || 0) + 1;
+          });
+        }
+
+        const authorsList = [];
+        const translatorsList = [];
+
+        if (contributorsRes.data && contributorsRes.data.length > 0) {
+          contributorsRes.data.forEach((c) => {
+            const name = c.name_en || c.name;
+            if (!name) return;
+            const isAuthor = !c.role || c.role === 'AUTHOR' || c.role === 'BOTH';
+            const isTranslator = c.role === 'TRANSLATOR' || c.role === 'BOTH';
+
+            if (isAuthor) {
+              authorsList.push({
+                id: c.id,
+                name: name,
+                bookCount: authorCounts[name] || 0
+              });
+            }
+            if (isTranslator) {
+              translatorsList.push({
+                id: c.id,
+                name: name,
+                bookCount: translatorCounts[name] || 0
+              });
+            }
+          });
+        }
+
+        // Also add any authors/translators from books if not already in list
+        if (booksRes.data) {
+          const authorNamesSet = new Set(authorsList.map((a) => a.name.toLowerCase()));
+          const translatorNamesSet = new Set(translatorsList.map((t) => t.name.toLowerCase()));
+
+          Object.entries(authorCounts).forEach(([name, count]) => {
+            if (name && !authorNamesSet.has(name.toLowerCase())) {
+              authorsList.push({ id: `author-${name}`, name, bookCount: count });
+              authorNamesSet.add(name.toLowerCase());
+            }
+          });
+
+          Object.entries(translatorCounts).forEach(([name, count]) => {
+            if (name && !translatorNamesSet.has(name.toLowerCase())) {
+              translatorsList.push({ id: `translator-${name}`, name, bookCount: count });
+              translatorNamesSet.add(name.toLowerCase());
+            }
+          });
+        }
+
+        setAuthors(authorsList.length > 0 ? authorsList : dummyAuthors);
+        setTranslators(translatorsList.length > 0 ? translatorsList : dummyTranslators);
       } catch (error) {
         console.error("Error fetching explore data:", error);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
     fetchData();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="block md:hidden pb-24 pt-20 px-4 min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-theme-deep"></div>
-      </div>
-    );
-  }
+  // Filter based on search and active tab
+  const currentList = activeTab === 'AUTHORS' ? authors : translators;
+  const filteredList = currentList.filter(person => 
+    person.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="block md:hidden pb-24 pt-24 min-h-screen bg-slate-50">
-      
-      {/* QUICK ACTIONS SECTION */}
-      <section className="mb-10 px-5">
-        <h2 className="text-xl font-bold text-theme-deep tracking-tight mb-4">Quick Links</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <button 
-            onClick={() => navigate('/offers')}
-            className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"
-          >
-            <span className="text-2xl mb-2">🎁</span>
-            <span className="text-sm font-bold text-theme-deep">Special Offers</span>
-          </button>
-          <button 
-            onClick={() => navigate('/request-book')}
-            className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"
-          >
-            <span className="text-2xl mb-2">📖</span>
-            <span className="text-sm font-bold text-theme-deep">Request Book</span>
-          </button>
-        </div>
-      </section>
-
-      {/* AUTHORS & TRANSLATORS SECTION */}
-      <section className="mb-10">
-        <div className="flex items-center justify-between px-5 mb-4">
-          <h2 className="text-xl font-bold text-theme-deep tracking-tight">Authors & Translators</h2>
-          <button 
-            onClick={() => navigate('/authors')}
-            className="text-theme-deep text-sm font-semibold flex items-center gap-1 hover:text-theme-medium transition-colors"
-          >
-            View All <ChevronRight size={16} />
-          </button>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col md:hidden">
+      {/* HEADER SECTION */}
+      <div className="bg-white px-4 pt-6 pb-4 shadow-sm sticky top-0 z-10">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Explore</h1>
         
-        <div className="flex overflow-x-auto hide-scrollbar space-x-4 py-2 px-5">
-          {authors.map(author => (
-            <div 
-              key={author.id} 
-              onClick={() => navigate(`/${author.is_translator ? 'translator' : 'author'}/${encodeURIComponent(author.name)}`)}
-              className="flex flex-col items-center flex-shrink-0 w-24 cursor-pointer"
-            >
-              <div className="w-20 h-20 rounded-full bg-white shadow-md border border-gray-100 flex items-center justify-center overflow-hidden mb-3">
-                {author.image_url ? (
-                  <img src={author.image_url} alt={author.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-2xl font-bold text-gray-300">{author.name.charAt(0)}</span>
-                )}
-              </div>
-              <span className="text-xs font-semibold text-center text-gray-700 line-clamp-2 leading-tight">
-                {author.name}
-              </span>
-              {author.is_translator && (
-                <span className="text-[10px] text-gray-400 mt-0.5">Translator</span>
-              )}
-            </div>
-          ))}
+        {/* Search Bar */}
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400"/>
+          </div>
+          <input
+            type="text"
+            placeholder={`Search ${activeTab.toLowerCase()}...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-gray-100 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+          />
         </div>
-      </section>
 
-      {/* PUBLISHERS SECTION */}
-      <section className="mb-6">
-        <div className="flex items-center justify-between px-5 mb-4">
-          <h2 className="text-xl font-bold text-theme-deep tracking-tight">Publishers</h2>
-          <button 
-            onClick={() => navigate('/publishers')}
-            className="text-theme-deep text-sm font-semibold flex items-center gap-1 hover:text-theme-medium transition-colors"
+        {/* TABS */}
+        <div className="flex mt-4 bg-gray-100 p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTab('AUTHORS')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'AUTHORS' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
           >
-            View All <ChevronRight size={16} />
+            <Users className="w-4 h-4"/>
+            Authors
+          </button>
+          <button
+            onClick={() => setActiveTab('TRANSLATORS')}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'TRANSLATORS' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <PenTool className="w-4 h-4"/>
+            Translators
           </button>
         </div>
-        
-        <div className="flex overflow-x-auto hide-scrollbar space-x-4 py-2 px-5">
-          {publishers.map(publisher => (
-            <div 
-              key={publisher.id} 
-              onClick={() => navigate(`/publishers/${encodeURIComponent(publisher.name)}`)}
-              className="flex flex-col items-center flex-shrink-0 w-28 cursor-pointer"
-            >
-              <div className="w-24 h-24 rounded-2xl bg-white shadow-sm border border-gray-100 flex items-center justify-center overflow-hidden mb-3 p-3">
-                {publisher.logo_url ? (
-                  <img src={publisher.logo_url} alt={publisher.name} className="w-full h-full object-contain" />
-                ) : (
-                  <span className="text-2xl font-bold text-gray-300">{publisher.name.charAt(0)}</span>
-                )}
+      </div>
+
+      {/* LIST SECTION - Added pb-24 to ensure it scrolls above the bottom nav bar */}
+      <div className="flex-1 px-4 py-4 overflow-y-auto pb-24">
+        {isLoading ? (
+          // Skeleton Loader
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="bg-gray-200 animate-pulse h-16 rounded-xl w-full"></div>
+            ))}
+          </div>
+        ) : filteredList.length > 0 ? (
+          <div className="space-y-3">
+            {filteredList.map((person) => (
+              <div 
+                key={person.id}
+                onClick={() => navigate(activeTab === 'AUTHORS' ? `/author/${encodeURIComponent(person.name)}` : `/translator/${encodeURIComponent(person.name)}`)}
+                className="bg-white border border-gray-100 p-4 rounded-xl shadow-sm flex items-center justify-between active:scale-[0.98] active:bg-gray-50 transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${activeTab === 'AUTHORS' ? 'bg-blue-500' : 'bg-purple-500'}`}>
+                    {person.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-sm">{person.name}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {person.bookCount ? `${person.bookCount} Books` : 'View Collection'}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400"/>
               </div>
-              <span className="text-xs font-semibold text-center text-gray-700 line-clamp-2 leading-tight">
-                {publisher.name}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10">
+            <p className="text-gray-500 text-sm">No {activeTab.toLowerCase()} found matching "{searchQuery}"</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
