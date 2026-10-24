@@ -49,6 +49,7 @@ export default function MobileExplorePage() {
 
             if (isAuthor) {
               authorsList.push({
+                ...c,
                 id: c.id,
                 name: name,
                 bookCount: authorCounts[name] || 0
@@ -56,6 +57,7 @@ export default function MobileExplorePage() {
             }
             if (isTranslator) {
               translatorsList.push({
+                ...c,
                 id: c.id,
                 name: name,
                 bookCount: translatorCounts[name] || 0
@@ -68,6 +70,7 @@ export default function MobileExplorePage() {
           publishersRes.data.forEach((p) => {
             if (!p.name) return;
             publishersList.push({
+              ...p,
               id: p.id,
               name: p.name,
               bookCount: publisherCounts[p.name] || 0
@@ -248,12 +251,26 @@ export default function MobileExplorePage() {
                 {/* min-w-0 allows the flex child to shrink properly instead of overflowing */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   
-                  {/* Avatar Icon */}
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 ${
+                  {/* Smart Avatar/Logo Renderer */}
+                  <div className={`relative w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 overflow-hidden ${
                     activeTab === 'AUTHORS' ? 'bg-blue-500' : 
                     activeTab === 'TRANSLATORS' ? 'bg-purple-500' : 'bg-emerald-500'
                   }`}>
-                    {item.name.charAt(0).toUpperCase()}
+                    {/* Fallback Initial Letter (Stays behind the image) */}
+                    <span className="absolute z-0">{item.name?.charAt(0).toUpperCase()}</span>
+                    
+                    {/* Actual Logo/Image (If available in DB) */}
+                    {(item.logo_url || item.image_url || item.logo || item.avatar || item.image || item.photo_url || item.profile_pic) && (
+                      <img 
+                        src={item.logo_url || item.image_url || item.logo || item.avatar || item.image || item.photo_url || item.profile_pic} 
+                        alt={item.name} 
+                        className="absolute inset-0 w-full h-full object-cover z-10 bg-white"
+                        onError={(e) => { 
+                          // If image fails to load, hide the img tag to reveal the fallback letter behind it
+                          e.target.style.display = 'none'; 
+                        }}
+                      />
+                    )}
                   </div>
                   
                   {/* Name and Book Count Wrapper - min-w-0 is mandatory here */}

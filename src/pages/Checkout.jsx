@@ -2,15 +2,42 @@ import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, CheckCircle2 } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
 
 export default function Checkout() {
-  const { cart, total, clearCart } = useCart();
+  const { cart: globalCart, total: globalTotal, clearCart } = useCart();
+  const [cartItems, setCartItems] = useState(globalCart);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isDirectMode = new URLSearchParams(location.search).get('mode') === 'direct';
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.get('mode') === 'direct') {
+      const directItemStr = sessionStorage.getItem('direct_buy_item');
+      if (directItemStr) {
+        try {
+          const item = JSON.parse(directItemStr);
+          // Map to local checkout items state without overwriting global cart
+          setCartItems([item]);
+        } catch(e) {
+          console.error("Direct buy error", e);
+        }
+      }
+    } else {
+      setCartItems(globalCart);
+    }
+  }, [location.search, globalCart]);
+
+  const cart = cartItems;
+  const total = isDirectMode
+    ? cartItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * item.quantity), 0)
+    : globalTotal;
 
   const [customerName, setCustomerName] = useState('');
   const [shippingAddress, setShippingAddress] = useState('');
@@ -257,7 +284,11 @@ export default function Checkout() {
 
       const displayId = order.display_id || order.id.split('-')[0].toUpperCase();
       setPlacedOrderId(displayId);
-      clearCart();
+      if (isDirectMode) {
+        sessionStorage.removeItem('direct_buy_item');
+      } else {
+        clearCart();
+      }
       setSuccess(true);
     } catch (err) {
       setError(err.message);

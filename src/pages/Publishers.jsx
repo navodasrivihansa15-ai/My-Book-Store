@@ -83,9 +83,11 @@ export default function Publishers() {
             {booksLoading ? (
               <div className="text-center py-20 text-theme-medium">Loading books...</div>
             ) : publisherBooks.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-6">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                 {publisherBooks.map(book => (
-                  <BookCard key={book.id} book={book} />
+                  <div key={book.id} className="w-full flex">
+                    <BookCard book={book} />
+                  </div>
                 ))}
               </div>
             ) : (

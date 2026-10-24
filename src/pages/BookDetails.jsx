@@ -11,6 +11,8 @@ export default function BookDetails() {
   const navigate = useNavigate();
   const { addToCart, cart } = useCart();
   const [book, setBook] = useState(null);
+  const [showBuyNowModal, setShowBuyNowModal] = useState(false);
+  const [buyQty, setBuyQty] = useState(1);
   
   const [authorInfo, setAuthorInfo] = useState(null);
   const [translatorInfo, setTranslatorInfo] = useState(null);
@@ -164,20 +166,20 @@ export default function BookDetails() {
                   <p className="text-gray-600 text-base leading-relaxed mt-6 whitespace-pre-line">{book.description}</p>
                 </div>
 
-                <div className="flex flex-row gap-3 mt-6 w-full">
-                  <button 
-                    onClick={handleBuyNow}
-                    disabled={book.stock <= 0 || isStockLimitReached}
-                    className="w-full py-3.5 rounded-xl bg-theme-deep text-white font-bold text-base shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 uppercase tracking-widest cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Buy Now
-                  </button>
+                <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full">
                   <button 
                     onClick={() => addToCart({ ...book, price: book.discount_percentage > 0 && book.sale_price ? book.sale_price : book.price })}
                     disabled={book.stock <= 0 || isStockLimitReached}
-                    className="w-full py-3.5 rounded-xl border-2 border-theme-deep text-theme-deep font-bold text-base hover:bg-theme-deep hover:text-white transition-all flex items-center justify-center gap-3 uppercase tracking-widest cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-transparent"
+                    className="flex-1 py-3 px-4 border-2 border-theme-deep text-theme-deep font-bold rounded-xl hover:bg-theme-light/20 transition-colors flex items-center justify-center gap-2"
                   >
                     <ShoppingCart size={20} /> {book.stock <= 0 ? 'Unavailable' : isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
+                  </button>
+                  <button 
+                    onClick={() => { setBuyQty(1); setShowBuyNowModal(true); }}
+                    disabled={book.stock <= 0}
+                    className="flex-1 py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Buy Now
                   </button>
                 </div>
               </motion.div>
@@ -347,24 +349,71 @@ export default function BookDetails() {
             {/* Buy Now & Add to Cart Buttons */}
             <div className="flex flex-col gap-2.5 w-full mb-4">
               <button 
-                onClick={handleBuyNow}
-                disabled={book.stock <= 0 || isStockLimitReached}
-                className="w-full py-3.5 rounded-xl bg-theme-deep text-white font-bold text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Buy Now
-              </button>
-              <button 
                 onClick={() => addToCart({ ...book, price: book.discount_percentage > 0 && book.sale_price ? book.sale_price : book.price })}
                 disabled={book.stock <= 0 || isStockLimitReached}
                 className="w-full py-3.5 rounded-xl border-2 border-theme-deep text-theme-deep bg-white font-bold text-sm shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart size={18} /> {book.stock <= 0 ? 'Unavailable' : isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
               </button>
+              <button 
+                onClick={() => { setBuyQty(1); setShowBuyNowModal(true); }}
+                disabled={book.stock <= 0}
+                className="w-full py-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-widest cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Buy Now
+              </button>
             </div>
 
           </div>
         </div>
       </div>
+
+      {/* DIRECT PURCHASE QUANTITY MODAL */}
+      {showBuyNowModal && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-4">
+          {/* Modal Container: Bottom sheet on Mobile (rounded-t-3xl), Centered box on Desktop (rounded-2xl) */}
+          <div className="bg-white w-full md:w-96 rounded-t-3xl md:rounded-2xl p-6 shadow-2xl animate-in slide-in-from-bottom-10 md:slide-in-from-bottom-0 md:zoom-in-95 pb-10 md:pb-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Direct Purchase</h3>
+            
+            {/* Qty Selector */}
+            <div className="flex items-center justify-between mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+              <span className="text-gray-700 font-semibold">Quantity:</span>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setBuyQty(prev => Math.max(1, prev - 1))}
+                  className="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-100 active:scale-95 text-xl transition-all cursor-pointer"
+                >-</button>
+                <span className="font-bold text-xl w-6 text-center">{buyQty}</span>
+                <button 
+                  onClick={() => setBuyQty(prev => Math.min(book.stock || 99, prev + 1))}
+                  className="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-100 active:scale-95 text-xl transition-all cursor-pointer"
+                >+</button>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowBuyNowModal(false)}
+                className="flex-1 py-3 bg-gray-200 text-gray-800 font-bold rounded-xl hover:bg-gray-300 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  const effectivePrice = book.discount_percentage > 0 && book.sale_price ? book.sale_price : book.price;
+                  const directItem = { ...book, price: effectivePrice, quantity: buyQty }; 
+                  sessionStorage.setItem('direct_buy_item', JSON.stringify(directItem));
+                  setShowBuyNowModal(false);
+                  navigate('/checkout?mode=direct');
+                }}
+                className="flex-1 py-3 bg-orange-500 text-white font-bold rounded-xl shadow-md hover:bg-orange-600 transition-colors cursor-pointer"
+              >
+                Checkout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

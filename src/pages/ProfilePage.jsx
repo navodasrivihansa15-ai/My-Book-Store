@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
 import BookCard from '../components/BookCard';
-import { User, Library, PenTool } from 'lucide-react';
+import { User, Library, PenTool, ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ProfilePage({ type }) {
   const { name } = useParams();
+  const navigate = useNavigate();
   const decodedName = decodeURIComponent(name);
   const [books, setBooks] = useState([]);
   const [profileInfo, setProfileInfo] = useState(null);
@@ -58,40 +59,49 @@ export default function ProfilePage({ type }) {
   };
 
   return (
-    <div className="w-full">
-      <motion.div 
-        initial={{ y: 20, opacity: 0 }} 
-        animate={{ y: 0, opacity: 1 }} 
-        className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-6 mb-10"
-      >
-        <div className="w-20 h-20 bg-theme-light/30 rounded-full flex items-center justify-center border-4 border-white shadow-sm shrink-0">
-          {getIcon()}
+    <div className="min-h-screen bg-gray-50 pb-24">
+      {/* Header Section (Author/Publisher Name) */}
+      <div className="bg-white px-4 py-4 md:py-5 shadow-sm mb-4 sticky top-0 z-30 border-b border-gray-100">
+        <div className="max-w-7xl mx-auto flex items-center gap-3 md:gap-4">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="flex items-center text-blue-600 active:text-blue-800 font-semibold text-sm transition-colors cursor-pointer py-1 -ml-1 pr-1 shrink-0"
+          >
+            <ChevronLeft className="w-5 h-5 mr-0.5" />
+            <span className="hidden sm:inline">Back</span>
+          </button>
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-theme-light/30 rounded-full flex items-center justify-center border border-slate-200 shrink-0">
+            {getIcon()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-400 block truncate">{getTitle()}</span>
+            <h1 className="text-lg md:text-2xl font-serif text-brand-blue font-bold leading-tight truncate">{decodedName}</h1>
+            {profileInfo?.name_si && (
+              <h2 className="text-xs md:text-sm text-slate-500 font-medium truncate">{profileInfo.name_si}</h2>
+            )}
+          </div>
         </div>
-        <div>
-          <span className="text-sm font-bold uppercase tracking-widest text-slate-400">{getTitle()}</span>
-          <h1 className="text-3xl md:text-4xl font-serif text-brand-blue font-bold mt-1">{decodedName}</h1>
-          {profileInfo?.name_si && (
-            <h2 className="text-lg text-slate-600 font-semibold mt-1">{profileInfo.name_si}</h2>
-          )}
-        </div>
-      </motion.div>
+      </div>
 
-      {loading ? (
-        <div className="text-center py-20 text-slate-500 font-medium animate-pulse">Loading collection...</div>
-      ) : books.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8">
-          {books.map(book => (
-            <div key={book.id} className="w-full flex justify-center min-w-[220px] max-w-[280px] mx-auto md:max-w-none">
-              <BookCard book={book} addToCart={addToCart} />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-32 bg-white rounded-2xl border border-slate-100 shadow-sm mt-8">
-          <h2 className="text-2xl font-bold text-slate-800 mb-4">No Books Found</h2>
-          <p className="text-slate-500 font-medium">We couldn't find any books for this {type}.</p>
-        </div>
-      )}
+      {/* 2. THE BOOK GRID CONTAINER (THE FIX) */}
+      <div className="px-4 max-w-7xl mx-auto w-full">
+        {loading ? (
+          <div className="text-center py-20 text-slate-500 font-medium animate-pulse">Loading collection...</div>
+        ) : books.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {books.map((book) => (
+              <div key={book.id} className="w-full flex">
+                <BookCard book={book} addToCart={addToCart} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-32 bg-white rounded-2xl border border-slate-100 shadow-sm mt-4">
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">No Books Found</h2>
+            <p className="text-slate-500 font-medium">We couldn't find any books for this {type}.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
