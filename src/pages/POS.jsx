@@ -340,92 +340,55 @@ export default function POS() {
     }
   };
 
-  // REAL-TIME LISTENER FOR MOBILE SCANNER (Strict User Isolation)
+  // --- STRICT MULTI-USER ISOLATED SCAN LISTENER ---
   useEffect(() => {
-    // Get the active logged-in POS user's name (mapped to existing POS active user variable)
-    const activePosUserName = activeStaffName || userFullName || user?.user_metadata?.full_name || (user?.email && !user.email.includes('@') ? user.email : null);
-    if (!activePosUserName) return;
+    // 1. Identify EXACTLY who is logged into this specific POS screen right now.
+    // (Ensure these variables match your actual auth state names)
+    const rawUserName = activeStaffName || userFullName || user?.full_name || user?.username || user?.user_metadata?.full_name || user?.email;
 
-    // 1. Listen to pos_remote_scans table inserts FOR THIS USER ONLY
+    // If no one is logged into this POS, do not listen to remote scans
+    if (!rawUserName) return; 
+
+    // Normalize the name (lowercase and trimmed) to prevent matching errors
+    const activePosUserName = String(rawUserName).trim().toLowerCase();
+
+    // Create a unique channel string for this specific POS session
+    const channelString = `pos-scans-${activePosUserName.replace(/\s+/g, '-')}`;
+
     const scanSubscription = supabase
-      .channel(`pos-scans-${activePosUserName}`)
+      .channel(channelString)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'pos_remote_scans' },
         (payload) => {
           const newScan = payload.new;
-          // STRICT ISOLATION: Ignore if scanned by another staff member or owner!
-          if (
-            newScan && 
-            newScan.scanned_by && 
-            newScan.scanned_by.trim().toLowerCase() === activePosUserName.trim().toLowerCase()
-          ) {
-            // Call our existing barcode handler to add item to this user's cart
-            handleRemoteBarcodeScan(newScan.barcode);
+
+          if (newScan && newScan.barcode && newScan.scanned_by) {
+            // Normalize the incoming scanner name
+            const incomingScannerUser = String(newScan.scanned_by).trim().toLowerCase();
+
+            // 2. STRICT ISOLATION LOCK: Only execute if names match exactly!
+            if (incomingScannerUser === activePosUserName) {
+              console.log(`[Isolator] Valid scan received for ${activePosUserName}: ${newScan.barcode}`);
+              
+              // Execute the existing function to add to cart
+              if (typeof handleRemoteBarcodeScan === 'function') {
+                handleRemoteBarcodeScan(newScan.barcode);
+              }
+            } else {
+               // Silently ignore scans meant for other staff members
+              console.log(`[Isolator] Ignored scan meant for ${incomingScannerUser}`);
+            }
           }
         }
       )
       .subscribe();
 
-    // 2. Realtime Broadcast Listener with strict scanned_by filter
-    const broadcastChannel = supabase
-      .channel('scanner-broadcast-channel')
-      .on(
-        'broadcast',
-        { event: 'scan' },
-        (payload) => {
-          const scannedBarcode = payload?.payload?.barcode;
-          const target = payload?.payload?.target;
-          const scannedBy = payload?.payload?.scanned_by;
-          
-          if (target && target !== 'POS') return; // Ignore inventory scans
-
-          // STRICT ISOLATION: Ignore if scanned by another staff member or owner!
-          if (
-            scannedBy && 
-            scannedBy.trim().toLowerCase() !== activePosUserName.trim().toLowerCase()
-          ) {
-            return;
-          }
-
-          if (scannedBarcode) {
-            handleRemoteBarcodeScan(scannedBarcode);
-          }
-        }
-      )
-      .subscribe();
-
-    // 3. pos-scanner-channel Broadcast Listener with strict scanned_by filter
-    const posChannel = supabase
-      .channel('pos-scanner-channel')
-      .on(
-        'broadcast',
-        { event: 'scan' },
-        (payload) => {
-          const scannedBarcode = payload?.payload?.barcode;
-          const scannedBy = payload?.payload?.scanned_by;
-
-          if (
-            scannedBy && 
-            scannedBy.trim().toLowerCase() !== activePosUserName.trim().toLowerCase()
-          ) {
-            return;
-          }
-
-          if (scannedBarcode) {
-            handleRemoteBarcodeScan(scannedBarcode);
-          }
-        }
-      )
-      .subscribe();
-
-    // Cleanup subscriptions on unmount or user change
+    // Cleanup on unmount or when the active user changes
     return () => {
       supabase.removeChannel(scanSubscription);
-      supabase.removeChannel(broadcastChannel);
-      supabase.removeChannel(posChannel);
     };
-  }, [user, userFullName, activeStaffName]);
+  }, [user, userFullName, activeStaffName]); // Only re-run if the logged-in POS user changes
 
   useEffect(() => {
     if (search) {
