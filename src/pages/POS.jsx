@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -231,11 +231,31 @@ const ShortcutSettingsModal = ({ shortcuts, setShortcuts, onClose, showNotificat
 };
 
 export default function POS() {
+  const { user, userFullName } = useAuth();
+  let activeStaffName = null;
+  try { 
+    const stored = JSON.parse(sessionStorage.getItem('active_staff'))?.name;
+    if (stored && !stored.includes('@')) {
+      activeStaffName = stored;
+    }
+  } catch(e) {}
+  const handlerName = activeStaffName || userFullName || user?.email || user?.user_metadata?.full_name || 'Unknown Staff';
+  const currentUser = user;
+  const userRoleData = useMemo(() => ({
+    full_name: activeStaffName || userFullName || user?.user_metadata?.full_name || (user?.email && !user.email.includes('@') ? user.email : user?.email)
+  }), [activeStaffName, userFullName, user]);
+
   const [books, setBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState(() => {
     try {
+      const activeUser = activeStaffName || userFullName || user?.full_name || user?.username || user?.user_metadata?.full_name || user?.email;
+      if (activeUser) {
+        const userKey = String(activeUser).trim().toLowerCase().replace(/\s+/g, '_');
+        const savedIsolated = localStorage.getItem(`pos_isolated_cart_${userKey}`);
+        if (savedIsolated) return JSON.parse(savedIsolated);
+      }
       const savedCart = localStorage.getItem('pos_cart');
       return savedCart ? JSON.parse(savedCart) : [];
     } catch (error) {
@@ -253,6 +273,55 @@ export default function POS() {
   const [activeSection, setActiveSection] = useState('search'); // 'search' or 'cart'
   const [searchSelectedIndex, setSearchSelectedIndex] = useState(0);
   const [cartSelectedIndex, setCartSelectedIndex] = useState(0);
+
+  const setHistory = setCartHistory;
+  const setRedoStack = setRedoHistory;
+  const setSelectedCartIndex = setCartSelectedIndex;
+
+  // --- 1. MULTI-USER ISOLATION: LOAD SPECIFIC USER'S CART ON LOGIN/UNLOCK ---
+  useEffect(() => {
+    // Identify the exact user unlocking the POS
+    const activeUser = currentUser?.full_name || currentUser?.username || userRoleData?.full_name;
+    if (!activeUser) return;
+    
+    // Create a safe, unique storage key for this user
+    const userKey = String(activeUser).trim().toLowerCase().replace(/\s+/g, '_');
+    const storageKey = `pos_isolated_cart_${userKey}`;
+    
+    // Load ONLY this user's saved cart
+    const savedCart = localStorage.getItem(storageKey);
+    
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (e) {
+        setCart([]);
+      }
+    } else {
+      setCart([]); // Fresh empty cart for a new user
+    }
+    
+    // CRITICAL: Clear undo/redo history so User B cannot press Ctrl+Z to bring back User A's items!
+    if (typeof setHistory === 'function') setHistory([]);
+    if (typeof setRedoStack === 'function') setRedoStack([]);
+    if (typeof setSelectedCartIndex === 'function') setSelectedCartIndex(0);
+    
+  }, [currentUser, userRoleData]); // Trigger ONLY when the logged-in POS user changes
+
+
+  // --- 2. MULTI-USER ISOLATION: AUTO-SAVE CART CHANGES TO THIS SPECIFIC USER ---
+  useEffect(() => {
+    const activeUser = currentUser?.full_name || currentUser?.username || userRoleData?.full_name;
+    if (!activeUser) return;
+    
+    const userKey = String(activeUser).trim().toLowerCase().replace(/\s+/g, '_');
+    const storageKey = `pos_isolated_cart_${userKey}`;
+    
+    // Whenever the cart updates, save it silently to this user's unique local file
+    localStorage.setItem(storageKey, JSON.stringify(cart || []));
+    
+  }, [cart, currentUser, userRoleData]); // Trigger whenever the cart changes
+
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [showScanner, setShowScanner] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -277,15 +346,6 @@ export default function POS() {
     return defaultShortcuts;
   });
   const mobileScannerUrl = window.location.origin + '/admin/scanner';
-  const { user, userFullName } = useAuth();
-  let activeStaffName = null;
-  try { 
-    const stored = JSON.parse(sessionStorage.getItem('active_staff'))?.name;
-    if (stored && !stored.includes('@')) {
-      activeStaffName = stored;
-    }
-  } catch(e) {}
-  const handlerName = activeStaffName || userFullName || user?.email || user?.user_metadata?.full_name || 'Unknown Staff';
 
   const searchInputRef = useRef(null);
   const booksRef = useRef(books);

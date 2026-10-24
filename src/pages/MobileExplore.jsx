@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Users, PenTool, ChevronRight } from 'lucide-react'; 
+import { Search, Users, PenTool, Building, ChevronRight } from 'lucide-react'; 
 import { supabase } from '../lib/supabase';
 
 export default function MobileExplorePage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('AUTHORS'); // 'AUTHORS' or 'TRANSLATORS'
+  const [activeTab, setActiveTab] = useState('AUTHORS'); // 'AUTHORS' | 'TRANSLATORS' | 'PUBLISHERS'
   const [searchQuery, setSearchQuery] = useState('');
+  
   const [authors, setAuthors] = useState([]);
   const [translators, setTranslators] = useState([]);
+  const [publishers, setPublishers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch Data - Map this to your actual Supabase tables
@@ -16,35 +18,27 @@ export default function MobileExplorePage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // TEMPORARY FALLBACK DATA (Used if no data in database)
-        const dummyAuthors = [
-          { id: 1, name: 'Martin Wickramasinghe', bookCount: 15 },
-          { id: 2, name: 'Arthur C. Clarke', bookCount: 8 },
-          { id: 3, name: 'Ediriweera Sarachchandra', bookCount: 5 }
-        ];
-        const dummyTranslators = [
-          { id: 1, name: 'Ganga Niroshani', bookCount: 12 },
-          { id: 2, name: 'K.G. Karunathilake', bookCount: 20 }
-        ];
-
-        // Fetch contributors and books from Supabase
-        const [contributorsRes, booksRes] = await Promise.all([
+        const [contributorsRes, booksRes, publishersRes] = await Promise.all([
           supabase.from('contributors').select('*').order('name_en'),
-          supabase.from('books').select('author, translator')
+          supabase.from('books').select('author, translator, publisher'),
+          supabase.from('publishers').select('*').order('name')
         ]);
 
         const authorCounts = {};
         const translatorCounts = {};
+        const publisherCounts = {};
 
         if (booksRes.data) {
           booksRes.data.forEach((b) => {
             if (b.author) authorCounts[b.author] = (authorCounts[b.author] || 0) + 1;
             if (b.translator) translatorCounts[b.translator] = (translatorCounts[b.translator] || 0) + 1;
+            if (b.publisher) publisherCounts[b.publisher] = (publisherCounts[b.publisher] || 0) + 1;
           });
         }
 
         const authorsList = [];
         const translatorsList = [];
+        const publishersList = [];
 
         if (contributorsRes.data && contributorsRes.data.length > 0) {
           contributorsRes.data.forEach((c) => {
@@ -70,10 +64,22 @@ export default function MobileExplorePage() {
           });
         }
 
-        // Also add any authors/translators from books if not already in list
+        if (publishersRes.data && publishersRes.data.length > 0) {
+          publishersRes.data.forEach((p) => {
+            if (!p.name) return;
+            publishersList.push({
+              id: p.id,
+              name: p.name,
+              bookCount: publisherCounts[p.name] || 0
+            });
+          });
+        }
+
+        // Also add any authors/translators/publishers from books if not already in list
         if (booksRes.data) {
           const authorNamesSet = new Set(authorsList.map((a) => a.name.toLowerCase()));
           const translatorNamesSet = new Set(translatorsList.map((t) => t.name.toLowerCase()));
+          const publisherNamesSet = new Set(publishersList.map((p) => p.name.toLowerCase()));
 
           Object.entries(authorCounts).forEach(([name, count]) => {
             if (name && !authorNamesSet.has(name.toLowerCase())) {
@@ -88,10 +94,28 @@ export default function MobileExplorePage() {
               translatorNamesSet.add(name.toLowerCase());
             }
           });
+
+          Object.entries(publisherCounts).forEach(([name, count]) => {
+            if (name && !publisherNamesSet.has(name.toLowerCase())) {
+              publishersList.push({ id: `publisher-${name}`, name, bookCount: count });
+              publisherNamesSet.add(name.toLowerCase());
+            }
+          });
         }
 
-        setAuthors(authorsList.length > 0 ? authorsList : dummyAuthors);
-        setTranslators(translatorsList.length > 0 ? translatorsList : dummyTranslators);
+        setAuthors(authorsList.length > 0 ? authorsList : [
+          { id: 1, name: 'Martin Wickramasinghe', bookCount: 15 },
+          { id: 2, name: 'Arthur C. Clarke', bookCount: 8 }
+        ]);
+        setTranslators(translatorsList.length > 0 ? translatorsList : [
+          { id: 1, name: 'Ganga Niroshani', bookCount: 12 },
+          { id: 2, name: 'K.G. Karunathilake', bookCount: 20 }
+        ]);
+        setPublishers(publishersList.length > 0 ? publishersList : [
+          { id: 1, name: 'Sarasavi Publishers', bookCount: 150 },
+          { id: 2, name: 'Samudra Book Shop', bookCount: 85 },
+          { id: 3, name: 'M.D. Gunasena', bookCount: 300 }
+        ]);
       } catch (error) {
         console.error("Error fetching explore data:", error);
       } finally {
@@ -103,19 +127,25 @@ export default function MobileExplorePage() {
   }, []);
 
   // Filter based on search and active tab
-  const currentList = activeTab === 'AUTHORS' ? authors : translators;
-  const filteredList = currentList.filter(person => 
-    person.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const currentList = 
+    activeTab === 'AUTHORS' ? authors : 
+    activeTab === 'TRANSLATORS' ? translators : 
+    publishers;
+
+  const filteredList = currentList.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:hidden">
-      {/* HEADER SECTION */}
-      <div className="bg-white px-4 pt-6 pb-4 shadow-sm sticky top-0 z-10">
+    // Uses 100dvh to perfectly fit the mobile screen (ignores browser address bar changes)
+    <div className="flex flex-col bg-gray-50 md:hidden" style={{ height: '100dvh' }}>
+      
+      {/* FIXED HEADER SECTION */}
+      <div className="bg-white px-4 pt-6 pb-3 shadow-sm shrink-0">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Explore</h1>
         
         {/* Search Bar */}
-        <div className="relative">
+        <div className="relative mb-4">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400"/>
           </div>
@@ -124,41 +154,47 @@ export default function MobileExplorePage() {
             placeholder={`Search ${activeTab.toLowerCase()}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-gray-100 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+            className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-gray-100 placeholder-gray-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-colors"
           />
         </div>
 
-        {/* TABS */}
-        <div className="flex mt-4 bg-gray-100 p-1 rounded-lg">
+        {/* 3-WAY TABS (Grid layout for equal width, stacked icon/text to fit mobile) */}
+        <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('AUTHORS')}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'AUTHORS' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700'
+            className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${
+              activeTab === 'AUTHORS' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            <Users className="w-4 h-4"/>
-            Authors
+            <Users className="w-5 h-5 mb-1"/>
+            <span className="text-[10px] font-bold tracking-wide">AUTHORS</span>
           </button>
+          
           <button
             onClick={() => setActiveTab('TRANSLATORS')}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'TRANSLATORS' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700'
+            className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${
+              activeTab === 'TRANSLATORS' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            <PenTool className="w-4 h-4"/>
-            Translators
+            <PenTool className="w-5 h-5 mb-1"/>
+            <span className="text-[10px] font-bold tracking-wide">TRANSLATORS</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('PUBLISHERS')}
+            className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${
+              activeTab === 'PUBLISHERS' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Building className="w-5 h-5 mb-1"/>
+            <span className="text-[10px] font-bold tracking-wide">PUBLISHERS</span>
           </button>
         </div>
       </div>
 
-      {/* LIST SECTION - Added pb-24 to ensure it scrolls above the bottom nav bar */}
-      <div className="flex-1 px-4 py-4 overflow-y-auto pb-24">
+      {/* SCROLLABLE LIST SECTION */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
         {isLoading ? (
-          // Skeleton Loader
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="bg-gray-200 animate-pulse h-16 rounded-xl w-full"></div>
@@ -166,24 +202,31 @@ export default function MobileExplorePage() {
           </div>
         ) : filteredList.length > 0 ? (
           <div className="space-y-3">
-            {filteredList.map((person) => (
+            {filteredList.map((item) => (
               <div 
-                key={person.id}
-                onClick={() => navigate(activeTab === 'AUTHORS' ? `/author/${encodeURIComponent(person.name)}` : `/translator/${encodeURIComponent(person.name)}`)}
+                key={item.id}
+                onClick={() => navigate(
+                  activeTab === 'AUTHORS' ? `/author/${encodeURIComponent(item.name)}` :
+                  activeTab === 'TRANSLATORS' ? `/translator/${encodeURIComponent(item.name)}` :
+                  `/publishers/${encodeURIComponent(item.name)}`
+                )}
                 className="bg-white border border-gray-100 p-4 rounded-xl shadow-sm flex items-center justify-between active:scale-[0.98] active:bg-gray-50 transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg ${activeTab === 'AUTHORS' ? 'bg-blue-500' : 'bg-purple-500'}`}>
-                    {person.name.charAt(0).toUpperCase()}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 ${
+                    activeTab === 'AUTHORS' ? 'bg-blue-500' : 
+                    activeTab === 'TRANSLATORS' ? 'bg-purple-500' : 'bg-emerald-500'
+                  }`}>
+                    {item.name.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 text-sm">{person.name}</h3>
+                  <div className="overflow-hidden">
+                    <h3 className="font-semibold text-gray-900 text-sm truncate">{item.name}</h3>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {person.bookCount ? `${person.bookCount} Books` : 'View Collection'}
+                      {item.bookCount ? `${item.bookCount} Books` : 'View Collection'}
                     </p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-400"/>
+                <ChevronRight className="w-5 h-5 text-gray-400 shrink-0"/>
               </div>
             ))}
           </div>
