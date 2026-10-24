@@ -136,6 +136,39 @@ export default function MobileExplorePage() {
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Intelligent Text Formatter to split Sinhala and English or wrap long texts
+  const renderName = (fullName) => {
+    if (!fullName) return null;
+    
+    // Check if the string contains any Sinhala characters
+    const hasSinhala = /[\u0D80-\u0DFF]/.test(fullName);
+    
+    if (hasSinhala) {
+      // Extract English part (removing Sinhala characters and brackets)
+      const englishPart = fullName.replace(/[\u0D80-\u0DFF]/g, '').replace(/[()\-]/g, '').trim();
+      // Extract Sinhala part
+      const sinhalaPart = fullName.match(/[\u0D80-\u0DFF\s]+/g)?.join(' ').trim();
+      
+      return (
+        <div className="flex flex-col w-full min-w-0">
+          <span className="font-semibold text-gray-900 text-sm leading-tight truncate">{englishPart || fullName}</span>
+          {sinhalaPart && (
+            <span className="text-[11px] text-gray-600 font-medium leading-tight truncate mt-0.5">
+              {sinhalaPart}
+            </span>
+          )}
+        </div>
+      );
+    }
+    
+    // If only English, allow it to wrap beautifully to 2 lines and add '...' if still too long
+    return (
+      <span className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2 break-words w-full">
+        {fullName}
+      </span>
+    );
+  };
+
   return (
     // Uses 100dvh to perfectly fit the mobile screen (ignores browser address bar changes)
     <div className="flex flex-col bg-gray-50 md:hidden" style={{ height: '100dvh' }}>
@@ -210,23 +243,31 @@ export default function MobileExplorePage() {
                   activeTab === 'TRANSLATORS' ? `/translator/${encodeURIComponent(item.name)}` :
                   `/publishers/${encodeURIComponent(item.name)}`
                 )}
-                className="bg-white border border-gray-100 p-4 rounded-xl shadow-sm flex items-center justify-between active:scale-[0.98] active:bg-gray-50 transition-all cursor-pointer"
+                className="bg-white border border-gray-100 p-3 rounded-xl shadow-sm flex items-center justify-between active:scale-[0.98] active:bg-gray-50 transition-all cursor-pointer w-full max-w-full overflow-hidden"
               >
-                <div className="flex items-center gap-4">
+                {/* min-w-0 allows the flex child to shrink properly instead of overflowing */}
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  
+                  {/* Avatar Icon */}
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 ${
                     activeTab === 'AUTHORS' ? 'bg-blue-500' : 
                     activeTab === 'TRANSLATORS' ? 'bg-purple-500' : 'bg-emerald-500'
                   }`}>
                     {item.name.charAt(0).toUpperCase()}
                   </div>
-                  <div className="overflow-hidden">
-                    <h3 className="font-semibold text-gray-900 text-sm truncate">{item.name}</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                  
+                  {/* Name and Book Count Wrapper - min-w-0 is mandatory here */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    {renderName(item.name)}
+                    <p className="text-[10px] text-gray-500 mt-1 truncate">
                       {item.bookCount ? `${item.bookCount} Books` : 'View Collection'}
                     </p>
                   </div>
+
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-400 shrink-0"/>
+                
+                {/* Arrow Icon */}
+                <ChevronRight className="w-5 h-5 text-gray-400 shrink-0 ml-2"/>
               </div>
             ))}
           </div>
