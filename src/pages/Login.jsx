@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { startStaffSession } from '../utils/staffActivityTracker';
 
 export default function Login() {
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(() => Boolean(location.state?.isSignUp || location.search?.includes('signup')));
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 

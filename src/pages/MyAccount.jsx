@@ -1,101 +1,258 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Package, ShieldCheck, Shield, Phone, Save, Edit2, CheckCircle, XCircle, X, Check, ExternalLink, Receipt, Printer } from 'lucide-react';
+import { 
+  User, Package, ShieldCheck, Shield, Phone, Save, Edit2, CheckCircle, 
+  XCircle, X, Check, ExternalLink, Receipt, Printer,
+  LogIn, UserPlus, LogOut, ChevronRight, ShoppingBag, Settings, ChevronLeft 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '../lib/utils';
 import { printReceipt } from '../utils/electronBridge';
+import { endStaffSession } from '../utils/staffActivityTracker';
 
 export default function MyAccount() {
-  const { user, userRole } = useAuth();
+  const { user, userRole, userFullName } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'orders'
+  const [mobileSubView, setMobileSubView] = useState(null); // null | 'orders' | 'settings'
 
-  if (!user) return <div className="text-center py-20 text-xl font-bold">Please log in to view this page.</div>;
+  const currentUser = user ? {
+    ...user,
+    full_name: userFullName || user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : 'Book Lover'),
+    role: userRole || 'Customer'
+  } : null;
+
+  const handleLogout = async () => {
+    try {
+      endStaffSession('LOGGED_OUT');
+    } catch (e) {}
+    sessionStorage.removeItem('active_staff');
+    localStorage.removeItem('pos_scanner_active_user');
+    await supabase.auth.signOut();
+    navigate('/');
+  };
 
   return (
-    <div className="max-w-6xl mx-auto py-4 md:py-12 px-4 flex flex-col md:flex-row gap-4 md:gap-8 min-h-[70vh] pb-24 md:pb-8">
-      
-      {/* Mobile Top Tabs / Desktop Left Sidebar */}
-      <aside className="w-full md:w-64 flex-shrink-0">
+    <>
+      {/* MOBILE PROFILE VIEW (Hidden on Desktop) */}
+      <div className="flex flex-col w-full min-h-screen bg-gray-50 pb-24 md:hidden">
         
-        {/* MOBILE LAYOUT: GRID & ADMIN BUTTON */}
-        <div className="md:hidden">
-          <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* Sticky Header */}
+        <div className="bg-white px-4 pt-6 pb-4 shadow-sm sticky top-0 z-10 shrink-0">
+          <h1 className="text-2xl font-extrabold text-gray-900">
+            {mobileSubView === 'orders' ? 'My Orders' : mobileSubView === 'settings' ? 'Account Settings' : 'My Profile'}
+          </h1>
+        </div>
+
+        <div className="flex-1 px-4 pt-5">
+          
+          {/* CHECK AUTH STATE */}
+          {currentUser ? (
+            
+            mobileSubView === 'orders' ? (
+              <div className="space-y-4">
+                <button 
+                  onClick={() => setMobileSubView(null)} 
+                  className="flex items-center gap-2 text-sm font-bold text-blue-600 mb-2 p-2 hover:bg-blue-50 rounded-xl transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" /> Back to Profile
+                </button>
+                <UserOrders user={user} />
+              </div>
+            ) : mobileSubView === 'settings' ? (
+              <div className="space-y-4">
+                <button 
+                  onClick={() => setMobileSubView(null)} 
+                  className="flex items-center gap-2 text-sm font-bold text-blue-600 mb-2 p-2 hover:bg-blue-50 rounded-xl transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" /> Back to Profile
+                </button>
+                <ProfileSettings user={user} />
+              </div>
+            ) : (
+
+              /* =========================================================
+                 STATE 1: USER IS LOGGED IN
+                 ========================================================= */
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                
+                {/* User Info Card */}
+                <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
+                  <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-inner shrink-0">
+                    {currentUser.full_name?.charAt(0).toUpperCase() || currentUser.email?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg font-extrabold text-gray-900 truncate">
+                      {currentUser.full_name || 'Book Lover'}
+                    </h2>
+                    <p className="text-sm text-gray-500 truncate">{currentUser.email}</p>
+                    <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-extrabold rounded-full uppercase tracking-wider">
+                      {currentUser.role || 'Customer'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Menu Options */}
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                  <button 
+                    onClick={() => setMobileSubView('orders')} 
+                    className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600"><ShoppingBag className="w-5 h-5"/></div>
+                      <span className="font-bold text-gray-800 text-sm">My Orders</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400"/>
+                  </button>
+                  
+                  <button 
+                    onClick={() => setMobileSubView('settings')} 
+                    className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-gray-100 rounded-xl text-gray-600"><Settings className="w-5 h-5"/></div>
+                      <span className="font-bold text-gray-800 text-sm">Account Settings</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400"/>
+                  </button>
+
+                  {(currentUser.role === 'OWNER' || currentUser.role === 'ADMIN') && (
+                    <button 
+                      onClick={() => navigate('/admin')} 
+                      className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-amber-50 rounded-xl text-amber-600"><Shield className="w-5 h-5"/></div>
+                        <span className="font-bold text-gray-800 text-sm">Admin Dashboard</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-400"/>
+                    </button>
+                  )}
+
+                  {currentUser.role === 'STAFF' && (
+                    <button 
+                      onClick={() => navigate('/admin/pos')} 
+                      className="w-full flex items-center justify-between p-4 active:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600"><Package className="w-5 h-5"/></div>
+                        <span className="font-bold text-gray-800 text-sm">Launch POS</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-400"/>
+                    </button>
+                  )}
+                </div>
+
+                {/* Logout Button */}
+                <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 p-4 mt-2 bg-red-50 text-red-600 font-extrabold text-sm rounded-2xl border border-red-100 hover:bg-red-100 active:scale-95 transition-all shadow-sm"
+                >
+                  <LogOut className="w-5 h-5"/>
+                  Sign Out
+                </button>
+              </div>
+            )
+
+          ) : (
+
+            /* =========================================================
+               STATE 2: GUEST (NOT LOGGED IN)
+               ========================================================= */
+            <div className="space-y-6 mt-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              
+              {/* Guest Hero Section */}
+              <div className="text-center px-4 mb-8">
+                <div className="w-24 h-24 bg-gradient-to-tr from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner border-4 border-white">
+                  <User className="w-12 h-12 text-gray-400"/>
+                </div>
+                <h2 className="text-xl font-black text-gray-900 mb-2">Welcome to Alexandria</h2>
+                <p className="text-sm text-gray-500 font-medium">Sign in to track your orders, save your cart, and enjoy faster checkout.</p>
+              </div>
+
+              {/* Auth Action Buttons */}
+              <div className="space-y-3">
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="w-full flex items-center justify-center gap-2 p-4 bg-blue-600 text-white font-extrabold rounded-2xl shadow-md hover:bg-blue-700 active:scale-[0.98] transition-all"
+                >
+                  <LogIn className="w-5 h-5"/>
+                  Sign In to Account
+                </button>
+                
+                <button 
+                  onClick={() => navigate('/login', { state: { isSignUp: true } })}
+                  className="w-full flex items-center justify-center gap-2 p-4 bg-white text-blue-600 font-extrabold rounded-2xl border-2 border-blue-600 hover:bg-blue-50 active:scale-[0.98] transition-all shadow-sm"
+                >
+                  <UserPlus className="w-5 h-5"/>
+                  Create New Account
+                </button>
+              </div>
+            </div>
+            
+          )}
+        </div>
+      </div>
+
+      {/* DESKTOP VIEW (Hidden on Mobile) */}
+      <div className="hidden md:flex max-w-6xl mx-auto py-4 md:py-12 px-4 flex-row gap-8 min-h-[70vh] pb-8 w-full">
+        {/* Desktop Left Sidebar */}
+        <aside className="w-64 flex-shrink-0">
+          <div className="flex bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm sticky top-24 flex-col gap-2">
             <button 
               onClick={() => setActiveTab('profile')}
-              className={`py-3 px-2 rounded-xl text-center text-[13px] sm:text-sm font-semibold border transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex items-center justify-start gap-3 px-6 py-3 rounded-lg font-semibold transition-all ${
                 activeTab === 'profile' 
-                  ? 'bg-theme-deep text-white shadow-md border-transparent' 
-                  : 'bg-white/80 backdrop-blur-sm text-gray-600 border-gray-200 shadow-sm'
+                  ? 'bg-theme-medium text-white shadow-md' 
+                  : 'text-theme-darkest/70 hover:bg-slate-100 hover:text-theme-deep'
               }`}
             >
-              <User size={16} /> Profile
+              <User size={18} /> Profile Settings
             </button>
             
             <button 
               onClick={() => setActiveTab('orders')}
-              className={`py-3 px-2 rounded-xl text-center text-[13px] sm:text-sm font-semibold border transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex items-center justify-start gap-3 px-6 py-3 rounded-lg font-semibold transition-all ${
                 activeTab === 'orders' 
-                  ? 'bg-theme-deep text-white shadow-md border-transparent' 
-                  : 'bg-white/80 backdrop-blur-sm text-gray-600 border-gray-200 shadow-sm'
+                  ? 'bg-theme-medium text-white shadow-md' 
+                  : 'text-theme-darkest/70 hover:bg-slate-100 hover:text-theme-deep'
               }`}
             >
-              <Package size={16} /> Orders
+              <Package size={18} /> My Orders
             </button>
+
+            {(userRole === 'OWNER' || userRole === 'ADMIN') && (
+              <Link 
+                to="/admin"
+                className="mt-4 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold text-center flex items-center justify-center gap-2 shadow-lg hover:bg-gray-800 transition-colors"
+              >
+                <Shield size={16} /> Admin Dashboard
+              </Link>
+            )}
+
+            {userRole === 'STAFF' && (
+              <Link 
+                to="/admin/pos"
+                className="mt-4 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold text-center flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-colors"
+              >
+                <Package size={16} /> Launch POS
+              </Link>
+            )}
           </div>
-          
-          {(userRole === 'OWNER' || userRole === 'ADMIN') && (
-            <Link 
-              to="/admin"
-              className="w-full mb-6 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold text-center flex items-center justify-center gap-2 shadow-lg hover:bg-gray-800 transition-colors"
-            >
-              <Shield size={16} /> Admin Dashboard
-            </Link>
+        </aside>
+
+        {/* Desktop Main Content Area */}
+        <main className="flex-grow bg-white border border-slate-200 rounded-2xl shadow-sm p-10">
+          {user ? (
+            activeTab === 'profile' ? <ProfileSettings user={user} /> : <UserOrders user={user} />
+          ) : (
+            <div className="text-center py-20 text-xl font-bold">Please log in to view this page.</div>
           )}
-
-          {userRole === 'STAFF' && (
-            <Link 
-              to="/admin/pos"
-              className="w-full mb-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold text-center flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-colors"
-            >
-              <Package size={16} /> Launch POS
-            </Link>
-          )}
-        </div>
-
-        {/* DESKTOP LAYOUT: SIDEBAR */}
-        <div className="hidden md:flex bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm sticky top-24 flex-col gap-2">
-          <button 
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center justify-start gap-3 px-6 py-3 rounded-lg font-semibold transition-all ${
-              activeTab === 'profile' 
-                ? 'bg-theme-medium text-white shadow-md' 
-                : 'text-theme-darkest/70 hover:bg-slate-100 hover:text-theme-deep'
-            }`}
-          >
-            <User size={18} /> Profile Settings
-          </button>
-          
-          <button 
-            onClick={() => setActiveTab('orders')}
-            className={`flex items-center justify-start gap-3 px-6 py-3 rounded-lg font-semibold transition-all ${
-              activeTab === 'orders' 
-                ? 'bg-theme-medium text-white shadow-md' 
-                : 'text-theme-darkest/70 hover:bg-slate-100 hover:text-theme-deep'
-            }`}
-          >
-            <Package size={18} /> My Orders
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="flex-grow bg-transparent md:bg-white md:border md:border-slate-200 rounded-3xl md:rounded-2xl shadow-none md:shadow-sm p-0 md:p-10">
-        {activeTab === 'profile' ? <ProfileSettings user={user} /> : <UserOrders user={user} />}
-      </main>
-
-    </div>
+        </main>
+      </div>
+    </>
   );
 }
 
