@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileCategoryMenu from './MobileCategoryMenu';
+import { endStaffSession } from '../utils/staffActivityTracker';
 
 export default function Navbar() {
   const [logoExt, setLogoExt] = useState('png');
@@ -42,6 +43,11 @@ export default function Navbar() {
   };
 
   const handleLogout = async () => {
+    try {
+      endStaffSession('LOGGED_OUT');
+    } catch (e) {
+      console.warn('endStaffSession error:', e);
+    }
     // RECORD ACTIVITY HOOK (Logout)
     if (user) {
       const displayName = user.user_metadata?.full_name || user.email;
@@ -49,7 +55,7 @@ export default function Navbar() {
       try {
         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
         if (activeStaff.session_id) {
-          await supabase.from('staff_sessions').update({ logout_time: new Date().toISOString() }).eq('id', activeStaff.session_id);
+          await supabase.from('staff_sessions').update({ logout_at: new Date().toISOString() }).eq('id', activeStaff.session_id);
         }
       } catch (e) {}
     }
@@ -152,9 +158,12 @@ export default function Navbar() {
                 {sessionStorage.getItem('active_staff') && (
                   <button onClick={async () => {
                     try {
+                      endStaffSession('LOGGED_OUT');
+                    } catch (e) {}
+                    try {
                       const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
                       if (activeStaff.session_id) {
-                        await supabase.from('staff_sessions').update({ logout_time: new Date().toISOString() }).eq('id', activeStaff.session_id);
+                        await supabase.from('staff_sessions').update({ logout_at: new Date().toISOString() }).eq('id', activeStaff.session_id);
                       }
                     } catch (e) {}
                     sessionStorage.removeItem('active_staff');

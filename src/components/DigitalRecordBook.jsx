@@ -55,7 +55,7 @@ export default function DigitalRecordBook() {
     try {
       const { data, error } = await supabase.from('staff_sessions')
         .select('*')
-        .order('login_time', { ascending: false })
+        .order('login_at', { ascending: false })
         .limit(500); // Fetch more for better all-time stats
         
       if (data) setSessions(data);
@@ -167,12 +167,12 @@ export default function DigitalRecordBook() {
     
     if (timeFilter === 'month') {
       filtered = sessions.filter(s => {
-        const d = new Date(s.login_time);
+        const d = new Date(s.login_at);
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       });
     } else if (timeFilter === 'year') {
       filtered = sessions.filter(s => {
-        const d = new Date(s.login_time);
+        const d = new Date(s.login_at);
         return d.getFullYear() === now.getFullYear();
       });
     }
@@ -338,8 +338,8 @@ export default function DigitalRecordBook() {
             
             {/* SCREEN VIEW */}
             <div className="grid grid-cols-1 gap-4 animate-in fade-in duration-300 print:hidden">
-              {sessions.slice(0, 50).map((session) => (
-                <div key={session.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl relative overflow-hidden flex flex-col lg:flex-row gap-6 hover:border-slate-700 transition-colors">
+              {sessions.slice(0, 50).map((session, index) => (
+                <div key={session.id || index} className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl relative overflow-hidden flex flex-col lg:flex-row gap-6 hover:border-slate-700 transition-colors">
                   
                   {/* Staff Info & Time Block */}
                   <div className="flex-1 border-b lg:border-b-0 lg:border-r border-slate-800 pb-4 lg:pb-0 lg:pr-6">
@@ -364,7 +364,7 @@ export default function DigitalRecordBook() {
                          <span className="flex items-center justify-end gap-1 text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">
                             <Timer size={12}/> Session Time
                          </span>
-                         <span className="text-white font-medium">{formatDuration(session.login_time, session.logout_time)}</span>
+                         <span className="text-white font-medium">{formatDuration(session.login_at, session.logout_at)}</span>
                       </div>
                     </div>
 
@@ -373,17 +373,17 @@ export default function DigitalRecordBook() {
                         <span className="flex items-center gap-1.5 text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-1">
                           <LogIn size={12} className="text-emerald-500"/> Logged In
                         </span>
-                        <p className="text-slate-300 font-medium">{new Date(session.login_time).toLocaleTimeString()}</p>
-                        <p className="text-slate-500 text-xs">{new Date(session.login_time).toLocaleDateString()}</p>
+                        <p className="text-slate-300 font-medium">{new Date(session.login_at).toLocaleTimeString()}</p>
+                        <p className="text-slate-500 text-xs">{new Date(session.login_at).toLocaleDateString()}</p>
                       </div>
                       <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/50">
                         <span className="flex items-center gap-1.5 text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-1">
                           <LogOut size={12} className="text-red-400"/> Logged Out
                         </span>
-                        {session.logout_time ? (
+                        {session.logout_at ? (
                           <>
-                            <p className="text-slate-300 font-medium">{new Date(session.logout_time).toLocaleTimeString()}</p>
-                            <p className="text-slate-500 text-xs">{new Date(session.logout_time).toLocaleDateString()}</p>
+                            <p className="text-slate-300 font-medium">{new Date(session.logout_at).toLocaleTimeString()}</p>
+                            <p className="text-slate-500 text-xs">{new Date(session.logout_at).toLocaleDateString()}</p>
                           </>
                         ) : (
                            <p className="text-emerald-500/50 italic text-xs mt-2">Session still active...</p>
@@ -465,15 +465,15 @@ export default function DigitalRecordBook() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sessions.slice(0, 100).map((session) => (
-                    <tr key={session.id} className="border-b border-gray-300">
+                  {sessions.slice(0, 100).map((session, index) => (
+                    <tr key={session.id || index} className="border-b border-gray-300">
                       <td className="p-2 border border-gray-400 font-bold whitespace-nowrap">{session.staff_name}</td>
                       <td className="p-2 border border-gray-400 font-semibold">{session.role}</td>
                       <td className="p-2 border border-gray-400 font-mono font-bold bg-gray-100 text-center">{session.device_id || 'N/A'}</td>
                       <td className="p-2 border border-gray-400">{session.device_name || 'Unknown'}</td>
-                      <td className="p-2 border border-gray-400 whitespace-nowrap">{new Date(session.login_time).toLocaleString()}</td>
-                      <td className="p-2 border border-gray-400 whitespace-nowrap">{session.logout_time ? new Date(session.logout_time).toLocaleString() : 'Active'}</td>
-                      <td className="p-2 border border-gray-400 text-center whitespace-nowrap font-bold">{formatDuration(session.login_time, session.logout_time)}</td>
+                      <td className="p-2 border border-gray-400 whitespace-nowrap">{new Date(session.login_at).toLocaleString()}</td>
+                      <td className="p-2 border border-gray-400 whitespace-nowrap">{session.logout_at ? new Date(session.logout_at).toLocaleString() : 'Active'}</td>
+                      <td className="p-2 border border-gray-400 text-center whitespace-nowrap font-bold">{formatDuration(session.login_at, session.logout_at)}</td>
                       <td className="p-2 border border-gray-400 text-center">{session.pos_handled || 0}</td>
                       <td className="p-2 border border-gray-400 text-center">{session.web_handled || 0}</td>
                       <td className="p-2 border border-gray-400 text-center">{session.payments_verified || 0}</td>
@@ -509,7 +509,7 @@ export default function DigitalRecordBook() {
               {/* SCREEN VIEW (CARDS) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 print:hidden">
                 {leaderboard.map((stat, i) => (
-                  <div key={stat.name} className={`bg-slate-900 border rounded-xl p-6 shadow-xl relative overflow-hidden ${i === 0 ? 'border-brand-gold/50 shadow-brand-gold/10' : 'border-slate-800'}`}>
+                  <div key={stat.name || i} className={`bg-slate-900 border rounded-xl p-6 shadow-xl relative overflow-hidden ${i === 0 ? 'border-brand-gold/50 shadow-brand-gold/10' : 'border-slate-800'}`}>
                     {/* Rank Badge */}
                     <div className="absolute top-0 right-0 p-4">
                       {i === 0 ? <Medal size={40} className="text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]" /> : 
@@ -606,7 +606,7 @@ export default function DigitalRecordBook() {
                   </thead>
                   <tbody>
                     {leaderboard.map((stat, i) => (
-                      <tr key={stat.name} className="border-b border-gray-300">
+                      <tr key={stat.name || i} className="border-b border-gray-300">
                         <td className="p-2 border border-gray-400 text-center font-bold">#{i + 1}</td>
                         <td className="p-2 border border-gray-400 font-bold whitespace-nowrap">{stat.name}</td>
                         <td className="p-2 border border-gray-400">{stat.role}</td>

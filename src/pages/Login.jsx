@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { startStaffSession } from '../utils/staffActivityTracker';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -29,8 +30,23 @@ export default function Login() {
     } else {
       // RECORD ACTIVITY HOOK (Login)
       if (!isSignUp && result.data?.user) {
-        const displayName = result.data.user.user_metadata?.full_name || result.data.user.email;
+        const user = result.data.user;
+        const displayName = user.user_metadata?.full_name || user.email;
         await supabase.from('audit_logs').insert([{ username: displayName, action_type: 'LOGIN' }]);
+
+        try {
+          const { data: profile } = await supabase.from('user_profiles').select('role, full_name').eq('id', user.id).single();
+          let userRole = profile?.role;
+          if (!userRole) {
+            userRole = user.email === 'navodasrivihansa15@gmail.com' ? 'OWNER' : 'CUSTOMER';
+          }
+          const finalName = profile?.full_name || displayName;
+          if (['OWNER', 'ADMIN', 'STAFF'].includes(String(userRole).toUpperCase())) {
+            await startStaffSession(finalName, userRole);
+          }
+        } catch (e) {
+          console.warn('startStaffSession in Login error:', e);
+        }
       }
       navigate('/');
     }

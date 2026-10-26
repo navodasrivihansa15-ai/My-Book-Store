@@ -1,8 +1,9 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice } from '../lib/utils';
+import { triggerBuyNowModal } from './GlobalBuyNowModal';
 
 const fallbackImage = 'https://placehold.co/400x600/e2e8f0/0b1d3a?text=No+Cover';
 
@@ -12,13 +13,6 @@ export default function BookCard({ book, addToCart }) {
   
   const cartItem = cart.find(item => item.id === book.id);
   const isStockLimitReached = cartItem && cartItem.quantity >= book.stock;
-  const navigate = useNavigate();
-
-  const handleBuyNow = () => {
-    if (book.stock <= 0 || isStockLimitReached) return;
-    addToCart({ ...book, price: hasDiscount ? book.sale_price : book.price });
-    navigate('/checkout');
-  };
 
   return (
     <motion.div
@@ -77,20 +71,26 @@ export default function BookCard({ book, addToCart }) {
             )}
           </div>
           
-          <div className="flex flex-col gap-2 mt-1">
+          <div className="flex flex-col gap-1.5 mt-2 w-full">
             <button 
-              onClick={handleBuyNow} 
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                addToCart({ ...book, price: hasDiscount ? book.sale_price : book.price });
+              }} 
               disabled={book.stock <= 0 || isStockLimitReached}
-              className="w-full bg-theme-deep text-white hover:bg-theme-darkest shadow-md rounded-lg py-2 text-xs md:text-sm font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg py-2 text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white"
             >
-              Buy Now
+              <ShoppingCart size={16} className="w-4 h-4" /> {isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
             </button>
             <button 
-              onClick={() => addToCart({ ...book, price: hasDiscount ? book.sale_price : book.price })} 
-              disabled={book.stock <= 0 || isStockLimitReached}
-              className="w-full border-2 border-theme-deep text-theme-deep hover:bg-theme-deep hover:text-white rounded-lg py-2 text-xs md:text-sm font-semibold flex items-center justify-center gap-1 md:gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-transparent"
+              type="button"
+              onClick={(e) => triggerBuyNowModal(e, { ...book, price: hasDiscount ? book.sale_price : book.price })} 
+              disabled={book.stock <= 0}
+              className="w-full bg-blue-600 text-white hover:bg-blue-700 shadow-md rounded-lg py-2 text-xs md:text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              <ShoppingCart size={16} className="w-4 h-4 md:w-5 md:h-5" /> {isStockLimitReached ? 'Max Reached' : 'Add to Cart'}
+              Buy Now
             </button>
           </div>
         </div>

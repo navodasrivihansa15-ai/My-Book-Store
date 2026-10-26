@@ -5,6 +5,7 @@ import { CheckCircle2, ChevronLeft, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import StaffMobilePwaManager from '../components/StaffMobilePwaManager';
+import { startStaffSession, endStaffSession, logStaffAction } from '../utils/staffActivityTracker';
 
 export default function Scanner() {
   const [notification, setNotification] = useState({ type: '', message: '' });
@@ -58,6 +59,18 @@ export default function Scanner() {
     }
   }, [scannerUser]);
 
+  // SAFEGUARD 1: Safe staff session initialization in the background
+  useEffect(() => {
+    // Safely check if the user/currentUser exists BEFORE calling the tracker
+    const activeUser = scannerUser;
+    
+    if (activeUser && (activeUser.full_name || activeUser.username)) {
+      // Run async in the background without blocking React UI
+      startStaffSession(activeUser.full_name || activeUser.username, activeUser.role || 'STAFF')
+        .catch(err => console.warn('Tracker init skipped:', err));
+    }
+  }, [scannerUser]);
+
   const handleScannerLogin = (e) => {
     e.preventDefault();
     setLoginError('');
@@ -81,6 +94,11 @@ export default function Scanner() {
   };
 
   const handleScannerLogout = () => {
+    try {
+      endStaffSession('LOGGED_OUT');
+    } catch (err) {
+      console.warn('endStaffSession error in Scanner:', err);
+    }
     localStorage.removeItem('pos_scanner_active_user');
     setScannerUser(null);
     setSelectedStaff('');
@@ -91,15 +109,23 @@ export default function Scanner() {
   const sendBarcodeToUserPOS = async (barcodeValue) => {
     if (!scannerUser || !barcodeValue) return;
 
-    // 1. Send via Database Table (pos_remote_scans)
+    const scannedCode = barcodeValue.trim();
+    const activeScannerUser = scannerUser.full_name || scannerUser.username || '';
+
+    // Fast Lane: Direct insert to pos_remote_scans only
     try {
       await supabase.from('pos_remote_scans').insert([{
-        barcode: barcodeValue.trim(),
-        scanned_by: scannerUser.full_name
+        barcode: scannedCode,
+        scanned_by: activeScannerUser.trim()
       }]);
     } catch (err) {
       console.warn("pos_remote_scans insert error:", err);
     }
+
+    // Fire-and-forget local counter (zero network delay)
+    try {
+      logStaffAction('BARCODE_SCANNED', 'Scanned barcode', { barcode: scannedCode });
+    } catch (e) {}
 
     // 2. Transmit via Supabase Broadcast channel(s) including scanned_by
     if (broadcastChannel.current) {
@@ -107,9 +133,9 @@ export default function Scanner() {
         type: 'broadcast',
         event: 'scan',
         payload: { 
-          barcode: barcodeValue.trim(), 
+          barcode: scannedCode, 
           target: scanTargetRef.current,
-          scanned_by: scannerUser.full_name 
+          scanned_by: activeScannerUser.trim() 
         }
       });
     }

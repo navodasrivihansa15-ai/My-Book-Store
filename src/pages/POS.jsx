@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Minus, Trash2, Printer, CheckCircle2, ChevronLeft, CreditCard, Banknote, Camera, X, Smartphone, Keyboard, Save, RotateCcw } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Printer, CheckCircle2, ChevronLeft, CreditCard, Banknote, Camera, X, Smartphone, Keyboard, Save, RotateCcw, Lock } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { formatPrice } from '../lib/utils';
 import { Link } from 'react-router-dom';
@@ -10,6 +10,7 @@ import AddBookModal from '../components/AddBookModal';
 import PrinterSetupModal from '../components/PrinterSetupModal';
 import { useAuth } from '../context/AuthContext';
 import { isElectron, printReceipt } from '../utils/electronBridge';
+import { startStaffSession, endStaffSession, logStaffAction } from '../utils/staffActivityTracker';
 
 const defaultShortcuts = {
   openShortcutsMenu: 'Alt+k',
@@ -231,19 +232,28 @@ const ShortcutSettingsModal = ({ shortcuts, setShortcuts, onClose, showNotificat
 };
 
 export default function POS() {
-  const { user, userFullName } = useAuth();
+  const { user, userRole, userFullName } = useAuth();
   let activeStaffName = null;
+  let activeStaffRole = null;
   try { 
-    const stored = JSON.parse(sessionStorage.getItem('active_staff'))?.name;
-    if (stored && !stored.includes('@')) {
-      activeStaffName = stored;
+    const stored = JSON.parse(sessionStorage.getItem('active_staff'));
+    if (stored?.name && !stored.name.includes('@')) {
+      activeStaffName = stored.name;
+    }
+    if (stored?.role) {
+      activeStaffRole = stored.role;
     }
   } catch(e) {}
   const handlerName = activeStaffName || userFullName || user?.email || user?.user_metadata?.full_name || 'Unknown Staff';
-  const currentUser = user;
+  const currentUser = { ...(user || {}), full_name: handlerName, role: activeStaffRole || userRole || 'STAFF' };
   const userRoleData = useMemo(() => ({
     full_name: activeStaffName || userFullName || user?.user_metadata?.full_name || (user?.email && !user.email.includes('@') ? user.email : user?.email)
   }), [activeStaffName, userFullName, user]);
+
+  const activeUserName = useMemo(() => {
+    const raw = currentUser?.full_name || currentUser?.username || userRoleData?.full_name || '';
+    return String(raw).trim().toLowerCase();
+  }, [currentUser?.full_name, currentUser?.username, userRoleData?.full_name]);
 
   const [books, setBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
@@ -278,19 +288,26 @@ export default function POS() {
   const setRedoStack = setRedoHistory;
   const setSelectedCartIndex = setCartSelectedIndex;
 
-  // --- 1. MULTI-USER ISOLATION: LOAD SPECIFIC USER'S CART ON LOGIN/UNLOCK ---
+  // SAFEGUARD 1: Safe staff session initialization in the background
   useEffect(() => {
-    // Identify the exact user unlocking the POS
-    const activeUser = currentUser?.full_name || currentUser?.username || userRoleData?.full_name;
-    if (!activeUser) return;
-    
-    // Create a safe, unique storage key for this user
-    const userKey = String(activeUser).trim().toLowerCase().replace(/\s+/g, '_');
-    const storageKey = `pos_isolated_cart_${userKey}`;
-    
-    // Load ONLY this user's saved cart
+    if (!activeUserName) return;
+    const activeUser = currentUser || user || userRoleData;
+    if (activeUser && (activeUser.full_name || activeUser.username)) {
+      startStaffSession(activeUser.full_name || activeUser.username, activeUser.role || 'STAFF')
+        .catch(err => console.warn('Tracker init skipped:', err));
+    }
+  }, [activeUserName]);
+
+  const lastLoadedUserRef = useRef('');
+
+  // 1. Load cart ONLY once when the logged-in user string actually changes
+  useEffect(() => {
+    if (!activeUserName) return;
+    if (lastLoadedUserRef.current === activeUserName) return; // Prevents blinking on re-renders!
+    lastLoadedUserRef.current = activeUserName;
+
+    const storageKey = `pos_isolated_cart_${activeUserName.replace(/\s+/g, '_')}`;
     const savedCart = localStorage.getItem(storageKey);
-    
     if (savedCart) {
       try {
         setCart(JSON.parse(savedCart));
@@ -298,29 +315,21 @@ export default function POS() {
         setCart([]);
       }
     } else {
-      setCart([]); // Fresh empty cart for a new user
+      setCart([]);
     }
-    
-    // CRITICAL: Clear undo/redo history so User B cannot press Ctrl+Z to bring back User A's items!
+
+    // Clear undo/redo history so User B cannot bring back User A's items!
     if (typeof setHistory === 'function') setHistory([]);
     if (typeof setRedoStack === 'function') setRedoStack([]);
     if (typeof setSelectedCartIndex === 'function') setSelectedCartIndex(0);
-    
-  }, [currentUser, userRoleData]); // Trigger ONLY when the logged-in POS user changes
+  }, [activeUserName]);
 
-
-  // --- 2. MULTI-USER ISOLATION: AUTO-SAVE CART CHANGES TO THIS SPECIFIC USER ---
+  // 2. Save cart quietly without triggering state updates
   useEffect(() => {
-    const activeUser = currentUser?.full_name || currentUser?.username || userRoleData?.full_name;
-    if (!activeUser) return;
-    
-    const userKey = String(activeUser).trim().toLowerCase().replace(/\s+/g, '_');
-    const storageKey = `pos_isolated_cart_${userKey}`;
-    
-    // Whenever the cart updates, save it silently to this user's unique local file
+    if (!activeUserName || lastLoadedUserRef.current !== activeUserName) return;
+    const storageKey = `pos_isolated_cart_${activeUserName.replace(/\s+/g, '_')}`;
     localStorage.setItem(storageKey, JSON.stringify(cart || []));
-    
-  }, [cart, currentUser, userRoleData]); // Trigger whenever the cart changes
+  }, [cart, activeUserName]);
 
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [showScanner, setShowScanner] = useState(false);
@@ -400,55 +409,39 @@ export default function POS() {
     }
   };
 
-  // --- STRICT MULTI-USER ISOLATED SCAN LISTENER ---
+  // Keep a fresh reference to your barcode add function without re-subscribing to Supabase!
+  const barcodeHandlerRef = useRef(null);
   useEffect(() => {
-    // 1. Identify EXACTLY who is logged into this specific POS screen right now.
-    // (Ensure these variables match your actual auth state names)
-    const rawUserName = activeStaffName || userFullName || user?.full_name || user?.username || user?.user_metadata?.full_name || user?.email;
+    barcodeHandlerRef.current = handleRemoteBarcodeScan; 
+  });
 
-    // If no one is logged into this POS, do not listen to remote scans
-    if (!rawUserName) return; 
+  useEffect(() => {
+    if (!activeUserName) return;
 
-    // Normalize the name (lowercase and trimmed) to prevent matching errors
-    const activePosUserName = String(rawUserName).trim().toLowerCase();
-
-    // Create a unique channel string for this specific POS session
-    const channelString = `pos-scans-${activePosUserName.replace(/\s+/g, '-')}`;
-
+    const channelName = `pos-fast-lane-${activeUserName.replace(/\s+/g, '-')}`;
     const scanSubscription = supabase
-      .channel(channelString)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'pos_remote_scans' },
         (payload) => {
           const newScan = payload.new;
-
           if (newScan && newScan.barcode && newScan.scanned_by) {
-            // Normalize the incoming scanner name
-            const incomingScannerUser = String(newScan.scanned_by).trim().toLowerCase();
-
-            // 2. STRICT ISOLATION LOCK: Only execute if names match exactly!
-            if (incomingScannerUser === activePosUserName) {
-              console.log(`[Isolator] Valid scan received for ${activePosUserName}: ${newScan.barcode}`);
-              
-              // Execute the existing function to add to cart
-              if (typeof handleRemoteBarcodeScan === 'function') {
-                handleRemoteBarcodeScan(newScan.barcode);
+            const incomingUser = String(newScan.scanned_by).trim().toLowerCase();
+            if (incomingUser === activeUserName) {
+              if (typeof barcodeHandlerRef.current === 'function') {
+                barcodeHandlerRef.current(newScan.barcode);
               }
-            } else {
-               // Silently ignore scans meant for other staff members
-              console.log(`[Isolator] Ignored scan meant for ${incomingScannerUser}`);
             }
           }
         }
       )
       .subscribe();
 
-    // Cleanup on unmount or when the active user changes
     return () => {
       supabase.removeChannel(scanSubscription);
     };
-  }, [user, userFullName, activeStaffName]); // Only re-run if the logged-in POS user changes
+  }, [activeUserName]); // ONLY depends on the primitive string activeUserName!
 
   useEffect(() => {
     if (search) {
@@ -684,9 +677,11 @@ export default function POS() {
       }
 
       const displayId = order.display_id || order.id.split('-')[0].toUpperCase();
-      
+      const completedCartSnapshot = [...cart];
+      const saleAmount = total;
+
       // 1. Save the finalized order details to the completedOrder state
-      setCompletedOrder({ ...order, display_id: displayId, items: cart });
+      setCompletedOrder({ ...order, display_id: displayId, items: completedCartSnapshot });
       
       // 2. Clear the POS cart for the next customer
       setCart([]);
@@ -695,6 +690,17 @@ export default function POS() {
       setIsPaymentModalOpen(false);
       
       fetchData(); // Refresh stock
+
+      // THEN call the tracker safely in the background:
+      try {
+        const activeUser = currentUser || user || userRoleData;
+        logStaffAction('SALE_COMPLETED', 'Completed POS Sale', { 
+          amount: saleAmount || 0, 
+          items: completedCartSnapshot?.length || 0 
+        }, activeUser).catch(() => {});
+      } catch (e) {
+        console.warn("Audit log skipped");
+      }
       
       // Auto-print disabled so cashier can preview bill first
 
@@ -741,8 +747,20 @@ export default function POS() {
       }
 
       showNotification('success', 'Sale Cancelled & Stock Restored');
+      const voidOrder = completedOrder;
       setCompletedOrder(null);
       fetchData();
+
+      // THEN call the tracker safely in the background:
+      try {
+        const activeUser = currentUser || user || userRoleData;
+        logStaffAction('ORDER_VOIDED', `Voided POS sale #${voidOrder?.display_id || voidOrder?.id || ''}`, { 
+          amount: voidOrder?.total_amount || 0, 
+          items: voidOrder?.items?.length || 0 
+        }, activeUser).catch(() => {});
+      } catch (e) {
+        console.warn("Audit log skipped");
+      }
     } catch (err) {
       showNotification('error', "Error voiding sale: " + err.message);
     } finally {
@@ -751,6 +769,13 @@ export default function POS() {
   };
 
   const handleBarcodeScan = async (scannedBarcode) => {
+    // Log barcode scan action to Staff Activity Vault
+    try {
+      const activeUser = currentUser || user || userRoleData;
+      logStaffAction('BARCODE_SCANNED', 'Scanned barcode', { barcode: scannedBarcode }, activeUser)
+        .catch(() => {});
+    } catch (e) {}
+
     // Always use booksRef.current inside listeners to avoid stale state closures
     const book = booksRef.current.find(b => b.barcode === scannedBarcode);
     if (book) {
@@ -970,8 +995,21 @@ export default function POS() {
         e.preventDefault();
         if (completedOrder) handleVoidSale();
         else {
-          if (cart.length > 0) saveCartToHistory();
+          const itemsCount = cart.length;
+          if (itemsCount > 0) {
+            saveCartToHistory();
+          }
           setCart([]);
+          if (itemsCount > 0) {
+            try {
+              const activeUser = currentUser || user || userRoleData;
+              logStaffAction('ORDER_VOIDED', 'Cleared active POS cart', { 
+                items: itemsCount 
+              }, activeUser).catch(() => {});
+            } catch (e) {
+              console.warn("Audit log skipped");
+            }
+          }
         }
       } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && st.activeSection === 'search') {
         // AUTO-FOCUS SEARCH BAR: If user starts typing any letter/number while in search mode!
@@ -1090,6 +1128,17 @@ export default function POS() {
             >
               📱 <span className="hidden lg:inline">Mobile Scanner</span>
             </button>
+            <button 
+              onClick={() => {
+                endStaffSession('LOGGED_OUT');
+                sessionStorage.removeItem('active_staff');
+                window.location.reload();
+              }}
+              className="bg-red-600 text-white px-4 py-3 rounded-xl flex items-center gap-2 font-bold hover:bg-red-700 transition-colors shadow-sm cursor-pointer shrink-0"
+              title="Lock POS"
+            >
+              <Lock size={18} /> <span className="hidden lg:inline">Lock</span>
+            </button>
           </div>
         </div>
 
@@ -1181,7 +1230,23 @@ export default function POS() {
                   <RotateCcw size={16} className="rotate-180" /> Redo
                 </button>
               )}
-              <button onClick={() => { saveCartToHistory(); setCart([]); }} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold" title={`Clear Cart (${shortcuts.clearOrder})`}>
+              <button onClick={() => { 
+                const itemsCount = cart.length;
+                if (itemsCount > 0) {
+                  saveCartToHistory();
+                }
+                setCart([]); 
+                if (itemsCount > 0) {
+                  try {
+                    const activeUser = currentUser || user || userRoleData;
+                    logStaffAction('ORDER_VOIDED', 'Cleared active POS cart', { 
+                      items: itemsCount 
+                    }, activeUser).catch(() => {});
+                  } catch (e) {
+                    console.warn("Audit log skipped");
+                  }
+                }
+              }} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold" title={`Clear Cart (${shortcuts.clearOrder})`}>
                 <Trash2 size={16} /> Clear <span className="hidden xl:inline text-xs opacity-70">({shortcuts.clearOrder})</span>
               </button>
             </div>

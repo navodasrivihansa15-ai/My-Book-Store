@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
+import { endStaffSession } from '../utils/staffActivityTracker';
 
 const AuthContext = createContext({});
 
@@ -44,6 +45,11 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (_event === 'SIGNED_OUT') {
+        try {
+          endStaffSession('LOGGED_OUT');
+        } catch (e) {}
+      }
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck, Database, Download, Upload, AlertTriangle, ShoppingCart, Shield, BookOpen } from 'lucide-react';
+import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck, Database, Download, Upload, AlertTriangle, ShoppingCart, Shield, ShieldCheck, BookOpen } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -10,9 +10,12 @@ import { saveAs } from 'file-saver';
 import StoreCopyPrint from '../components/StoreCopyPrint';
 import { printReceipt } from '../utils/electronBridge';
 import StaffMobilePwaManager from '../components/StaffMobilePwaManager';
+import StaffActivityVault from '../components/StaffActivityVault';
+import { logStaffAction } from '../utils/staffActivityTracker';
 
 export default function AdminDashboard() {
-  const { userRole } = useAuth();
+  const { user, userRole, userFullName } = useAuth();
+  const currentUser = { ...user, role: userRole, full_name: userFullName };
   const [activeTab, setActiveTab] = useState('inventory');
   const [showRequests, setShowRequests] = useState(false);
 
@@ -49,6 +52,11 @@ export default function AdminDashboard() {
               <Shield size={16} /> Manage Users
             </Link>
           )}
+          {userRole === 'OWNER' && (
+            <button onClick={() => setActiveTab('vault')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'vault' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+              <ShieldCheck size={16} /> Staff Vault
+            </button>
+          )}
           <button onClick={() => setActiveTab('banners')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'banners' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <ImageIcon size={16} /> Banners
           </button>
@@ -81,6 +89,11 @@ export default function AdminDashboard() {
               <Shield size={18} /> Manage Users
             </Link>
           )}
+          {userRole === 'OWNER' && (
+            <button onClick={() => setActiveTab('vault')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'vault' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+              <ShieldCheck size={18} /> Staff Vault
+            </button>
+          )}
           <button onClick={() => setActiveTab('banners')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'banners' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <ImageIcon size={18} /> Banners
           </button>
@@ -99,12 +112,17 @@ export default function AdminDashboard() {
       </div>
 
       <AnimatePresence mode="wait">
-        {activeTab === 'inventory' && <motion.div key="inventory" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><InventoryManagement /></motion.div>}
+        {activeTab === 'inventory' && <motion.div key="inventory" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><InventoryManagement currentUser={currentUser} /></motion.div>}
         {activeTab === 'banners' && <motion.div key="banners" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><BannerManagement /></motion.div>}
-        {activeTab === 'orders' && <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><OrderManagement /></motion.div>}
+        {activeTab === 'orders' && <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><OrderManagement currentUser={currentUser} /></motion.div>}
         {activeTab === 'store' && <motion.div key="store" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><StoreSettings /></motion.div>}
         {activeTab === 'shipping' && <motion.div key="shipping" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><ShippingSettings /></motion.div>}
         {activeTab === 'database' && <motion.div key="database" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><DatabaseManagement userRole={userRole} /></motion.div>}
+        {activeTab === 'vault' && userRole === 'OWNER' && (
+          <motion.div key="vault" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print">
+            <StaffActivityVault currentUser={currentUser} />
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <BookRequestsModal isOpen={showRequests} onClose={() => setShowRequests(false)} />
@@ -123,7 +141,9 @@ export default function AdminDashboard() {
 // ==========================================
 // INVENTORY MANAGEMENT (Add, Search, Edit)
 // ==========================================
-function InventoryManagement() {
+function InventoryManagement({ currentUser }) {
+  const auth = useAuth();
+  const activeUser = currentUser || (auth.user ? { ...auth.user, role: auth.userRole, full_name: auth.userFullName } : null);
   const [books, setBooks] = useState([]);
   const [publishers, setPublishers] = useState([]);
   const [contributors, setContributors] = useState([]);
@@ -262,7 +282,7 @@ function InventoryManagement() {
       let cover_image_url = null;
       if (file) cover_image_url = await handleUploadImage(file, 'book-covers');
 
-      const { error } = await supabase.from('books').insert({
+      const { data: insertedBook, error } = await supabase.from('books').insert({
         title: formData.title, author: formData.author || '', price: parseFloat(formData.price),
         description: formData.description || '', stock: parseInt(formData.stock) || 0,
         categories: formData.categories, is_featured: formData.is_featured, is_offer: formData.is_offer, is_special: formData.is_special, sales_count: 0,
@@ -272,9 +292,10 @@ function InventoryManagement() {
         discount_percentage: formData.discount_percentage ? parseFloat(formData.discount_percentage) : 0,
         sale_price: formData.sale_price ? parseFloat(formData.sale_price) : parseFloat(formData.price),
         cover_image_url
-      });
+      }).select().single();
 
       if (error) throw new Error(error.message);
+      logStaffAction('BOOK_CREATED', `Added book "${formData.title}"`, { bookId: insertedBook?.id }, activeUser);
       showNotification('success', 'Book added successfully.');
       setFormData({ title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false, translator: '', publisher: '', weight_g: 250, page_count: '', barcode: '', discount_percentage: '', sale_price: '' });
       setFile(null); setPreview(null); fetchBooks();
@@ -299,6 +320,7 @@ function InventoryManagement() {
 
       if (error) throw new Error(error.message);
 
+      logStaffAction('INVENTORY_UPDATED', `Updated catalog entity: Publisher "${publisherFormData.name}"`, {}, activeUser);
       showNotification('success', 'Publisher added successfully.');
       setPublishers([...publishers, data]);
       setFormData(prev => ({ ...prev, publisher: data.name }));
@@ -342,6 +364,7 @@ function InventoryManagement() {
       }
 
       showNotification('success', `${role === 'AUTHOR' ? 'Author' : 'Translator'} added successfully.`);
+      logStaffAction('INVENTORY_UPDATED', `Updated catalog entity: ${role === 'AUTHOR' ? 'Author' : 'Translator'} "${formData.name_en}"`, {}, activeUser);
       if (role === 'AUTHOR') {
         setFormData(prev => ({ ...prev, author: finalData.name_en }));
         setIsAuthorModalOpen(false);
@@ -376,6 +399,7 @@ function InventoryManagement() {
       }).eq('id', editingBook.id);
 
       if (error) throw new Error(error.message);
+      logStaffAction('BOOK_UPDATED', `Updated book "${editingBook.title}" (Stock/Price/Details)`, { bookId: editingBook.id }, activeUser);
       showNotification('success', 'Book updated successfully.');
       setIsEditModalOpen(false); setFile(null); setPreview(null); fetchBooks();
     } catch (err) {
@@ -945,7 +969,9 @@ function BannerManagement() {
 // ==========================================
 // ORDER MANAGEMENT (Verify Slips, Print Bill)
 // ==========================================
-function OrderManagement() {
+function OrderManagement({ currentUser }) {
+  const auth = useAuth();
+  const activeUser = currentUser || (auth.user ? { ...auth.user, role: auth.userRole, full_name: auth.userFullName } : null);
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -1020,6 +1046,25 @@ function OrderManagement() {
     if (!error) { 
       fetchOrders(); 
       if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates }); 
+
+      if (field === 'order_status') {
+        if (value === 'Packed') {
+          logStaffAction('ORDER_PACKED', `Packed Order #${id}`, { orderId: id }, activeUser);
+        } else if (value === 'Shipped') {
+          logStaffAction('ORDER_SHIPPED', `Shipped Order #${id}`, { orderId: id }, activeUser);
+        } else {
+          logStaffAction(`ORDER_${value.toUpperCase()}`, `Updated Order #${id} status to ${value}`, { orderId: id }, activeUser);
+        }
+      } else if (field === 'payment_status') {
+        if (value === 'Verified') {
+          logStaffAction('PAYMENT_VERIFIED', `Verified payment for Order #${id}`, { orderId: id, amount: existingOrder.total_amount }, activeUser);
+        } else if (value === 'Rejected') {
+          logStaffAction('PAYMENT_REJECTED', `Rejected payment for Order #${id}`, { orderId: id }, activeUser);
+        } else {
+          logStaffAction(`ORDER_PAYMENT_${value.toUpperCase()}`, `Updated Order #${id} payment status to ${value}`, { orderId: id }, activeUser);
+        }
+      }
+
       try {
         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
         if (activeStaff.session_id && shouldIncrementGeneral) {
@@ -1045,6 +1090,7 @@ function OrderManagement() {
     if (!error) { 
       fetchOrders(); 
       if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates }); 
+      logStaffAction('PAYMENT_VERIFIED', `Verified payment for Order #${id}`, { orderId: id, amount: existingOrder.total_amount }, activeUser);
       try {
         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
         if (activeStaff.session_id && shouldIncrement) {
@@ -1495,6 +1541,7 @@ function OrderManagement() {
                     if (!error) {
                       fetchOrders();
                       setSelectedOrder({ ...selectedOrder, payment_status: 'Rejected', reject_reason: rejectReason });
+                      logStaffAction('PAYMENT_REJECTED', `Rejected payment for Order #${selectedOrder.id}: ${rejectReason}`, { orderId: selectedOrder.id, reason: rejectReason }, activeUser);
                       setRejectModalOpen(false);
                       setRejectReason('');
                     }
@@ -1544,6 +1591,7 @@ function OrderManagement() {
                     if (!error) {
                       fetchOrders();
                       setSelectedOrder({ ...selectedOrder, ...updates });
+                      logStaffAction('ORDER_SHIPPED', `Shipped Order #${selectedOrder.id}`, { orderId: selectedOrder.id }, activeUser);
                       setShippedModalOpen(false);
                       setTrackingForm({ tracking_service: '', tracking_number: '', tracking_link: '' });
                       

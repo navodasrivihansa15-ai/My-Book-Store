@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Lock, User, KeyRound, CheckCircle } from 'lucide-react';
+import { startStaffSession } from '../utils/staffActivityTracker';
 
 export default function StaffPinOverlay({ onAuthenticated }) {
   const [email, setEmail] = useState('');
@@ -36,22 +37,23 @@ export default function StaffPinOverlay({ onAuthenticated }) {
     }
 
     const displayName = roleData?.full_name || data.user.email;
-    const deviceId = roleData?.device_id || 'UNASSIGNED';
-    const deviceName = roleData?.device_name || 'Unknown Device';
+    const user = data.user;
     
-    // Create new staff session
-    const { data: sessionData } = await supabase.from('staff_sessions').insert({
-        staff_name: displayName,
-        role: userRole,
-        device_id: deviceId,
-        device_name: deviceName
-    }).select().single();
+    // START ACTIVE VAULT STAFF SESSION
+    let sessionId = null;
+    try {
+      const staffSession = await startStaffSession(user.full_name || user.username || displayName, userRole || 'STAFF');
+      sessionId = staffSession?.id || null;
+    } catch (err) {
+      console.warn('startStaffSession error:', err);
+    }
 
-    const sessionId = sessionData ? sessionData.id : null;
     sessionStorage.setItem('active_staff', JSON.stringify({ name: displayName, role: userRole, session_id: sessionId }));
     
     // RECORD ACTIVITY HOOK (Login)
-    await supabase.from('audit_logs').insert([{ username: displayName, action_type: 'LOGIN' }]);
+    try {
+      await supabase.from('audit_logs').insert([{ username: displayName, action_type: 'LOGIN' }]);
+    } catch (e) {}
 
     onAuthenticated({ name: displayName, role: userRole });
   };

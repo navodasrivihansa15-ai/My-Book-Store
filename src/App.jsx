@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import SmartRouter from './components/SmartRouter';
 import { AnimatePresence } from 'framer-motion';
@@ -23,7 +24,15 @@ import Scanner from './pages/Scanner';
 import AdminUsers from './pages/AdminUsers';
 import RequestBook from './pages/RequestBook';
 import AdminRoute from './components/AdminRoute';
+import GlobalBuyNowModal from './components/GlobalBuyNowModal';
+import StaffActivityVault from './components/StaffActivityVault';
 import { useAuth } from './context/AuthContext';
+import { initGlobalSessionLifecycle } from './utils/staffActivityTracker';
+
+function StaffActivityVaultRoute() {
+  const { user, userRole, userFullName } = useAuth();
+  return <StaffActivityVault currentUser={{ ...user, role: userRole, full_name: userFullName }} />;
+}
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -57,6 +66,7 @@ function AnimatedRoutes() {
         <Route path="/admin/scanner" element={<Scanner />} />
         <Route path="/scanner" element={<Navigate to="/admin/scanner" replace />} />
         <Route path="/admin/users" element={<AdminRoute allowedRoles={['OWNER', 'ADMIN']}><AdminUsers /></AdminRoute>} />
+        <Route path="/admin/vault" element={<AdminRoute allowedRoles={['OWNER']}><StaffActivityVaultRoute /></AdminRoute>} />
         <Route path="/explore" element={<MobileExplore />} />
         <Route path="/request-book" element={<RequestBook />} />
       </Routes>
@@ -66,7 +76,7 @@ function AnimatedRoutes() {
 
 function AppLayout() {
   const location = useLocation();
-  const isAdminStandalone = location.pathname.startsWith('/admin/pos') || location.pathname.startsWith('/admin/scanner') || location.pathname.startsWith('/admin/users');
+  const isAdminStandalone = location.pathname.startsWith('/admin/pos') || location.pathname.startsWith('/admin/scanner') || location.pathname.startsWith('/admin/users') || location.pathname.startsWith('/admin/vault');
 
   if (isAdminStandalone) {
     return <AnimatedRoutes />;
@@ -86,10 +96,21 @@ function AppLayout() {
 }
 
 function App() {
+  const { user, userRole, userFullName } = useAuth();
+  const currentUser = user ? { ...user, role: userRole, full_name: userFullName } : null;
+
+  useEffect(() => {
+    const cleanup = initGlobalSessionLifecycle(currentUser);
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+    };
+  }, [currentUser]);
+
   return (
     <SmartRouter>
       <ScrollToTop />
       <AppLayout />
+      <GlobalBuyNowModal />
     </SmartRouter>
   );
 }

@@ -2,17 +2,17 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, ShieldAlert, User, ShieldCheck, UserPlus, ChevronLeft, AlertTriangle, BookOpen } from 'lucide-react';
+import { Shield, ShieldAlert, User, ShieldCheck, UserPlus, ChevronLeft, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import DigitalRecordBook from '../components/DigitalRecordBook';
+import { logStaffAction } from '../utils/staffActivityTracker';
 
 export default function AdminUsers() {
-  const { user, userRole } = useAuth();
+  const { user, userRole, userFullName } = useAuth();
+  const currentUser = user ? { ...user, role: userRole, full_name: userFullName } : null;
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({ type: '', message: '' });
-  const [activeTab, setActiveTab] = useState('users');
   
   const [editingDevice, setEditingDevice] = useState(null);
   const [deviceIdInput, setDeviceIdInput] = useState('');
@@ -92,6 +92,13 @@ export default function AdminUsers() {
       }
 
       console.log("Role updated successfully:", data);
+      const targetUser = users.find(u => u.id === targetUserId);
+      logStaffAction(
+        'USER_ROLE_UPDATED',
+        `Updated role for ${targetUser?.full_name || targetUser?.email || targetUserId} to ${newRole}`,
+        { targetUserId, newRole },
+        currentUser
+      );
       showNotification('success', `User successfully updated to ${newRole}`);
       // Optional fallback: call fetchUsers() here just in case Realtime is slow
       fetchUsers(); 
@@ -183,30 +190,12 @@ export default function AdminUsers() {
           )}
         </div>
 
-        {userRole === 'OWNER' && (
-          <div className="flex items-center gap-4 mb-8 border-b-2 border-slate-800 pb-0">
-            <button 
-              onClick={() => setActiveTab('users')} 
-              className={`pb-3 px-4 text-sm font-black uppercase tracking-widest transition-colors border-b-2 ${activeTab === 'users' ? 'border-brand-gold text-brand-gold bg-brand-gold/10' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
-            >
-              User Management
-            </button>
-            <button 
-              onClick={() => setActiveTab('vault')} 
-              className={`pb-3 px-4 text-sm font-black uppercase tracking-widest transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'vault' ? 'border-brand-gold text-brand-gold bg-brand-gold/10' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
-            >
-              <Shield size={16}/> 🛡️ Store Audit & Activity Logs
-            </button>
-          </div>
-        )}
-
-        {activeTab === 'users' ? (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase tracking-wider text-xs">
-                  <th className="p-4 font-semibold">User Email</th>
+                  <th className="p-4 font-semibold">User Name</th>
                   <th className="p-4 font-semibold">Current Role</th>
                   <th className="p-4 font-semibold">Assigned Device</th>
                   <th className="p-4 font-semibold">Joined Date</th>
@@ -247,7 +236,10 @@ export default function AdminUsers() {
                     return (
                       <tr key={targetUser.id} className="border-b border-slate-800/50 hover:bg-slate-800/50 transition-colors">
                         <td className="p-4">
-                          <div className="font-medium">{targetUser.email || targetUser.full_name || 'N/A'}</div>
+                          <div className="font-medium text-white">{targetUser.full_name || targetUser.username || targetUser.email || 'N/A'}</div>
+                          {targetUser.full_name && targetUser.email && (
+                            <div className="text-xs text-slate-400">{targetUser.email}</div>
+                          )}
                           {isSelf && <span className="text-[10px] text-brand-gold uppercase tracking-widest font-bold mt-1 block">It's You</span>}
                         </td>
                         <td className="p-4">
@@ -313,9 +305,6 @@ export default function AdminUsers() {
             </table>
           </div>
         </div>
-        ) : (
-          <DigitalRecordBook />
-        )}
       </div>
 
       {/* Device Assignment Modal */}

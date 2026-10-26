@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logStaffAction } from '../utils/staffActivityTracker';
 
 export default function AddBookModal({ isOpen, onClose, initialBarcode, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -70,6 +71,7 @@ export default function AddBookModal({ isOpen, onClose, initialBarcode, onSucces
 
       if (insertError) throw new Error(insertError.message);
 
+      logStaffAction('BOOK_CREATED', `Quick added book "${data.title}"`, { bookId: data.id });
       onSuccess(data);
       onClose();
     } catch (err) {
