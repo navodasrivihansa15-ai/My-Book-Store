@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Minus, Trash2, Printer, CheckCircle2, ChevronLeft, CreditCard, Banknote, Camera, X, Smartphone, Keyboard, Save, RotateCcw, Lock } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { formatPrice } from '../lib/utils';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AddBookModal from '../components/AddBookModal';
 import PrinterSetupModal from '../components/PrinterSetupModal';
 import { useAuth } from '../context/AuthContext';
@@ -232,7 +232,6 @@ const ShortcutSettingsModal = ({ shortcuts, setShortcuts, onClose, showNotificat
 };
 
 export default function POS() {
-  const navigate = useNavigate();
   const { user, userRole, userFullName } = useAuth();
   let activeStaffName = null;
   let activeStaffRole = null;
@@ -1081,27 +1080,7 @@ export default function POS() {
           {/* LEFT PANEL: PRODUCTS */}
           <div className="flex-1 flex flex-col h-full bg-white border-r border-gray-200">
         <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row items-center gap-4 bg-gray-50">
-          <button 
-            type="button"
-            className="p-2 hover:bg-gray-200 rounded-full transition-colors shrink-0 cursor-pointer"
-            title="Exit POS"
-            onClick={() => {
-              // 1. Identify the active user safely based on the component's state
-              const activeUser = currentUser || userRoleData || user;
-              const role = String(activeUser?.role || '').toUpperCase();
-
-              // 2. Route STAFF (or CASHIER) to the public Home Page
-              if (role === 'STAFF' || role === 'CASHIER') {
-                navigate('/');
-              } 
-              // 3. Route ADMIN, SUPER_ADMIN, and OWNER to the Admin Dashboard (Existing logic)
-              else {
-                navigate('/admin');
-              }
-            }}
-          >
-            <ChevronLeft size={24} className="text-gray-600" />
-          </button>
+          <Link to="/admin" className="p-2 hover:bg-gray-200 rounded-full transition-colors shrink-0"><ChevronLeft size={24} className="text-gray-600" /></Link>
           <div className="relative w-full flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input 
