@@ -4,6 +4,8 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const STORAGE_KEY = 'alexandria_active_staff_session';
 
+export const TRACKED_ROLES = ['STAFF', 'ADMIN', 'SUPER_ADMIN', 'OWNER', 'CASHIER'];
+
 export const detectPlatform = () => {
   const ua = navigator.userAgent || '';
   const isElectron = Boolean(window.electronAPI) || ua.toLowerCase().includes('electron');
@@ -49,10 +51,15 @@ const runInBackground = (fn) => {
   }, 50);
 };
 
-export const startStaffSession = (userName, userRole = 'STAFF') => {
+export const startStaffSession = (userName, userRole = 'USER') => {
   if (!userName) return Promise.resolve(null);
   const cleanName = String(userName).trim();
-  const cleanRole = String(userRole || 'STAFF').toUpperCase();
+  const cleanRole = String(userRole || 'USER').toUpperCase();
+
+  // STRICT ROLE GATE: Do not track regular customers! Returns null immediately.
+  if (!TRACKED_ROLES.includes(cleanRole)) {
+    return Promise.resolve(null); 
+  }
 
   return new Promise((resolve) => {
     runInBackground(async () => {
@@ -253,8 +260,12 @@ export const endStaffSession = (reason = 'LOGGED_OUT') => {
 
 export const initGlobalSessionLifecycle = (activeUser = null) => {
   if (activeUser && (activeUser.full_name || activeUser.username)) {
-    const role = String(activeUser.role || 'STAFF').toUpperCase();
-    startStaffSession(activeUser.full_name || activeUser.username, role);
+    const role = String(activeUser.role || 'USER').toUpperCase();
+    
+    // Only initialize session if they are staff/admin/owner
+    if (TRACKED_ROLES.includes(role)) {
+      startStaffSession(activeUser.full_name || activeUser.username, role);
+    }
   }
 
   const interval = setInterval(() => {

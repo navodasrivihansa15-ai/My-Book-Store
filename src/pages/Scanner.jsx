@@ -35,6 +35,7 @@ export default function Scanner() {
           .from('staff_sessions')
           .select('user_name, user_role')
           .eq('status', 'ACTIVE')
+          .in('user_role', ['STAFF', 'ADMIN', 'SUPER_ADMIN', 'OWNER', 'CASHIER']) // STRICT FILTER
           .order('login_at', { ascending: false });
 
         if (error) throw error;
