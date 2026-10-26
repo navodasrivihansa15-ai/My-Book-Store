@@ -21,41 +21,58 @@ export default function Scanner() {
     const saved = localStorage.getItem('pos_scanner_active_user');
     return saved ? JSON.parse(saved) : null;
   });
-  const [staffList, setStaffList] = useState([]);
+  const [activeAccounts, setActiveAccounts] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState('');
   const [selectedStaff, setSelectedStaff] = useState('');
   const [pinInput, setPinInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // Fetch users for One-Time Scanner Login from user_profiles (with staff_sessions fallback)
+  // STEP 1: Auto-refreshing polling logic to fetch ACTIVE staff sessions
   useEffect(() => {
-    if (!scannerUser) {
-      const fetchStaff = async () => {
-        let { data } = await supabase.from('user_profiles').select('*');
-        if (!data || data.length === 0) {
-          // Fallback to staff_sessions in case user_profiles RLS restricts anonymous read on mobile
-          const { data: sessionData } = await supabase.from('staff_sessions').select('staff_name, role');
-          if (sessionData && sessionData.length > 0) {
-            const map = new Map();
-            sessionData.forEach(s => {
-              if (s.staff_name && !map.has(s.staff_name)) {
-                map.set(s.staff_name, {
-                  id: s.staff_name,
-                  full_name: s.staff_name,
-                  username: s.staff_name,
-                  role: s.role || 'STAFF'
-                });
-              }
-            });
-            data = Array.from(map.values());
-          }
+    const fetchActiveAccounts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('staff_sessions')
+          .select('user_name, user_role')
+          .eq('status', 'ACTIVE')
+          .order('login_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Remove duplicates in case a user has multiple active browser tabs
+          const uniqueNames = new Set();
+          const uniqueAccounts = [];
+          
+          data.forEach((session) => {
+            const cleanName = String(session.user_name).trim();
+            if (!uniqueNames.has(cleanName)) {
+              uniqueNames.add(cleanName);
+              uniqueAccounts.push(session);
+            }
+          });
+
+          setActiveAccounts(uniqueAccounts);
         } else {
-          // Filter to staff/admin/owner if user_profiles includes customer records
-          const staffOnly = data.filter(u => ['OWNER', 'ADMIN', 'STAFF'].includes(u.role));
-          if (staffOnly.length > 0) data = staffOnly;
+          setActiveAccounts([]);
         }
-        if (data) setStaffList(data);
-      };
-      fetchStaff();
+      } catch (err) {
+        console.error("Error fetching active accounts for scanner:", err);
+      }
+    };
+
+    // Fetch immediately on mount
+    fetchActiveAccounts();
+
+    // Poll every 5 seconds to automatically show new users who log into the POS
+    const interval = setInterval(fetchActiveAccounts, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (scannerUser?.full_name) {
+      setSelectedAccount(scannerUser.full_name);
+      setSelectedStaff(scannerUser.full_name);
     }
   }, [scannerUser]);
 
@@ -74,23 +91,37 @@ export default function Scanner() {
   const handleScannerLogin = (e) => {
     e.preventDefault();
     setLoginError('');
-    const matchedUser = staffList.find(
-      (u) => (u.full_name === selectedStaff || u.username === selectedStaff) && 
-             (!u.pin || String(u.pin) === String(pinInput))
+    const chosenName = selectedAccount || selectedStaff;
+    if (!chosenName) {
+      setLoginError('Please select an online user from the dropdown!');
+      return;
+    }
+
+    const matchedAccount = activeAccounts.find(
+      (acc) => acc.user_name === chosenName
     );
 
-    if (matchedUser) {
-      const userPayload = {
-        id: matchedUser.id,
-        full_name: matchedUser.full_name || matchedUser.username,
-        role: matchedUser.role || 'STAFF'
-      };
-      localStorage.setItem('pos_scanner_active_user', JSON.stringify(userPayload));
-      setScannerUser(userPayload);
-      setPinInput('');
-    } else {
-      setLoginError('Invalid User or PIN!');
-    }
+    const userPayload = {
+      id: matchedAccount ? matchedAccount.user_name : chosenName,
+      full_name: matchedAccount ? matchedAccount.user_name : chosenName,
+      role: matchedAccount?.user_role || 'STAFF'
+    };
+    localStorage.setItem('pos_scanner_active_user', JSON.stringify(userPayload));
+    setScannerUser(userPayload);
+    setPinInput('');
+  };
+
+  const handleAccountChange = (newUserName) => {
+    setSelectedAccount(newUserName);
+    setSelectedStaff(newUserName);
+    const matched = activeAccounts.find((a) => a.user_name === newUserName);
+    const userPayload = {
+      id: matched ? matched.user_name : newUserName,
+      full_name: matched ? matched.user_name : newUserName,
+      role: matched?.user_role || 'STAFF'
+    };
+    localStorage.setItem('pos_scanner_active_user', JSON.stringify(userPayload));
+    setScannerUser(userPayload);
   };
 
   const handleScannerLogout = () => {
@@ -102,6 +133,7 @@ export default function Scanner() {
     localStorage.removeItem('pos_scanner_active_user');
     setScannerUser(null);
     setSelectedStaff('');
+    setSelectedAccount('');
     setPinInput('');
   };
 
@@ -276,29 +308,32 @@ export default function Scanner() {
           
           {loginError && <div className="bg-red-500/20 text-red-400 text-sm p-2 rounded mb-4 text-center">{loginError}</div>}
 
-          <label className="block text-xs text-gray-400 mb-1">Select Your Account</label>
-          <select 
-            value={selectedStaff} 
-            onChange={(e) => setSelectedStaff(e.target.value)}
-            required
-            className="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 text-white mb-4"
-          >
-            <option value="">-- Choose User --</option>
-            {staffList.map((u, idx) => {
-              const name = u.full_name || u.username;
-              return <option key={idx} value={name}>{name} ({u.role})</option>;
-            })}
-          </select>
-
-          <label className="block text-xs text-gray-400 mb-1">Enter Security PIN</label>
-          <input 
-            type="password" 
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            placeholder="••••"
-            required
-            className="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 text-white mb-5 text-center tracking-widest text-lg"
-          />
+          {/* ACTIVE POS USER SELECTION FOR SCANNER */}
+          <div className="mb-6 w-full">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+              Assign Scans To:
+            </label>
+            <select 
+              value={selectedAccount} 
+              onChange={(e) => {
+                setSelectedAccount(e.target.value);
+                setSelectedStaff(e.target.value);
+              }} 
+              required
+              className="w-full p-3.5 rounded-xl border-2 border-blue-100 bg-white text-gray-900 font-extrabold text-sm shadow-sm focus:border-blue-500 focus:outline-none transition-colors appearance-none"
+            >
+              <option value="" disabled>-- Select an Online User --</option>
+              {activeAccounts.length === 0 ? (
+                <option value="" disabled>No active users found on POS</option>
+              ) : (
+                activeAccounts.map((acc, idx) => (
+                  <option key={idx} value={acc.user_name}>
+                    🟢 {acc.user_name} ({acc.user_role})
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
 
           <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold">
             Connect Scanner to My POS
@@ -381,6 +416,29 @@ export default function Scanner() {
 
       <div className="flex-1 flex flex-col items-center overflow-y-auto px-4 pb-8 relative z-10 hide-scrollbar">
         
+        {/* ACTIVE POS USER SELECTION FOR SCANNER */}
+        <div className="mb-6 w-full max-w-md">
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+            Assign Scans To:
+          </label>
+          <select 
+            value={selectedAccount || scannerUser?.full_name || ''} 
+            onChange={(e) => handleAccountChange(e.target.value)} 
+            className="w-full p-3.5 rounded-xl border-2 border-blue-100 bg-white text-gray-900 font-extrabold text-sm shadow-sm focus:border-blue-500 focus:outline-none transition-colors appearance-none"
+          >
+            <option value="" disabled>-- Select an Online User --</option>
+            {activeAccounts.length === 0 ? (
+              <option value="" disabled>No active users found on POS</option>
+            ) : (
+              activeAccounts.map((acc, idx) => (
+                <option key={idx} value={acc.user_name}>
+                  🟢 {acc.user_name} ({acc.user_role})
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
         {/* TARGET TOGGLE */}
         <div className="flex bg-white/5 backdrop-blur-xl rounded-2xl p-1.5 mb-8 w-full max-w-md border border-white/10 shadow-2xl relative">
           <button 
