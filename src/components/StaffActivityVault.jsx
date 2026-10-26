@@ -128,18 +128,32 @@ export default function StaffActivityVault({ currentUser }) {
 
   // Unique staff list
   const staffNames = useMemo(() => {
-    const names = new Set(sessions.map((s) => s.user_name));
-    auditLogs.forEach((a) => names.add(a.user_name));
+    const names = new Set();
+    sessions.forEach((s) => {
+      const role = String(s.user_role || '').toUpperCase();
+      if (role !== 'USER' && role !== 'CUSTOMER') names.add(s.user_name);
+    });
+    auditLogs.forEach((a) => {
+      const role = String(a.user_role || '').toUpperCase();
+      if (role !== 'USER' && role !== 'CUSTOMER') names.add(a.user_name);
+    });
     return ['ALL', ...Array.from(names).filter(Boolean)];
   }, [sessions, auditLogs]);
 
   // Filtered Sessions & Audit Logs
   const filteredSessions = useMemo(() => {
-    return sessions.filter((s) => selectedUser === 'ALL' || s.user_name === selectedUser);
+    return sessions.filter((s) => {
+      const role = String(s.user_role || '').toUpperCase();
+      if (role === 'USER' || role === 'CUSTOMER') return false; // Hide regular users
+      return selectedUser === 'ALL' || s.user_name === selectedUser;
+    });
   }, [sessions, selectedUser]);
 
   const filteredLogs = useMemo(() => {
     return auditLogs.filter((l) => {
+      const role = String(l.user_role || '').toUpperCase();
+      if (role === 'USER' || role === 'CUSTOMER') return false; // Hide regular users
+      
       const matchUser = selectedUser === 'ALL' || l.user_name === selectedUser;
       const matchCat = selectedCategory === 'ALL' || (l.category || 'ADMIN') === selectedCategory;
       return matchUser && matchCat;

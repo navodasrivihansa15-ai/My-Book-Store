@@ -17,15 +17,34 @@ export default function Scanner() {
   const broadcastChannel = useRef(null);
 
   // --- ONE-TIME PERSISTENT LOGIN STATE ---
-  const [scannerUser, setScannerUser] = useState(() => {
-    const saved = localStorage.getItem('pos_scanner_active_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [isScannerLoggedIn, setIsScannerLoggedIn] = useState(false);
+  const [activeScannerUser, setActiveScannerUser] = useState(null);
+  const [scannerUser, setScannerUser] = useState(null);
   const [activeAccounts, setActiveAccounts] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState('');
   const [selectedStaff, setSelectedStaff] = useState('');
   const [pinInput, setPinInput] = useState('');
   const [loginError, setLoginError] = useState('');
+
+  // 1. Auto-login if previously saved in local storage
+  useEffect(() => {
+    const savedUser = localStorage.getItem('pos_scanner_active_user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && (parsed.user_name || parsed.full_name)) {
+          const name = parsed.user_name || parsed.full_name;
+          setActiveScannerUser(name);
+          setIsScannerLoggedIn(true);
+          setScannerUser(parsed);
+          setSelectedAccount(name);
+          setSelectedStaff(name);
+        }
+      } catch (e) {
+        localStorage.removeItem('pos_scanner_active_user');
+      }
+    }
+  }, []);
 
   // STEP 1: Auto-refreshing polling logic to fetch ACTIVE staff sessions
   useEffect(() => {
@@ -71,23 +90,23 @@ export default function Scanner() {
   }, []);
 
   useEffect(() => {
-    if (scannerUser?.full_name) {
-      setSelectedAccount(scannerUser.full_name);
-      setSelectedStaff(scannerUser.full_name);
+    if (activeScannerUser || scannerUser?.full_name) {
+      const name = activeScannerUser || scannerUser?.full_name;
+      setSelectedAccount(name);
+      setSelectedStaff(name);
     }
-  }, [scannerUser]);
+  }, [activeScannerUser, scannerUser]);
 
   // SAFEGUARD 1: Safe staff session initialization in the background
   useEffect(() => {
-    // Safely check if the user/currentUser exists BEFORE calling the tracker
-    const activeUser = scannerUser;
+    const activeName = activeScannerUser || scannerUser?.full_name || scannerUser?.username;
+    const role = scannerUser?.role || 'STAFF';
     
-    if (activeUser && (activeUser.full_name || activeUser.username)) {
-      // Run async in the background without blocking React UI
-      startStaffSession(activeUser.full_name || activeUser.username, activeUser.role || 'STAFF')
+    if (activeName) {
+      startStaffSession(activeName, role)
         .catch(err => console.warn('Tracker init skipped:', err));
     }
-  }, [scannerUser]);
+  }, [activeScannerUser, scannerUser]);
 
   const handleScannerLogin = (e) => {
     e.preventDefault();
@@ -102,13 +121,16 @@ export default function Scanner() {
       (acc) => acc.user_name === chosenName
     );
 
-    const userPayload = {
-      id: matchedAccount ? matchedAccount.user_name : chosenName,
-      full_name: matchedAccount ? matchedAccount.user_name : chosenName,
+    // STEP 2: Save to local storage on login success
+    const sessionData = { 
+      user_name: chosenName,
+      full_name: chosenName,
       role: matchedAccount?.user_role || 'STAFF'
     };
-    localStorage.setItem('pos_scanner_active_user', JSON.stringify(userPayload));
-    setScannerUser(userPayload);
+    localStorage.setItem('pos_scanner_active_user', JSON.stringify(sessionData));
+    setActiveScannerUser(chosenName);
+    setIsScannerLoggedIn(true);
+    setScannerUser(sessionData);
     setPinInput('');
   };
 
@@ -116,13 +138,15 @@ export default function Scanner() {
     setSelectedAccount(newUserName);
     setSelectedStaff(newUserName);
     const matched = activeAccounts.find((a) => a.user_name === newUserName);
-    const userPayload = {
-      id: matched ? matched.user_name : newUserName,
-      full_name: matched ? matched.user_name : newUserName,
+    const sessionData = {
+      user_name: newUserName,
+      full_name: newUserName,
       role: matched?.user_role || 'STAFF'
     };
-    localStorage.setItem('pos_scanner_active_user', JSON.stringify(userPayload));
-    setScannerUser(userPayload);
+    localStorage.setItem('pos_scanner_active_user', JSON.stringify(sessionData));
+    setActiveScannerUser(newUserName);
+    setIsScannerLoggedIn(true);
+    setScannerUser(sessionData);
   };
 
   const handleScannerLogout = () => {
@@ -132,6 +156,8 @@ export default function Scanner() {
       console.warn('endStaffSession error in Scanner:', err);
     }
     localStorage.removeItem('pos_scanner_active_user');
+    setIsScannerLoggedIn(false);
+    setActiveScannerUser(null);
     setScannerUser(null);
     setSelectedStaff('');
     setSelectedAccount('');
@@ -140,16 +166,16 @@ export default function Scanner() {
 
   // CALL THIS WHEN BARCODE IS DETECTED ON PHONE:
   const sendBarcodeToUserPOS = async (barcodeValue) => {
-    if (!scannerUser || !barcodeValue) return;
+    const activeName = activeScannerUser || scannerUser?.full_name || scannerUser?.user_name;
+    if (!activeName || !barcodeValue) return;
 
     const scannedCode = barcodeValue.trim();
-    const activeScannerUser = scannerUser.full_name || scannerUser.username || '';
 
     // Fast Lane: Direct insert to pos_remote_scans only
     try {
       await supabase.from('pos_remote_scans').insert([{
         barcode: scannedCode,
-        scanned_by: activeScannerUser.trim()
+        scanned_by: activeName.trim()
       }]);
     } catch (err) {
       console.warn("pos_remote_scans insert error:", err);
@@ -168,7 +194,7 @@ export default function Scanner() {
         payload: { 
           barcode: scannedCode, 
           target: scanTargetRef.current,
-          scanned_by: activeScannerUser.trim() 
+          scanned_by: activeName.trim() 
         }
       });
     }
@@ -180,7 +206,7 @@ export default function Scanner() {
         payload: { 
           barcode: barcodeValue.trim(), 
           target: scanTargetRef.current,
-          scanned_by: scannerUser.full_name 
+          scanned_by: activeName.trim() 
         }
       });
     } catch (err) {
@@ -224,7 +250,7 @@ export default function Scanner() {
     const currentTarget = scanTargetRef.current;
     
     await sendBarcodeToUserPOS(barcodeText);
-    showNotification('success', currentTarget === 'POS' ? `Sent to POS (${scannerUser?.full_name})!` : 'Sent to Inventory!');
+    showNotification('success', currentTarget === 'POS' ? `Sent to POS (${activeScannerUser || scannerUser?.full_name || ''})!` : 'Sent to Inventory!');
   };
 
   const handleManualSubmit = (e) => {
@@ -235,7 +261,7 @@ export default function Scanner() {
   };
 
   useEffect(() => {
-    if (!scannerUser) return;
+    if (!isScannerLoggedIn) return;
 
     // Connect to Supabase Broadcast channel
     const channel = supabase.channel('scanner-broadcast-channel');
@@ -259,7 +285,7 @@ export default function Scanner() {
       scanner.clear().catch(() => {});
       supabase.removeChannel(channel);
     };
-  }, [scannerUser]);
+  }, [isScannerLoggedIn]);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
@@ -291,7 +317,7 @@ export default function Scanner() {
   };
 
   // IF NOT LOGGED IN ON PHONE -> RENDER THIS ONE-TIME LOGIN SCREEN:
-  if (!scannerUser) {
+  if (!isScannerLoggedIn) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-between">
         <StaffMobilePwaManager userRole={null} scannerRoute="/admin/scanner" />
@@ -373,20 +399,28 @@ export default function Scanner() {
       </AnimatePresence>
 
       {/* STAFF MOBILE PWA MANAGER */}
-      <StaffMobilePwaManager userRole={scannerUser?.role} scannerRoute="/admin/scanner" />
+      <StaffMobilePwaManager userRole={scannerUser?.role || 'STAFF'} scannerRoute="/admin/scanner" />
 
-      {/* ACCOUNT HEADER BAR */}
-      <div className="flex items-center justify-between bg-gray-800 px-4 py-2 border-b border-gray-700 text-white relative z-20 w-full shrink-0">
-        <div className="text-xs">
-          <span className="text-gray-400">Linked POS: </span>
-          <span className="font-bold text-green-400">{scannerUser.full_name}</span>
+      {/* STEP 3: ACTIVE SCANNER VIEW HEADER WITH CHANGE PROFILE BUTTON */}
+      <div className="flex justify-between items-center bg-gray-900 text-white p-4 shrink-0 relative z-20 border-b border-gray-800">
+        <div>
+          <h2 className="font-bold text-lg leading-tight">Barcode Scanner</h2>
+          <p className="text-xs text-gray-400 font-medium">Logged in as: <span className="text-emerald-400">{activeScannerUser || scannerUser?.full_name || selectedAccount}</span></p>
         </div>
         <button 
           type="button"
-          onClick={handleScannerLogout}
-          className="text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 px-2.5 py-1 rounded"
+          onClick={() => {
+            try {
+              endStaffSession('LOGGED_OUT');
+            } catch (err) {}
+            localStorage.removeItem('pos_scanner_active_user');
+            setIsScannerLoggedIn(false);
+            setActiveScannerUser(null);
+            setScannerUser(null);
+          }}
+          className="px-3 py-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
         >
-          Switch User / Logout
+          Change Profile
         </button>
       </div>
 
@@ -423,7 +457,7 @@ export default function Scanner() {
             Assign Scans To:
           </label>
           <select 
-            value={selectedAccount || scannerUser?.full_name || ''} 
+            value={selectedAccount || activeScannerUser || scannerUser?.full_name || ''} 
             onChange={(e) => handleAccountChange(e.target.value)} 
             className="w-full p-3.5 rounded-xl border-2 border-blue-100 bg-white text-gray-900 font-extrabold text-sm shadow-sm focus:border-blue-500 focus:outline-none transition-colors appearance-none"
           >

@@ -4,7 +4,11 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const STORAGE_KEY = 'alexandria_active_staff_session';
 
-export const TRACKED_ROLES = ['STAFF', 'ADMIN', 'SUPER_ADMIN', 'OWNER', 'CASHIER'];
+const ALLOWED_ROLES = ['STAFF', 'ADMIN', 'SUPER_ADMIN', 'OWNER', 'CASHIER'];
+export const TRACKED_ROLES = ALLOWED_ROLES;
+
+// --- ADD THIS LOCK FLAG AT THE TOP ---
+let isStartingSession = false;
 
 export const detectPlatform = () => {
   const ua = navigator.userAgent || '';
@@ -56,53 +60,66 @@ export const startStaffSession = (userName, userRole = 'USER') => {
   const cleanName = String(userName).trim();
   const cleanRole = String(userRole || 'USER').toUpperCase();
 
-  // STRICT ROLE GATE: Do not track regular customers! Returns null immediately.
-  if (!TRACKED_ROLES.includes(cleanRole)) {
-    return Promise.resolve(null); 
+  // 1. Role Gate
+  if (!ALLOWED_ROLES.includes(cleanRole)) {
+    return Promise.resolve(null);
   }
+
+  // 2. RACE CONDITION LOCK: Prevent duplicate concurrent React double-mount calls
+  if (isStartingSession) {
+    return Promise.resolve(null);
+  }
+  isStartingSession = true; // Lock activated
 
   return new Promise((resolve) => {
     runInBackground(async () => {
-      const existingRaw = localStorage.getItem(STORAGE_KEY);
-      if (existingRaw) {
-        try {
-          const existing = JSON.parse(existingRaw);
-          if (existing.id && existing.user_name?.toLowerCase() === cleanName.toLowerCase()) {
-            return resolve(existing);
-          }
-        } catch (e) {}
-      }
+      try {
+        const existingRaw = localStorage.getItem(STORAGE_KEY);
+        if (existingRaw) {
+          try {
+            const existing = JSON.parse(existingRaw);
+            if (existing.id && existing.user_name?.toLowerCase() === cleanName.toLowerCase()) {
+              return resolve(existing);
+            }
+          } catch (e) {}
+        }
 
-      const platform = detectPlatform();
-      const nowIso = new Date().toISOString();
+        const platform = detectPlatform();
+        const nowIso = new Date().toISOString();
 
-      const { data, error } = await supabase
-        .from('staff_sessions')
-        .insert([{
-          user_name: cleanName,
-          user_role: cleanRole,
-          platform,
-          login_at: nowIso,
-          last_heartbeat_at: nowIso,
-          status: 'ACTIVE',
-          sales_count: 0,
-          total_revenue: 0,
-          scans_count: 0,
-          voids_count: 0,
-          payments_verified_count: 0,
-          orders_packed_count: 0,
-          orders_shipped_count: 0,
-          inventory_edits_count: 0,
-          admin_actions_count: 0
-        }])
-        .select()
-        .single();
+        const { data, error } = await supabase
+          .from('staff_sessions')
+          .insert([{
+            user_name: cleanName,
+            user_role: cleanRole,
+            platform,
+            login_at: nowIso,
+            last_heartbeat_at: nowIso,
+            status: 'ACTIVE',
+            sales_count: 0,
+            total_revenue: 0,
+            scans_count: 0,
+            voids_count: 0,
+            payments_verified_count: 0,
+            orders_packed_count: 0,
+            orders_shipped_count: 0,
+            inventory_edits_count: 0,
+            admin_actions_count: 0
+          }])
+          .select()
+          .single();
 
-      if (!error && data) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        resolve(data);
-      } else {
-        resolve(null);
+        if (!error && data) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          resolve(data);
+        } else {
+          resolve(null);
+        }
+      } finally {
+        // 3. RELEASE LOCK safely after 1 second (gives React enough time to settle)
+        setTimeout(() => {
+          isStartingSession = false;
+        }, 1000);
       }
     });
   });
@@ -151,7 +168,9 @@ export const logStaffAction = (actionType, description, metadata = {}, explicitU
 
     if (!s || !s.id) {
       const identity = getActiveStaffIdentity(explicitUser);
-      if (!identity) return;
+      // STRICT BLOCK for action logs
+      if (!identity || !ALLOWED_ROLES.includes(identity.role)) return; 
+      
       s = await startStaffSession(identity.name, identity.role);
       if (!s) return;
     }
@@ -263,7 +282,7 @@ export const initGlobalSessionLifecycle = (activeUser = null) => {
     const role = String(activeUser.role || 'USER').toUpperCase();
     
     // Only initialize session if they are staff/admin/owner
-    if (TRACKED_ROLES.includes(role)) {
+    if (ALLOWED_ROLES.includes(role)) {
       startStaffSession(activeUser.full_name || activeUser.username, role);
     }
   }
