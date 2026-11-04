@@ -435,8 +435,16 @@ function UserOrders({ user }) {
       if (error) console.error(error);
       else setOrders(data);
       
-      const { data: settingsData } = await supabase.from('store_settings').select('*').limit(1).single();
-      if (settingsData) setStoreSettings(settingsData);
+      const { data: settingsData } = await supabase.from('store_settings').select('*');
+      if (settingsData && settingsData.length > 0) {
+        const gen = settingsData.find(s => s.setting_key === 'general_info')?.setting_value;
+        if (gen && typeof gen === 'object') {
+          setStoreSettings(prev => ({ ...prev, ...gen }));
+        } else {
+          const direct = settingsData.find(s => s.name);
+          if (direct) setStoreSettings(prev => ({ ...prev, ...direct }));
+        }
+      }
 
       setLoading(false);
     };

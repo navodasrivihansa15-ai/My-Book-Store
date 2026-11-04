@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient'; // Adjust path if needed
+import { supabase } from '../lib/supabase';
 import { logStaffAction } from '../utils/staffActivityTracker'; // Adjust path if needed
 
 const COLLECTABLE_CATEGORIES = [
@@ -78,7 +78,7 @@ export default function AdminCollectables({ currentUser }) {
           setting_value: nextState,
           updated_at: new Date().toISOString(),
           updated_by: currentUser?.full_name || 'Admin'
-        });
+        }, { onConflict: 'setting_key' });
 
       if (error) throw error;
       setIsPageVisible(nextState);
@@ -181,9 +181,9 @@ export default function AdminCollectables({ currentUser }) {
       price: Number(formData.price),
       original_price: formData.original_price ? Number(formData.original_price) : null,
       stock: Number(formData.stock || 0),
-      barcode: formData.barcode.trim(),
-      image_url: formData.image_url.trim(),
-      description: formData.description.trim(),
+      barcode: (formData.barcode || '').trim() || null,
+      image_url: (formData.image_url || '').trim() || null,
+      description: (formData.description || '').trim() || '',
       is_active: true
     };
 

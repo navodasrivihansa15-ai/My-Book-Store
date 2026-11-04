@@ -21,7 +21,7 @@ export default function ProfilePage({ type }) {
 
       // Fetch the specific entity's profile information if available
       if (type === 'author' || type === 'translator') {
-        const { data } = await supabase.from('contributors').select('*').eq('name_en', decodedName).single();
+        const { data } = await supabase.from('contributors').select('*').eq('name_en', decodedName).maybeSingle();
         if (data) setProfileInfo(data);
       }
 

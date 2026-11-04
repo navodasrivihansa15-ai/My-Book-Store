@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient'; // Adjust path if needed
+import { supabase } from '../lib/supabase';
 import { triggerBuyNowModal } from '../components/GlobalBuyNowModal'; // Adjust path if needed
 
 const CATEGORIES = [
@@ -61,6 +61,7 @@ export default function Collectables({ onAddToCart }) {
     name: item.title,
     author: item.category || 'Reader Collectable',
     selling_price: Number(item.price || 0),
+    cover_image_url: item.image_url || '',
     cover_url: item.image_url || '',
     image: item.image_url || '',
     quantity_in_stock: Number(item.stock ?? 0)
@@ -78,7 +79,7 @@ export default function Collectables({ onAddToCart }) {
 
     // Fallback direct cart storage so Books + Collectables combine into a single bill
     try {
-      const rawCart = localStorage.getItem('cart');
+      const rawCart = localStorage.getItem('alexandria_cart');
       const currentCart = rawCart ? JSON.parse(rawCart) : [];
       const existingIdx = currentCart.findIndex((i) => i.id === unifiedItem.id);
       if (existingIdx >= 0) {
@@ -86,7 +87,7 @@ export default function Collectables({ onAddToCart }) {
       } else {
         currentCart.push({ ...unifiedItem, quantity: 1 });
       }
-      localStorage.setItem('cart', JSON.stringify(currentCart));
+      localStorage.setItem('alexandria_cart', JSON.stringify(currentCart));
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new CustomEvent('cart-updated'));
     } catch (err) {

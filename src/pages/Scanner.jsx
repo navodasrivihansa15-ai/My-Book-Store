@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { CheckCircle2, ChevronLeft, Download } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import StaffMobilePwaManager from '../components/StaffMobilePwaManager';
+import QuickStockUpdateModal from '../components/QuickStockUpdateModal';
 import { startStaffSession, endStaffSession, logStaffAction } from '../utils/staffActivityTracker';
 
 export default function Scanner() {
+  const navigate = useNavigate();
   const [notification, setNotification] = useState({ type: '', message: '' });
   const [manualBarcode, setManualBarcode] = useState('');
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -15,6 +17,15 @@ export default function Scanner() {
   const scanTargetRef = useRef('POS');
   const lastScanTime = useRef(0);
   const broadcastChannel = useRef(null);
+
+  // Quick Stock Update Modal state for Inventory mode
+  const [quickStockBook, setQuickStockBook] = useState(null);
+  const [isQuickStockOpen, setIsQuickStockOpen] = useState(false);
+  const isQuickStockOpenRef = useRef(false);
+
+  useEffect(() => {
+    isQuickStockOpenRef.current = isQuickStockOpen;
+  }, [isQuickStockOpen]);
 
   // --- ONE-TIME PERSISTENT LOGIN STATE ---
   const [isScannerLoggedIn, setIsScannerLoggedIn] = useState(false);
@@ -63,7 +74,7 @@ export default function Scanner() {
           // Remove duplicates in case a user has multiple active browser tabs
           const uniqueNames = new Set();
           const uniqueAccounts = [];
-          
+
           data.forEach((session) => {
             const cleanName = String(session.user_name).trim();
             if (!uniqueNames.has(cleanName)) {
@@ -101,7 +112,7 @@ export default function Scanner() {
   useEffect(() => {
     const activeName = activeScannerUser || scannerUser?.full_name || scannerUser?.username;
     const role = scannerUser?.role || 'STAFF';
-    
+
     if (activeName) {
       startStaffSession(activeName, role)
         .catch(err => console.warn('Tracker init skipped:', err));
@@ -122,7 +133,7 @@ export default function Scanner() {
     );
 
     // STEP 2: Save to local storage on login success
-    const sessionData = { 
+    const sessionData = {
       user_name: chosenName,
       full_name: chosenName,
       role: matchedAccount?.user_role || 'STAFF'
@@ -184,17 +195,17 @@ export default function Scanner() {
     // Fire-and-forget local counter (zero network delay)
     try {
       logStaffAction('BARCODE_SCANNED', 'Scanned barcode', { barcode: scannedCode });
-    } catch (e) {}
+    } catch (e) { }
 
     // 2. Transmit via Supabase Broadcast channel(s) including scanned_by
     if (broadcastChannel.current) {
       broadcastChannel.current.send({
         type: 'broadcast',
         event: 'scan',
-        payload: { 
-          barcode: scannedCode, 
+        payload: {
+          barcode: scannedCode,
           target: scanTargetRef.current,
-          scanned_by: activeName.trim() 
+          scanned_by: activeName.trim()
         }
       });
     }
@@ -203,10 +214,10 @@ export default function Scanner() {
       supabase.channel('pos-scanner-channel').send({
         type: 'broadcast',
         event: 'scan',
-        payload: { 
-          barcode: barcodeValue.trim(), 
+        payload: {
+          barcode: barcodeValue.trim(),
           target: scanTargetRef.current,
-          scanned_by: activeName.trim() 
+          scanned_by: activeName.trim()
         }
       });
     } catch (err) {
@@ -244,13 +255,44 @@ export default function Scanner() {
   const processScan = async (barcodeText) => {
     const now = Date.now();
     if (now - lastScanTime.current < 1500) return; // Debounce 1.5s
+    if (isQuickStockOpenRef.current) return; // Pause scans while modal is open
     lastScanTime.current = now;
 
     playBeep();
     const currentTarget = scanTargetRef.current;
-    
-    await sendBarcodeToUserPOS(barcodeText);
-    showNotification('success', currentTarget === 'POS' ? `Sent to POS (${activeScannerUser || scannerUser?.full_name || ''})!` : 'Sent to Inventory!');
+    const cleanCode = String(barcodeText || '').trim();
+    if (!cleanCode) return;
+
+    // 1. Broadcast / insert to pos_remote_scans as usual so if PC Inventory or POS is open, it reacts too
+    await sendBarcodeToUserPOS(cleanCode);
+
+    // 2. If Scanner is in INVENTORY MODE:
+    if (currentTarget === 'Inventory') {
+      try {
+        const { data: existingBook } = await supabase
+          .from('books')
+          .select('*')
+          .or(`barcode.eq.${cleanCode},isbn.eq.${cleanCode}`)
+          .maybeSingle();
+
+        if (existingBook) {
+          // Pause camera/duplicate scans while modal is open and show QuickStockUpdateModal right on the phone!
+          setQuickStockBook(existingBook);
+          setIsQuickStockOpen(true);
+          showNotification('success', `Found: "${existingBook.title}"`);
+        } else {
+          // Book is NOT in inventory -> Navigate to Admin Inventory Add Book form with barcode & ISBN auto-filled!
+          showNotification('info', `New barcode ${cleanCode}! Opening Add Book form...`);
+          setTimeout(() => {
+            navigate(`/admin?tab=inventory&inventory_barcode=${encodeURIComponent(cleanCode)}`);
+          }, 350);
+        }
+      } catch (err) {
+        console.error("Inventory lookup error on scanner:", err);
+      }
+    } else {
+      showNotification('success', `Sent to POS (${activeScannerUser || scannerUser?.full_name || ''})!`);
+    }
   };
 
   const handleManualSubmit = (e) => {
@@ -270,8 +312,8 @@ export default function Scanner() {
     });
     broadcastChannel.current = channel;
 
-    const scanner = new Html5QrcodeScanner("reader", { 
-      fps: 10, 
+    const scanner = new Html5QrcodeScanner("reader", {
+      fps: 10,
       qrbox: { width: 250, height: 150 }
     }, false);
 
@@ -282,7 +324,7 @@ export default function Scanner() {
     });
 
     return () => {
-      scanner.clear().catch(() => {});
+      scanner.clear().catch(() => { });
       supabase.removeChannel(channel);
     };
   }, [isScannerLoggedIn]);
@@ -319,80 +361,74 @@ export default function Scanner() {
   // IF NOT LOGGED IN ON PHONE -> RENDER THIS ONE-TIME LOGIN SCREEN:
   if (!isScannerLoggedIn) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-between">
+      <div className="min-h-screen bg-slate-950 text-slate-900 flex flex-col items-center justify-between p-4 pb-safe">
         <StaffMobilePwaManager userRole={null} scannerRoute="/admin/scanner" />
         <div className="flex-1 flex items-center justify-center p-4 w-full">
-          <form onSubmit={handleScannerLogin} className="bg-gray-800 p-6 rounded-xl w-full max-w-sm shadow-xl border border-gray-700">
-          <div className="flex justify-center mb-3">
-            <img 
-              src="/Icon-512.jpg" 
-              alt="Alexandria Books" 
-              className="w-12 h-12 rounded-2xl object-cover border border-amber-400/30 shadow-md"
-            />
-          </div>
-          <h2 className="text-xl font-bold mb-1 text-center">Scanner Login</h2>
-          <p className="text-xs text-gray-400 text-center mb-5">One-time setup. Links scans strictly to your POS.</p>
-          
-          {loginError && <div className="bg-red-500/20 text-red-400 text-sm p-2 rounded mb-4 text-center">{loginError}</div>}
+          <form onSubmit={handleScannerLogin} className="bg-white text-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-md w-full mx-auto my-auto border border-slate-100">
+            <div className="flex justify-center mb-3">
+              <img
+                src="/Icon-512.jpg"
+                alt="Alexandria Books"
+                className="w-14 h-14 rounded-2xl object-cover border border-blue-100 shadow-md"
+              />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black mb-1 text-center text-slate-900 tracking-tight">Scanner Login</h2>
+            <p className="text-xs text-slate-500 text-center mb-6 font-medium">One-time setup. Links scans strictly to your POS.</p>
 
-          {/* ACTIVE POS USER SELECTION FOR SCANNER */}
-          <div className="mb-6 w-full">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-              Assign Scans To:
-            </label>
-            <select 
-              value={selectedAccount} 
-              onChange={(e) => {
-                setSelectedAccount(e.target.value);
-                setSelectedStaff(e.target.value);
-              }} 
-              required
-              className="w-full p-3.5 rounded-xl border-2 border-blue-100 bg-white text-gray-900 font-extrabold text-sm shadow-sm focus:border-blue-500 focus:outline-none transition-colors appearance-none"
-            >
-              <option value="" disabled>-- Select an Online User --</option>
-              {activeAccounts.length === 0 ? (
-                <option value="" disabled>No active users found on POS</option>
-              ) : (
-                activeAccounts.map((acc, idx) => (
-                  <option key={idx} value={acc.user_name}>
-                    🟢 {acc.user_name} ({acc.user_role})
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
+            {loginError && <div className="bg-red-50 text-red-600 border border-red-200 text-xs font-bold p-2.5 rounded-xl mb-4 text-center">{loginError}</div>}
 
-          <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold">
-            Connect Scanner to My POS
-          </button>
-        </form>
+            {/* ACTIVE POS USER SELECTION FOR SCANNER */}
+            <div className="mb-6 w-full">
+              <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">
+                Assign Scans To:
+              </label>
+              <select
+                value={selectedAccount}
+                onChange={(e) => {
+                  setSelectedAccount(e.target.value);
+                  setSelectedStaff(e.target.value);
+                }}
+                required
+                className="w-full p-3.5 rounded-xl border-2 border-blue-100 bg-slate-50 text-slate-900 font-extrabold text-sm shadow-xs focus:border-blue-600 focus:outline-none transition-colors appearance-none"
+              >
+                <option value="" disabled>-- Select an Online User --</option>
+                {activeAccounts.length === 0 ? (
+                  <option value="" disabled>No active users found on POS</option>
+                ) : (
+                  activeAccounts.map((acc, idx) => (
+                    <option key={idx} value={acc.user_name}>
+                      🟢 {acc.user_name} ({acc.user_role})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-extrabold text-xs shadow-md transition active:scale-95 cursor-pointer">
+              Connect Scanner to My POS
+            </button>
+          </form>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full bg-[#0a0a0f] text-white overflow-hidden relative z-[50] font-sans selection:bg-brand-gold selection:text-black">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-4 pb-safe relative z-[50] font-sans selection:bg-blue-600 selection:text-white">
       {/* Background glow effects */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-gold/20 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/15 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/15 blur-[120px] rounded-full pointer-events-none" />
 
       <AnimatePresence>
         {notification.message && (
-          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3.5 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.5)] font-bold flex items-center gap-3 backdrop-blur-md border whitespace-nowrap overflow-hidden">
+          <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -50, scale: 0.9 }} className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl font-extrabold text-xs flex items-center gap-2 backdrop-blur-md border border-emerald-400/30 bg-emerald-950/80 text-emerald-300 whitespace-nowrap overflow-hidden">
             {notification.type === 'success' ? (
               <>
-                <div className="absolute inset-0 bg-green-500/20 backdrop-blur-md" />
-                <div className="absolute inset-0 border border-green-400/50 rounded-full" />
-                <CheckCircle2 size={20} className="text-green-400 relative z-10" />
-                <span className="text-green-100 relative z-10 tracking-wide">{notification.message}</span>
+                <CheckCircle2 size={16} className="text-emerald-400" />
+                <span>{notification.message}</span>
               </>
             ) : (
-              <>
-                <div className="absolute inset-0 bg-red-500/20 backdrop-blur-md" />
-                <div className="absolute inset-0 border border-red-400/50 rounded-full" />
-                <span className="text-red-100 relative z-10 tracking-wide">{notification.message}</span>
-              </>
+              <span className="text-red-300">{notification.message}</span>
             )}
           </motion.div>
         )}
@@ -401,65 +437,48 @@ export default function Scanner() {
       {/* STAFF MOBILE PWA MANAGER */}
       <StaffMobilePwaManager userRole={scannerUser?.role || 'STAFF'} scannerRoute="/admin/scanner" />
 
-      {/* STEP 3: ACTIVE SCANNER VIEW HEADER WITH CHANGE PROFILE BUTTON */}
-      <div className="flex justify-between items-center bg-gray-900 text-white p-4 shrink-0 relative z-20 border-b border-gray-800">
-        <div>
-          <h2 className="font-bold text-lg leading-tight">Barcode Scanner</h2>
-          <p className="text-xs text-gray-400 font-medium">Logged in as: <span className="text-emerald-400">{activeScannerUser || scannerUser?.full_name || selectedAccount}</span></p>
+      {/* TOP ACTIVE USER BAR */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between shadow-md shrink-0 relative z-20 mb-3">
+        <div className="flex items-center gap-3">
+          <Link to="/admin" className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+            <ChevronLeft size={20} className="text-slate-400" />
+          </Link>
+          <div>
+            <h2 className="font-black text-sm text-white tracking-tight flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Wireless Barcode Scanner
+            </h2>
+            <p className="text-[11px] text-slate-400 font-medium">Logged in: <span className="text-emerald-400 font-bold">{activeScannerUser || scannerUser?.full_name || selectedAccount}</span></p>
+          </div>
         </div>
-        <button 
+        <button
           type="button"
           onClick={() => {
             try {
               endStaffSession('LOGGED_OUT');
-            } catch (err) {}
+            } catch (err) { }
             localStorage.removeItem('pos_scanner_active_user');
             setIsScannerLoggedIn(false);
             setActiveScannerUser(null);
             setScannerUser(null);
           }}
-          className="px-3 py-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+          className="px-3 py-1.5 bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 text-red-300 text-xs font-extrabold rounded-xl transition-all cursor-pointer"
         >
           Change Profile
         </button>
       </div>
 
-      {/* HEADER */}
-      <div className="px-6 py-5 flex items-center justify-center relative z-10 w-full">
-        <Link to="/admin" className="absolute left-6 p-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-full transition-all shadow-lg active:scale-95 z-20">
-          <ChevronLeft size={22} className="text-gray-300" />
-        </Link>
-        <div className="flex flex-col items-center">
-          <img 
-            src="/Icon-512.jpg" 
-            alt="Alexandria Books" 
-            className="w-12 h-12 rounded-2xl object-cover mb-2 border border-brand-gold/30 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-white/10" 
-          />
-          <h1 className="text-2xl md:text-3xl font-black tracking-[0.25em] uppercase text-brand-gold drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]">Scanner</h1>
-          <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Wireless Link</span>
-        </div>
-        {deferredPrompt && (
-          <button 
-            onClick={handleInstallClick}
-            className="absolute right-6 flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white px-3 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95 z-20"
-          >
-            <img src="/Icon-512.jpg" alt="App Icon" className="w-4 h-4 rounded-full object-cover" />
-            <span className="hidden sm:inline">Install App</span>
-          </button>
-        )}
-      </div>
+      <div className="flex-1 flex flex-col items-center overflow-y-auto px-2 pb-6 relative z-10 no-scrollbar">
 
-      <div className="flex-1 flex flex-col items-center overflow-y-auto px-4 pb-8 relative z-10 hide-scrollbar">
-        
         {/* ACTIVE POS USER SELECTION FOR SCANNER */}
-        <div className="mb-6 w-full max-w-md">
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+        <div className="mb-4 w-full max-w-sm">
+          <label className="block text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
             Assign Scans To:
           </label>
-          <select 
-            value={selectedAccount || activeScannerUser || scannerUser?.full_name || ''} 
-            onChange={(e) => handleAccountChange(e.target.value)} 
-            className="w-full p-3.5 rounded-xl border-2 border-blue-100 bg-white text-gray-900 font-extrabold text-sm shadow-sm focus:border-blue-500 focus:outline-none transition-colors appearance-none"
+          <select
+            value={selectedAccount || activeScannerUser || scannerUser?.full_name || ''}
+            onChange={(e) => handleAccountChange(e.target.value)}
+            className="w-full p-3 rounded-xl border border-slate-800 bg-slate-900 text-white font-bold text-xs shadow-xs focus:border-blue-500 focus:outline-none transition-colors appearance-none"
           >
             <option value="" disabled>-- Select an Online User --</option>
             {activeAccounts.length === 0 ? (
@@ -475,62 +494,65 @@ export default function Scanner() {
         </div>
 
         {/* TARGET TOGGLE */}
-        <div className="flex bg-white/5 backdrop-blur-xl rounded-2xl p-1.5 mb-8 w-full max-w-md border border-white/10 shadow-2xl relative">
-          <button 
+        <div className="flex bg-slate-900/80 rounded-2xl p-1 mb-4 w-full max-w-sm border border-slate-800 shadow-xl relative">
+          <button
             onClick={() => updateScanTarget('POS')}
-            className={`flex-1 py-4 text-xs sm:text-sm font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-500 flex items-center justify-center gap-2 relative overflow-hidden ${scanTarget === 'POS' ? 'text-black shadow-[0_0_30px_rgba(251,191,36,0.3)] scale-[1.02]' : 'text-gray-400 hover:text-white'}`}
+            className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 ${scanTarget === 'POS' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
           >
-            {scanTarget === 'POS' && <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-500" />}
-            <span className="relative z-10 flex items-center gap-2">🛒 POS</span>
+            <span>🛒 POS</span>
           </button>
-          <button 
+          <button
             onClick={() => updateScanTarget('Inventory')}
-            className={`flex-1 py-4 text-xs sm:text-sm font-black uppercase tracking-[0.15em] rounded-xl transition-all duration-500 flex items-center justify-center gap-2 relative overflow-hidden ${scanTarget === 'Inventory' ? 'text-black shadow-[0_0_30px_rgba(251,191,36,0.3)] scale-[1.02]' : 'text-gray-400 hover:text-white'}`}
+            className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 ${scanTarget === 'Inventory' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
           >
-            {scanTarget === 'Inventory' && <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-yellow-500" />}
-            <span className="relative z-10 flex items-center gap-2">📦 Inventory</span>
+            <span>📦 Inventory</span>
           </button>
         </div>
 
-        {/* SCANNER CONTAINER */}
-        <div className="relative w-full max-w-md">
-          {/* Scanner frame decor */}
-          <div className="absolute -inset-1 bg-gradient-to-b from-brand-gold/30 to-blue-600/30 rounded-3xl blur-md opacity-70"></div>
-          <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-brand-gold rounded-tl-3xl z-20 pointer-events-none translate-x-[-2px] translate-y-[-2px]"></div>
-          <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-brand-gold rounded-tr-3xl z-20 pointer-events-none translate-x-[2px] translate-y-[-2px]"></div>
-          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-brand-gold rounded-bl-3xl z-20 pointer-events-none translate-x-[-2px] translate-y-[2px]"></div>
-          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-brand-gold rounded-br-3xl z-20 pointer-events-none translate-x-[2px] translate-y-[2px]"></div>
-          
-          <div className="bg-[#13141c] rounded-3xl overflow-hidden shadow-2xl relative z-10 border border-white/5 p-2">
-            <div id="reader" className="w-full text-white"></div>
-          </div>
+        {/* VIEWFINDER FRAME */}
+        <div className="relative w-full max-w-sm mx-auto aspect-square rounded-3xl overflow-hidden border-2 border-blue-500/80 shadow-[0_0_30px_rgba(37,99,235,0.25)] bg-black my-4">
+          <div id="reader" className="w-full h-full text-white"></div>
         </div>
 
-        <p className="mt-8 text-gray-400 font-medium text-center px-6 text-sm leading-relaxed max-w-md">
-          Center the barcode inside the camera view.<br/>
-          <span className="text-brand-gold font-bold">Scans are instantly synchronized.</span>
+        <p className="mt-4 text-slate-400 font-medium text-center px-4 text-xs leading-relaxed max-w-sm">
+          Center the barcode inside the camera view.<br />
+          <span className="text-blue-400 font-bold">Scans are instantly synchronized to POS.</span>
         </p>
-        
+
         {/* MANUAL ENTRY */}
-        <div className="mt-8 w-full max-w-md bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-2xl">
-          <h2 className="text-xs text-brand-gold mb-4 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></div>
+        <div className="mt-4 w-full max-w-sm bg-slate-900/80 p-4 rounded-2xl border border-slate-800 shadow-xl">
+          <h2 className="text-[11px] text-blue-400 mb-3 font-extrabold uppercase tracking-wider flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
             Manual Override
           </h2>
-          <form onSubmit={handleManualSubmit} className="flex flex-col sm:flex-row gap-3">
-            <input 
-              type="text" 
-              placeholder="Enter barcode / ISBN..." 
+          <form onSubmit={handleManualSubmit} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Enter barcode / ISBN..."
               value={manualBarcode}
               onChange={(e) => setManualBarcode(e.target.value)}
-              className="flex-1 w-full bg-black/40 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/50 transition-all placeholder-gray-600 font-medium min-w-0"
+              className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-xs focus:outline-none focus:border-blue-500 transition-all placeholder-slate-500 font-mono"
             />
-            <button type="submit" className="w-full sm:w-auto bg-gradient-to-r from-amber-400 to-yellow-500 text-black px-6 py-4 rounded-xl font-black uppercase tracking-wider text-sm shadow-[0_5px_15px_rgba(251,191,36,0.3)] hover:shadow-[0_5px_25px_rgba(251,191,36,0.5)] active:scale-95 transition-all shrink-0">
+            <button type="submit" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2.5 rounded-xl font-extrabold uppercase tracking-wider text-xs shadow-md active:scale-95 transition-all shrink-0 cursor-pointer">
               Send
             </button>
           </form>
         </div>
       </div>
+
+      {/* QUICK STOCK, PRICE & DISCOUNT UPDATE MODAL */}
+      <QuickStockUpdateModal
+        book={quickStockBook}
+        isOpen={isQuickStockOpen}
+        onClose={() => {
+          setIsQuickStockOpen(false);
+          setQuickStockBook(null);
+        }}
+        currentUser={scannerUser}
+        onUpdated={(updatedBook) => {
+          showNotification('success', `Updated: "${updatedBook.title}"!`);
+        }}
+      />
 
       {/* CUSTOM CSS FOR HTML5 QR CODE SCANNER */}
       <style>{`

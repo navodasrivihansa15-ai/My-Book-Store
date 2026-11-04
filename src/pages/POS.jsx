@@ -463,7 +463,7 @@ export default function POS() {
       const [booksRes, collectablesRes, settingsRes] = await Promise.all([
         supabase.from('books').select('*').order('title'),
         supabase.from('collectables').select('*').eq('is_active', true).order('title'),
-        supabase.from('store_settings').select('*').limit(1).maybeSingle()
+        supabase.from('store_settings').select('*')
       ]);
 
       const booksData = booksRes.data || [];
@@ -482,7 +482,19 @@ export default function POS() {
       setBooks(mergedCatalog);
       setFilteredBooks(mergedCatalog);
 
-      if (settingsRes.data) setStoreSettings(settingsRes.data);
+      if (settingsRes.data) {
+        if (Array.isArray(settingsRes.data)) {
+          const gen = settingsRes.data.find(s => s.setting_key === 'general_info')?.setting_value;
+          if (gen && typeof gen === 'object') {
+            setStoreSettings(prev => ({ ...prev, ...gen }));
+          } else {
+            const direct = settingsRes.data.find(s => s.name);
+            if (direct) setStoreSettings(prev => ({ ...prev, ...direct }));
+          }
+        } else if (settingsRes.data.name) {
+          setStoreSettings(prev => ({ ...prev, ...settingsRes.data }));
+        }
+      }
     } catch (err) {
       console.error('Error fetching POS catalog:', err);
     } finally {

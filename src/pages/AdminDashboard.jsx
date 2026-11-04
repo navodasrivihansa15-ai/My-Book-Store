@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Package, Check, AlertCircle, UploadCloud, Printer, ChevronLeft, Search, Image as ImageIcon, Edit2, X, CreditCard, Trash2, Settings, Truck, Database, Download, Upload, AlertTriangle, ShoppingCart, Shield, ShieldCheck, BookOpen } from 'lucide-react';
 import { formatPrice } from '../lib/utils';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -12,132 +12,213 @@ import { printReceipt } from '../utils/electronBridge';
 import StaffMobilePwaManager from '../components/StaffMobilePwaManager';
 import StaffActivityVault from '../components/StaffActivityVault';
 import AdminCollectables from '../components/AdminCollectables';
+import QuickStockUpdateModal from '../components/QuickStockUpdateModal';
 import { logStaffAction } from '../utils/staffActivityTracker';
 
 export default function AdminDashboard() {
   const { user, userRole, userFullName } = useAuth();
   const currentUser = { ...user, role: userRole, full_name: userFullName };
-  const [activeTab, setActiveTab] = useState('inventory');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const resolvedTab = (tabParam === 'books' || tabParam === 'inventory') ? 'inventory' : (tabParam || 'inventory');
+  const [activeTab, setActiveTab] = useState(resolvedTab);
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab((tabParam === 'books' || tabParam === 'inventory') ? 'inventory' : tabParam);
+    }
+  }, [tabParam]);
   const [showRequests, setShowRequests] = useState(false);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="max-w-7xl mx-auto pt-4 md:pt-8 pb-24 md:pb-8 px-4 md:px-0">
+    <div className="flex flex-col lg:flex-row w-full min-h-screen bg-slate-50 text-slate-900">
       <StaffMobilePwaManager userRole={userRole} scannerRoute="/admin/scanner" />
-      <div className="flex flex-col mb-4 md:mb-8 gap-4 md:gap-6 no-print">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-brand-blue font-bold mb-1 md:mb-2 whitespace-nowrap">Command Center</h1>
-            <p className="text-xs sm:text-sm md:text-base text-gray-500 tracking-wide">Manage your bookstore inventory, banners, and orders.</p>
+
+      {/* DESKTOP SIDEBAR */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-slate-900 text-white min-h-screen p-4 shrink-0 no-print">
+        <div className="flex items-center gap-3 px-3 py-4 mb-4 border-b border-slate-800">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-lg shadow-md">
+            A
           </div>
-          <button 
-            onClick={() => setShowRequests(true)} 
-            className="bg-brand-gold text-black px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-sm shadow-md hover:bg-yellow-500 transition-colors flex items-center gap-2 cursor-pointer"
-          >
-            <BookOpen size={18} /> View Book Requests
-          </button>
+          <div>
+            <h2 className="font-black text-sm tracking-tight">Admin Console</h2>
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Alexandria Books</p>
+          </div>
         </div>
 
-        {/* Mobile Navigation */}
-        <div className="flex overflow-x-auto whitespace-nowrap hide-scrollbar space-x-3 pb-2 md:hidden w-full items-center">
-          <button onClick={() => setActiveTab('inventory')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'inventory' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+        <nav className="flex-1 space-y-1.5 overflow-y-auto no-scrollbar">
+          <button
+            onClick={() => setActiveTab('inventory')}
+            className={activeTab === 'inventory'
+              ? 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-md transition cursor-pointer'
+              : 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition cursor-pointer'}
+          >
             <Plus size={16} /> Inventory
           </button>
-          <button onClick={() => setActiveTab('collectables')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'collectables' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+          <button
+            onClick={() => setActiveTab('collectables')}
+            className={activeTab === 'collectables'
+              ? 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-md transition cursor-pointer'
+              : 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition cursor-pointer'}
+          >
             <span>🎁</span> Collectables
           </button>
-          <button onClick={() => setActiveTab('orders')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'orders' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={activeTab === 'orders'
+              ? 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-md transition cursor-pointer'
+              : 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition cursor-pointer'}
+          >
             <Package size={16} /> Orders
           </button>
-          <Link to="/admin/pos" className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 bg-white border border-gray-200 text-theme-medium hover:text-theme-deep">
+          <Link to="/admin/pos" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition">
             <ShoppingCart size={16} /> Launch POS
           </Link>
           {['OWNER', 'ADMIN'].includes(userRole) && (
-            <Link to="/admin/users" className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 bg-white border border-gray-200 text-theme-medium hover:text-theme-deep">
+            <Link to="/admin/users" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition">
               <Shield size={16} /> Manage Users
             </Link>
           )}
           {userRole === 'OWNER' && (
-            <button onClick={() => setActiveTab('vault')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'vault' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <button
+              onClick={() => setActiveTab('vault')}
+              className={activeTab === 'vault'
+                ? 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-md transition cursor-pointer'
+                : 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition cursor-pointer'}
+            >
               <ShieldCheck size={16} /> Staff Vault
             </button>
           )}
-          <button onClick={() => setActiveTab('banners')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'banners' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+          <button
+            onClick={() => setActiveTab('banners')}
+            className={activeTab === 'banners'
+              ? 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-md transition cursor-pointer'
+              : 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition cursor-pointer'}
+          >
             <ImageIcon size={16} /> Banners
           </button>
-          <button onClick={() => setActiveTab('store')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'store' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
-            <Settings size={16} /> Store
+          <button
+            onClick={() => setActiveTab('store')}
+            className={activeTab === 'store'
+              ? 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-md transition cursor-pointer'
+              : 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition cursor-pointer'}
+          >
+            <Settings size={16} /> Store Settings
           </button>
-          <button onClick={() => setActiveTab('shipping')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'shipping' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
-            <Truck size={16} /> Shipping
+          <button
+            onClick={() => setActiveTab('shipping')}
+            className={activeTab === 'shipping'
+              ? 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-md transition cursor-pointer'
+              : 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition cursor-pointer'}
+          >
+            <Truck size={16} /> Shipping Rates
           </button>
           {['OWNER', 'ADMIN'].includes(userRole) && (
-            <button onClick={() => setActiveTab('database')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'database' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <button
+              onClick={() => setActiveTab('database')}
+              className={activeTab === 'database'
+                ? 'w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold text-xs shadow-md transition cursor-pointer'
+                : 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white font-bold text-xs transition cursor-pointer'}
+            >
               <Database size={16} /> Database
             </button>
           )}
+        </nav>
+
+        <div className="pt-4 border-t border-slate-800 space-y-2 shrink-0">
+          <button
+            onClick={() => setShowRequests(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-300 font-extrabold text-xs hover:bg-amber-500/25 transition cursor-pointer"
+          >
+            <BookOpen size={15} /> Book Requests
+          </button>
+          <Link to="/" className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold text-xs transition">
+            ← Storefront
+          </Link>
+        </div>
+      </aside>
+
+      {/* MOBILE & TABLET TOP NAVIGATION */}
+      <div className="lg:hidden sticky top-0 z-40 bg-slate-900 text-white p-3 shadow-md no-print w-full">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center font-black text-white text-xs shadow-xs">
+              A
+            </div>
+            <div>
+              <h2 className="font-black text-xs tracking-tight">Admin Console</h2>
+              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Alexandria</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowRequests(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 border border-amber-400/30 text-amber-300 font-extrabold text-[11px] flex items-center gap-1 active:scale-95"
+            >
+              <BookOpen size={13} /> Requests
+            </button>
+            <Link to="/" className="px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold text-[11px]">
+              Store
+            </Link>
+          </div>
         </div>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex mx-auto w-fit bg-slate-50 p-1 rounded-lg border border-slate-200 shadow-sm overflow-x-auto hide-scrollbar">
-          <button onClick={() => setActiveTab('inventory')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'inventory' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-            <Plus size={18} /> Inventory
-          </button>
-          <button onClick={() => setActiveTab('collectables')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'collectables' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-            <span>🎁</span> Collectables
-          </button>
-          <button onClick={() => setActiveTab('orders')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'orders' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-            <Package size={18} /> Orders
-          </button>
-          <Link to="/admin/pos" className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer text-theme-medium hover:text-theme-deep">
-            <ShoppingCart size={18} /> Launch POS
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-2">
+          {[
+            { id: 'inventory', label: 'Inventory', icon: <Plus size={14} /> },
+            { id: 'collectables', label: 'Collectables', icon: <span>🎁</span> },
+            { id: 'orders', label: 'Orders', icon: <Package size={14} /> },
+            { id: 'banners', label: 'Banners', icon: <ImageIcon size={14} /> },
+            { id: 'store', label: 'Store', icon: <Settings size={14} /> },
+            { id: 'shipping', label: 'Shipping', icon: <Truck size={14} /> },
+            ...(userRole === 'OWNER' ? [{ id: 'vault', label: 'Staff Vault', icon: <ShieldCheck size={14} /> }] : []),
+            ...(['OWNER', 'ADMIN'].includes(userRole) ? [{ id: 'database', label: 'Database', icon: <Database size={14} /> }] : []),
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition active:scale-95 flex items-center gap-1.5 ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-800 text-slate-300'
+                }`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+          <Link to="/admin/pos" className="px-3.5 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition active:scale-95 bg-slate-800 text-slate-300 flex items-center gap-1.5">
+            <ShoppingCart size={14} /> POS
           </Link>
           {['OWNER', 'ADMIN'].includes(userRole) && (
-            <Link to="/admin/users" className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer text-theme-medium hover:text-theme-deep">
-              <Shield size={18} /> Manage Users
+            <Link to="/admin/users" className="px-3.5 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition active:scale-95 bg-slate-800 text-slate-300 flex items-center gap-1.5">
+              <Shield size={14} /> Users
             </Link>
-          )}
-          {userRole === 'OWNER' && (
-            <button onClick={() => setActiveTab('vault')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'vault' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-              <ShieldCheck size={18} /> Staff Vault
-            </button>
-          )}
-          <button onClick={() => setActiveTab('banners')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'banners' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-            <ImageIcon size={18} /> Banners
-          </button>
-          <button onClick={() => setActiveTab('store')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'store' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-            <Settings size={18} /> Store
-          </button>
-          <button onClick={() => setActiveTab('shipping')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'shipping' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-            <Truck size={18} /> Shipping
-          </button>
-          {['OWNER', 'ADMIN'].includes(userRole) && (
-            <button onClick={() => setActiveTab('database')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'database' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
-              <Database size={18} /> Database
-            </button>
           )}
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        {activeTab === 'inventory' && <motion.div key="inventory" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><InventoryManagement currentUser={currentUser} /></motion.div>}
-        {activeTab === 'collectables' && (
-          <motion.div key="collectables" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print">
-            <AdminCollectables currentUser={currentUser} />
-          </motion.div>
-        )}
-        {activeTab === 'banners' && <motion.div key="banners" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><BannerManagement /></motion.div>}
-        {activeTab === 'orders' && <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><OrderManagement currentUser={currentUser} /></motion.div>}
-        {activeTab === 'store' && <motion.div key="store" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><StoreSettings /></motion.div>}
-        {activeTab === 'shipping' && <motion.div key="shipping" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><ShippingSettings /></motion.div>}
-        {activeTab === 'database' && <motion.div key="database" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><DatabaseManagement userRole={userRole} /></motion.div>}
-        {activeTab === 'vault' && userRole === 'OWNER' && (
-          <motion.div key="vault" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print">
-            <StaffActivityVault currentUser={currentUser} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* MAIN VIEWPORT */}
+      <main className="flex-1 min-w-0 p-3 sm:p-5 lg:p-8 bg-slate-50 min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          <AnimatePresence mode="wait">
+            {activeTab === 'inventory' && <motion.div key="inventory" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><InventoryManagement currentUser={currentUser} /></motion.div>}
+            {activeTab === 'collectables' && (
+              <motion.div key="collectables" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print">
+                <AdminCollectables currentUser={currentUser} />
+              </motion.div>
+            )}
+            {activeTab === 'banners' && <motion.div key="banners" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><BannerManagement /></motion.div>}
+            {activeTab === 'orders' && <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><OrderManagement currentUser={currentUser} /></motion.div>}
+            {activeTab === 'store' && <motion.div key="store" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><StoreSettings /></motion.div>}
+            {activeTab === 'shipping' && <motion.div key="shipping" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><ShippingSettings /></motion.div>}
+            {activeTab === 'database' && <motion.div key="database" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><DatabaseManagement userRole={userRole} /></motion.div>}
+            {activeTab === 'vault' && userRole === 'OWNER' && (
+              <motion.div key="vault" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print">
+                <StaffActivityVault currentUser={currentUser} />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <BookRequestsModal isOpen={showRequests} onClose={() => setShowRequests(false)} />
+          <BookRequestsModal isOpen={showRequests} onClose={() => setShowRequests(false)} />
+        </div>
+      </main>
 
       <style>{`
         @media print {
@@ -146,7 +227,7 @@ export default function AdminDashboard() {
           .print-container { width: 100%; border: none; box-shadow: none; background: white; color: black; }
         }
       `}</style>
-    </motion.div>
+    </div>
   );
 }
 
@@ -164,6 +245,8 @@ function InventoryManagement({ currentUser }) {
   const [isAddPublisherModalOpen, setIsAddPublisherModalOpen] = useState(false);
   const [isAuthorModalOpen, setIsAuthorModalOpen] = useState(false);
   const [isTranslatorModalOpen, setIsTranslatorModalOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const initialBarcode = searchParams.get('inventory_barcode') || '';
   const [editingBook, setEditingBook] = useState(null);
   const [publisherFormData, setPublisherFormData] = useState({ name: '' });
   const [publisherFile, setPublisherFile] = useState(null);
@@ -172,6 +255,8 @@ function InventoryManagement({ currentUser }) {
   const [categoryFormData, setCategoryFormData] = useState({ name: '' });
   const [categories, setCategories] = useState([]);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [quickStockBook, setQuickStockBook] = useState(null);
+  const [isQuickStockOpen, setIsQuickStockOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false,
@@ -182,6 +267,16 @@ function InventoryManagement({ currentUser }) {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
+  useEffect(() => {
+    if (initialBarcode) {
+      setFormData(prev => ({
+        ...prev,
+        barcode: initialBarcode,
+        isbn: initialBarcode
+      }));
+    }
+  }, [initialBarcode]);
+
   const fetchBooks = async () => {
     const { data } = await supabase.from('books').select('*').order('created_at', { ascending: false });
     if (data) setBooks(data);
@@ -191,6 +286,49 @@ function InventoryManagement({ currentUser }) {
     const { data } = await supabase.from('publishers').select('*').order('name');
     if (data) setPublishers(data);
   };
+
+  const handleInventoryBarcodeScan = async (scannedCode) => {
+    const cleanCode = String(scannedCode || '').trim();
+    if (!cleanCode) return;
+
+    // 1. Check local books array first for instant speed, then fallback to Supabase `books` table
+    let existingBook = books.find(
+      (b) => String(b.barcode || '').trim() === cleanCode || String(b.isbn || '').trim() === cleanCode
+    );
+
+    if (!existingBook) {
+      const { data } = await supabase
+        .from('books')
+        .select('*')
+        .or(`barcode.eq.${cleanCode},isbn.eq.${cleanCode}`)
+        .maybeSingle();
+      if (data) existingBook = data;
+    }
+
+    if (existingBook) {
+      // CASE A: ALREADY IN INVENTORY -> POP UP QUICK STOCK & PRICE DIALOG
+      setQuickStockBook(existingBook);
+      setIsQuickStockOpen(true);
+      showNotification('success', `Found "${existingBook.title}"! Opening quick update...`);
+    } else {
+      // CASE B: NOT IN INVENTORY -> AUTO-FILL BARCODE + ISBN FOR ADD NEW BOOK
+      setEditingBook(null);
+      setFormData((prev) => ({
+        ...prev,
+        title: '',
+        barcode: cleanCode,
+        isbn: cleanCode // Enforce isbn = barcode rule
+      }));
+      showNotification('success', `New barcode ${cleanCode} loaded! Ready to add new book.`);
+      const addSection = document.getElementById('add-new-book-section');
+      if (addSection) addSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const inventoryScanRef = useRef(null);
+  useEffect(() => {
+    inventoryScanRef.current = handleInventoryBarcodeScan;
+  });
 
   useEffect(() => {
     fetchBooks();
@@ -209,27 +347,49 @@ function InventoryManagement({ currentUser }) {
 
     fetchDropdownData();
 
-    // Listen for Broadcast messages from Mobile Scanner
+    // Check if redirected from Mobile Scanner with a new barcode to auto-fill
+    const params = new URLSearchParams(window.location.search);
+    const urlBarcode = params.get('inventory_barcode');
+    if (urlBarcode) {
+      handleInventoryBarcodeScan(urlBarcode);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    // Subscribe to existing `pos_remote_scans` table so scanning on phone while Inventory page is open triggers the popup immediately
+    const remoteScansChannel = supabase
+      .channel('inventory-remote-scanner')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'pos_remote_scans' },
+        (payload) => {
+          const code = payload.new?.barcode;
+          if (code && typeof inventoryScanRef.current === 'function') {
+            inventoryScanRef.current(code);
+          }
+        }
+      )
+      .subscribe();
+
+    // Also listen to broadcast channel in case of direct socket broadcast
     const scannerChannel = supabase
       .channel('scanner-broadcast-channel')
       .on(
         'broadcast',
         { event: 'scan' },
         (payload) => {
-          const scannedBarcode = payload.payload.barcode;
-          const target = payload.payload.target;
-          
-          if (target === 'Inventory' && scannedBarcode) {
-            setFormData(prev => ({ ...prev, barcode: scannedBarcode, isbn: scannedBarcode }));
-            showNotification('success', `Barcode ${scannedBarcode} loaded from Scanner!`);
+          const scannedBarcode = payload.payload?.barcode;
+          const target = payload.payload?.target;
+          if (target === 'Inventory' && scannedBarcode && typeof inventoryScanRef.current === 'function') {
+            inventoryScanRef.current(scannedBarcode);
           }
         }
       )
       .subscribe((status) => {
-         console.log("Inventory Scanner Broadcast Status:", status);
+        console.log("Inventory Scanner Broadcast Status:", status);
       });
 
     return () => {
+      supabase.removeChannel(remoteScansChannel);
       supabase.removeChannel(scannerChannel);
     };
   }, []);
@@ -437,7 +597,7 @@ function InventoryManagement({ currentUser }) {
       )}
 
       {/* ADD BOOK SECTION */}
-      <div className="bg-slate-50 border border-slate-200 p-8 rounded-xl shadow-md">
+      <div id="add-new-book-section" className="bg-slate-50 border border-slate-200 p-8 rounded-xl shadow-md">
         <h2 className="text-xl font-bold text-brand-blue mb-6">Add New Book</h2>
         <form onSubmit={handleAddBook} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
@@ -445,17 +605,17 @@ function InventoryManagement({ currentUser }) {
               <input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Book Title" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2.5 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
               <div>
                 <label className="block text-xs uppercase tracking-widest text-theme-medium mb-1 font-bold">Barcode / ISBN *</label>
-                <input 
-                  type="text" 
-                  name="barcode" 
-                  placeholder="Scan or type barcode..." 
-                  value={formData.barcode || ''} 
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    barcode: e.target.value, 
-                    isbn: e.target.value 
-                  })} 
-                  className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2.5 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50 font-mono" 
+                <input
+                  type="text"
+                  name="barcode"
+                  placeholder="Scan or type barcode..."
+                  value={formData.barcode || ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    barcode: e.target.value,
+                    isbn: e.target.value
+                  })}
+                  className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2.5 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50 font-mono"
                 />
               </div>
 
@@ -542,29 +702,29 @@ function InventoryManagement({ currentUser }) {
       </div>
 
       {/* INVENTORY LIST & SEARCH */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 md:p-6 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center bg-gray-50 gap-4 md:gap-0">
-          <h2 className="text-xl font-bold text-brand-blue">Inventory</h2>
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 overflow-hidden mb-6">
+        <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-50/50 gap-4 md:gap-0">
+          <h2 className="text-xl font-black text-slate-900 tracking-tight">Inventory</h2>
           <div className="relative w-full md:w-auto">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-            <input type="text" placeholder="Search by name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-white border border-slate-300 focus:bg-white rounded-full py-2 md:py-1.5 pl-9 pr-4 text-sm focus:outline-none focus:border-brand-gold w-full md:w-64 shadow-sm" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+            <input type="text" placeholder="Search by name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-slate-50 border border-slate-200 focus:bg-white rounded-full py-2 md:py-1.5 pl-9 pr-4 text-sm focus:outline-none focus:border-blue-600 w-full md:w-64 shadow-2xs font-medium" />
           </div>
         </div>
 
         {/* DESKTOP TABLE */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
-              <tr><th className="px-6 py-3">Title</th><th className="px-6 py-3">Price</th><th className="px-6 py-3">Stock</th><th className="px-6 py-3 text-right">Action</th></tr>
+        <div className="hidden md:block overflow-x-auto w-full">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-slate-50 border-b border-slate-100 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+              <tr><th className="px-6 py-3.5">Title</th><th className="px-6 py-3.5">Price</th><th className="px-6 py-3.5">Stock</th><th className="px-6 py-3.5 text-right">Action</th></tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {filteredBooks.map(book => (
-                <tr key={book.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 font-semibold text-brand-blue">{book.title}</td>
-                  <td className="px-6 py-3">{formatPrice(book.price)}</td>
-                  <td className="px-6 py-3">{book.stock}</td>
-                  <td className="px-6 py-3 text-right">
-                    <button onClick={() => { setEditingBook(book); setIsEditModalOpen(true); setFile(null); setPreview(book.cover_image_url); }} className="text-brand-gold hover:text-brand-blue font-bold uppercase text-xs tracking-wider flex items-center justify-end gap-1 ml-auto cursor-pointer">
+                <tr key={book.id} className="hover:bg-blue-50/40 transition-colors border-b border-slate-50 last:border-0">
+                  <td className="px-6 py-3.5 font-bold text-slate-900">{book.title}</td>
+                  <td className="px-6 py-3.5 font-bold text-blue-600">{formatPrice(book.price)}</td>
+                  <td className="px-6 py-3.5 font-bold">{book.stock}</td>
+                  <td className="px-6 py-3.5 text-right">
+                    <button onClick={() => { setEditingBook(book); setIsEditModalOpen(true); setFile(null); setPreview(book.cover_image_url); }} className="text-blue-600 hover:text-blue-800 font-extrabold uppercase text-xs tracking-wider flex items-center justify-end gap-1 ml-auto cursor-pointer">
                       <Edit2 size={14} /> Edit
                     </button>
                   </td>
@@ -602,26 +762,26 @@ function InventoryManagement({ currentUser }) {
       {/* EDIT MODAL */}
       <AnimatePresence>
         {isEditModalOpen && (
-          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 z-[50] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto mx-auto bg-slate-50 rounded-2xl p-5 md:p-6 shadow-2xl">
-              <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer z-10"><X size={24} /></button>
-              <h2 className="text-xl md:text-2xl font-bold text-brand-blue mb-4 md:mb-6">Edit Book</h2>
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full sm:max-w-3xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-100 bg-white max-h-[92vh] overflow-y-auto">
+              <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 cursor-pointer z-10"><X size={24} /></button>
+              <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-4 md:mb-6">Edit Book</h2>
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
                   <input required type="text" name="title" value={editingBook.title} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
                   <div>
                     <label className="block text-xs uppercase tracking-widest text-theme-medium mb-1 font-bold">Barcode / ISBN *</label>
-                    <input 
-                      type="text" 
-                      name="barcode" 
-                      placeholder="Scan or type barcode..." 
-                      value={editingBook.barcode || ''} 
-                      onChange={(e) => setEditingBook({ 
-                        ...editingBook, 
-                        barcode: e.target.value, 
-                        isbn: e.target.value 
-                      })} 
-                      className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50 font-mono" 
+                    <input
+                      type="text"
+                      name="barcode"
+                      placeholder="Scan or type barcode..."
+                      value={editingBook.barcode || ''}
+                      onChange={(e) => setEditingBook({
+                        ...editingBook,
+                        barcode: e.target.value,
+                        isbn: e.target.value
+                      })}
+                      className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50 font-mono"
                     />
                   </div>
 
@@ -798,13 +958,23 @@ function InventoryManagement({ currentUser }) {
           </div>
         )}
       </AnimatePresence>
+      {/* QUICK STOCK, PRICE & DISCOUNT UPDATE MODAL */}
+      <QuickStockUpdateModal
+        book={quickStockBook}
+        isOpen={isQuickStockOpen}
+        onClose={() => {
+          setIsQuickStockOpen(false);
+          setQuickStockBook(null);
+        }}
+        currentUser={activeUser}
+        onUpdated={(updatedBook) => {
+          setBooks((prev) => prev.map((b) => (b.id === updatedBook.id ? { ...b, ...updatedBook } : b)));
+          showNotification('success', `Stock and price updated for "${updatedBook.title}"!`);
+        }}
+      />
     </div>
   );
 }
-
-// ==========================================
-// BANNER MANAGEMENT (Add, Toggle)
-// ==========================================
 function BannerManagement() {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1035,12 +1205,12 @@ function OrderManagement({ currentUser }) {
 
   const { user, userFullName } = useAuth();
   let activeStaffName = null;
-  try { 
+  try {
     const stored = JSON.parse(sessionStorage.getItem('active_staff'))?.name;
     if (stored && !stored.includes('@')) {
       activeStaffName = stored;
     }
-  } catch(e) {}
+  } catch (e) { }
   const handlerName = activeStaffName || userFullName || user?.email || user?.user_metadata?.full_name || 'Unknown Staff';
 
   const fetchOrders = async () => {
@@ -1078,7 +1248,7 @@ function OrderManagement({ currentUser }) {
     let updates = { [field]: value };
     let statToIncrement = null;
     let shouldIncrementGeneral = false;
-    
+
     if (field === 'order_status' && value === 'Packed') {
       if (!existingOrder.packed_by) {
         updates.packed_by = handlerName;
@@ -1087,11 +1257,11 @@ function OrderManagement({ currentUser }) {
         shouldIncrementGeneral = true;
       }
     }
-    
+
     const { error } = await supabase.from('orders').update(updates).eq('id', id);
-    if (!error) { 
-      fetchOrders(); 
-      if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates }); 
+    if (!error) {
+      fetchOrders();
+      if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates });
 
       if (field === 'order_status') {
         if (value === 'Packed') {
@@ -1117,7 +1287,7 @@ function OrderManagement({ currentUser }) {
           if (statToIncrement) await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: statToIncrement });
           await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_handled' });
         }
-      } catch(e) {}
+      } catch (e) { }
     }
   };
 
@@ -1125,7 +1295,7 @@ function OrderManagement({ currentUser }) {
     const existingOrder = orders.find(o => o.id === id) || {};
     const updates = { payment_status: 'Verified', order_status: 'Processing', reject_reason: null };
     let shouldIncrement = false;
-    
+
     if (!existingOrder.payment_verified_by) {
       updates.payment_verified_by = handlerName;
       updates.handled_by = handlerName;
@@ -1133,9 +1303,9 @@ function OrderManagement({ currentUser }) {
     }
 
     const { error } = await supabase.from('orders').update(updates).eq('id', id);
-    if (!error) { 
-      fetchOrders(); 
-      if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates }); 
+    if (!error) {
+      fetchOrders();
+      if (selectedOrder) setSelectedOrder({ ...selectedOrder, ...updates });
       logStaffAction('PAYMENT_VERIFIED', `Verified payment for Order #${id}`, { orderId: id, amount: existingOrder.total_amount }, activeUser);
       try {
         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
@@ -1143,7 +1313,7 @@ function OrderManagement({ currentUser }) {
           await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'payments_verified' });
           await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_handled' });
         }
-      } catch(e) {}
+      } catch (e) { }
     }
   };
 
@@ -1183,7 +1353,7 @@ function OrderManagement({ currentUser }) {
     }
 
     const MailingCover = ({ order, storeSettings, mailingBgUrl, billLogoExt, imgTimestamp }) => (
-      <div 
+      <div
         className="a5-landscape-cover flex flex-col justify-between bg-white text-black relative h-full w-full"
         style={{
           backgroundImage: `url(${mailingBgUrl})`,
@@ -1216,7 +1386,7 @@ function OrderManagement({ currentUser }) {
                 </div>
                 {order.payment_method?.includes('COD') && (
                   <div className="ml-4 border-2 border-black px-5 py-2.5 rounded-xl shrink-0 self-start bg-white">
-                    <p className="text-lg font-extrabold tracking-wide text-black whitespace-nowrap">COD : {Number(order.total_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/=</p>
+                    <p className="text-lg font-extrabold tracking-wide text-black whitespace-nowrap">COD : {Number(order.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/=</p>
                   </div>
                 )}
               </div>
@@ -1229,7 +1399,7 @@ function OrderManagement({ currentUser }) {
               <p className="text-xl font-bold">#{order.display_id || order.id.split('-')[0].toUpperCase()}</p>
             </div>
             <div className="border-2 border-black p-2 font-bold text-sm uppercase px-4 text-center bg-white rounded-lg">
-              URGENT<br/>
+              URGENT<br />
               <span className="text-xs normal-case font-semibold">Handle with care! Books inside. Please transport them safely and treat them with love. 🖤</span>
             </div>
           </div>
@@ -1281,17 +1451,17 @@ function OrderManagement({ currentUser }) {
                   })}
                 </tbody>
               </table>
-              
+
               {pageData.isLast && (
                 <div className="flex justify-end mt-4">
                   <div className="text-right w-full max-w-sm">
                     <p className="font-bold mb-3 uppercase tracking-widest text-gray-500 text-xs">Payment Status: <span className="text-black">{order.payment_status}</span></p>
-                    
+
                     <div className="flex justify-end gap-6 mb-1 text-sm">
                       <span className="text-gray-600 font-medium">Subtotal:</span>
                       <span className="font-bold">{formatPrice(order.total_amount - (order.shipping_fee || 0))}</span>
                     </div>
-                    
+
                     <div className="flex justify-end gap-6 mb-2 text-sm items-start">
                       <div className="flex flex-col items-end">
                         <span className="text-gray-600 font-medium">Delivery Charges:</span>
@@ -1317,8 +1487,8 @@ function OrderManagement({ currentUser }) {
             <div className="flex items-center justify-between">
               {/* Left Side: WhatsApp QR & Phone */}
               <div className="flex items-center gap-3">
-                <img 
-                  src={supabase.storage.from('web-assets').getPublicUrl('WhGrpQR.png').data.publicUrl} 
+                <img
+                  src={supabase.storage.from('web-assets').getPublicUrl('WhGrpQR.png').data.publicUrl}
                   onError={(e) => {
                     const fallbacks = [
                       'WhGrpQR.jpg', 'WhGrpQR.jpeg', 'WhGrpQR.PNG', 'WhGrpQR.JPG',
@@ -1333,7 +1503,7 @@ function OrderManagement({ currentUser }) {
                       e.target.style.display = 'none';
                     }
                   }}
-                  alt="WhatsApp QR" className="w-16 h-16 object-contain" 
+                  alt="WhatsApp QR" className="w-16 h-16 object-contain"
                 />
                 <div>
                   <p className="text-sm font-extrabold text-gray-800 uppercase tracking-wide">WhatsApp Us</p>
@@ -1494,7 +1664,7 @@ function OrderManagement({ currentUser }) {
           <div className="hidden print:block print-only-packing-sheet print-container bg-gray-200">
             {a4Pages.map((pageSections, a4Index) => (
               <div key={a4Index} className="a4-print-page">
-                
+
                 {/* TOP HALF OF A4 */}
                 <div className="a5-container border-b-2 border-dashed border-gray-400">
                   {pageSections[0] === 'COVER' ? (
@@ -1640,14 +1810,14 @@ function OrderManagement({ currentUser }) {
                       logStaffAction('ORDER_SHIPPED', `Shipped Order #${selectedOrder.id}`, { orderId: selectedOrder.id }, activeUser);
                       setShippedModalOpen(false);
                       setTrackingForm({ tracking_service: '', tracking_number: '', tracking_link: '' });
-                      
+
                       try {
                         const activeStaff = JSON.parse(sessionStorage.getItem('active_staff') || '{}');
                         if (activeStaff.session_id && skippedPacked) {
                           await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_packed' });
                           await supabase.rpc('increment_session_stat', { session_id: activeStaff.session_id, stat_column: 'web_handled' });
                         }
-                      } catch(e) {}
+                      } catch (e) { }
                     }
                   }}
                   className="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold uppercase text-sm tracking-wider hover:bg-blue-700 shadow-sm cursor-pointer"
@@ -1665,13 +1835,13 @@ function OrderManagement({ currentUser }) {
   const filteredOrders = statusFilter === 'All' ? orders : orders.filter(o => o.order_status === statusFilter);
 
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-      <div className="p-4 md:p-6 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-xl font-bold text-brand-blue">Order History</h2>
-        <select 
+    <div className="bg-white rounded-2xl shadow-xs border border-slate-100 overflow-hidden">
+      <div className="p-4 md:p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h2 className="text-xl font-black text-slate-900 tracking-tight">Order History</h2>
+        <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm font-bold text-gray-700 bg-white outline-none focus:border-brand-blue"
+          className="border border-slate-200 rounded-xl px-4 py-2 text-xs font-extrabold text-slate-700 bg-white outline-none focus:border-blue-600 shadow-2xs"
         >
           <option value="All">All Statuses</option>
           <option value="Pending">Pending</option>
@@ -1684,19 +1854,19 @@ function OrderManagement({ currentUser }) {
       </div>
 
       {/* DESKTOP ORDERS TABLE */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
-            <tr><th className="px-6 py-3">Order ID</th><th className="px-6 py-3">Date</th><th className="px-6 py-3">Total</th><th className="px-6 py-3">Status</th><th className="px-6 py-3 text-right">Actions</th></tr>
+      <div className="hidden md:block overflow-x-auto w-full">
+        <table className="w-full text-left text-sm border-collapse">
+          <thead className="bg-slate-50 border-b border-slate-100 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+            <tr><th className="px-6 py-3.5">Order ID</th><th className="px-6 py-3.5">Date</th><th className="px-6 py-3.5">Total</th><th className="px-6 py-3.5">Status</th><th className="px-6 py-3.5 text-right">Actions</th></tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-slate-100 text-xs">
             {filteredOrders.map((order) => (
-              <tr key={order.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-mono text-gray-500">#{order.display_id || order.id.split('-')[0].toUpperCase()}</td>
-                <td className="px-6 py-4">{new Date(order.created_at).toLocaleDateString()}</td>
-                <td className="px-6 py-4 font-bold text-brand-blue">{formatPrice(order.total_amount)}</td>
-                <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${order.order_status === 'Shipped' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>{order.order_status}</span></td>
-                <td className="px-6 py-4 text-right"><button onClick={() => setSelectedOrder(order)} className="text-brand-gold hover:text-brand-blue font-bold uppercase text-xs tracking-wider cursor-pointer">Review</button></td>
+              <tr key={order.id} className="hover:bg-blue-50/40 transition-colors border-b border-slate-50 last:border-0">
+                <td className="px-6 py-4 font-mono font-bold text-slate-700">#{order.display_id || order.id.split('-')[0].toUpperCase()}</td>
+                <td className="px-6 py-4 text-slate-500">{new Date(order.created_at).toLocaleDateString()}</td>
+                <td className="px-6 py-4 font-extrabold text-blue-600">{formatPrice(order.total_amount)}</td>
+                <td className="px-6 py-4"><span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${order.order_status === 'Shipped' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-700'}`}>{order.order_status}</span></td>
+                <td className="px-6 py-4 text-right"><button onClick={() => setSelectedOrder(order)} className="text-blue-600 hover:text-blue-800 font-extrabold uppercase text-xs tracking-wider cursor-pointer">Review</button></td>
               </tr>
             ))}
           </tbody>
@@ -1888,62 +2058,62 @@ function AdminPaymentSettings() {
       </div>
 
       {/* Bank Accounts List */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 md:p-6 border-b border-gray-200 bg-gray-50"><h2 className="text-xl font-bold text-brand-blue">Configured Bank Accounts</h2></div>
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 overflow-hidden">
+        <div className="p-4 md:p-6 border-b border-slate-100 bg-slate-50/50"><h2 className="text-xl font-black text-slate-900 tracking-tight">Configured Bank Accounts</h2></div>
 
         {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-100 text-gray-600 uppercase text-xs tracking-wider">
-              <tr><th className="px-6 py-3">Bank</th><th className="px-6 py-3">Account Name</th><th className="px-6 py-3">Account No</th><th className="px-6 py-3">Branch</th><th className="px-6 py-3 text-right">Actions</th></tr>
+        <div className="hidden md:block overflow-x-auto w-full">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-slate-50 border-b border-slate-100 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+              <tr><th className="px-6 py-3.5">Bank</th><th className="px-6 py-3.5">Account Name</th><th className="px-6 py-3.5">Account No</th><th className="px-6 py-3.5">Branch</th><th className="px-6 py-3.5 text-right">Actions</th></tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {bankAccounts.map((account) => (
-                <tr key={account.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-bold text-gray-800">{account.bank_name}</td>
-                  <td className="px-6 py-4">{account.account_name}</td>
-                  <td className="px-6 py-4 font-mono text-gray-600">{account.account_number}</td>
-                  <td className="px-6 py-4 text-gray-500">{account.branch}</td>
+                <tr key={account.id} className="hover:bg-blue-50/40 transition-colors border-b border-slate-50 last:border-0">
+                  <td className="px-6 py-4 font-bold text-slate-900">{account.bank_name}</td>
+                  <td className="px-6 py-4 font-medium text-slate-700">{account.account_name}</td>
+                  <td className="px-6 py-4 font-mono font-bold text-blue-600">{account.account_number}</td>
+                  <td className="px-6 py-4 text-slate-500">{account.branch}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => { setEditData(account); setIsEditModalOpen(true); }} className="text-brand-gold hover:text-brand-blue font-bold uppercase text-[10px] tracking-wider px-2 py-1 rounded border border-gray-200 cursor-pointer">Edit</button>
+                      <button onClick={() => { setEditData(account); setIsEditModalOpen(true); }} className="text-blue-600 hover:text-blue-800 font-extrabold uppercase text-[10px] tracking-wider px-2.5 py-1 rounded-lg border border-slate-200 cursor-pointer">Edit</button>
                       <button onClick={() => handleDelete(account.id)} className="text-red-500 hover:text-red-700 p-1 cursor-pointer"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {bankAccounts.length === 0 && <tr><td colSpan="5" className="px-6 py-8 text-center text-gray-500">No bank accounts configured.</td></tr>}
+              {bankAccounts.length === 0 && <tr><td colSpan="5" className="px-6 py-8 text-center text-slate-400">No bank accounts configured.</td></tr>}
             </tbody>
           </table>
         </div>
 
         {/* Mobile Cards */}
-        <div className="md:hidden flex flex-col p-4 gap-3 bg-gray-100">
+        <div className="md:hidden flex flex-col p-4 gap-3 bg-slate-50">
           {bankAccounts.map((account) => (
-            <div key={account.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative">
+            <div key={account.id} className="bg-white p-4 rounded-xl shadow-xs border border-slate-100 relative">
               <div className="absolute top-4 right-4 flex gap-2">
-                <button onClick={() => { setEditData(account); setIsEditModalOpen(true); }} className="text-yellow-600 hover:text-blue-900 cursor-pointer p-1.5 bg-yellow-600/10 rounded-full"><Edit2 size={14} /></button>
+                <button onClick={() => { setEditData(account); setIsEditModalOpen(true); }} className="text-blue-600 hover:text-blue-800 cursor-pointer p-1.5 bg-blue-50 rounded-full"><Edit2 size={14} /></button>
                 <button onClick={() => handleDelete(account.id)} className="text-red-500 hover:text-red-700 cursor-pointer p-1.5 bg-red-50 rounded-full"><Trash2 size={14} /></button>
               </div>
-              <h3 className="font-bold text-gray-800 mb-1 pr-16">{account.bank_name}</h3>
-              <p className="text-sm text-gray-600 mb-2">{account.account_name}</p>
-              <div className="bg-gray-50 p-2 rounded text-xs font-mono text-gray-700 flex justify-between border border-gray-100">
-                <span>Acc No:</span> <span className="font-bold text-brand-blue">{account.account_number}</span>
+              <h3 className="font-bold text-slate-900 mb-1 pr-16">{account.bank_name}</h3>
+              <p className="text-sm text-slate-600 mb-2">{account.account_name}</p>
+              <div className="bg-slate-50 p-2 rounded-lg text-xs font-mono text-slate-700 flex justify-between border border-slate-100">
+                <span>Acc No:</span> <span className="font-bold text-blue-600">{account.account_number}</span>
               </div>
-              <p className="text-xs text-gray-500 mt-2 font-medium">Branch: {account.branch}</p>
+              <p className="text-xs text-slate-500 mt-2 font-medium">Branch: {account.branch}</p>
             </div>
           ))}
-          {bankAccounts.length === 0 && <div className="text-center py-6 text-gray-500 text-sm">No bank accounts configured.</div>}
+          {bankAccounts.length === 0 && <div className="text-center py-6 text-slate-400 text-sm">No bank accounts configured.</div>}
         </div>
       </div>
 
       {/* EDIT MODAL */}
       <AnimatePresence>
         {isEditModalOpen && (
-          <div className="fixed top-[56px] md:top-[80px] bottom-0 inset-x-0 z-[50] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-lg bg-slate-50 rounded-2xl p-6 shadow-2xl">
-              <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 cursor-pointer z-10"><X size={24} /></button>
-              <h2 className="text-xl font-bold text-brand-blue mb-6">Edit Bank Account</h2>
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-100 bg-white max-h-[92vh] overflow-y-auto">
+              <button onClick={() => setIsEditModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 cursor-pointer z-10"><X size={24} /></button>
+              <h2 className="text-xl font-black text-slate-900 mb-6">Edit Bank Account</h2>
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-theme-medium mb-1">Bank Name</label>
@@ -1991,14 +2161,23 @@ function StoreSettings() {
   useEffect(() => {
     const fetchSettings = async () => {
       setLoading(true);
-      const { data, error } = await supabase.from('store_settings').select('*').limit(1).single();
-      if (data) setSettings(data);
+      const { data, error } = await supabase.from('store_settings').select('*');
+      if (data && data.length > 0) {
+        const gen = data.find(s => s.setting_key === 'general_info')?.setting_value;
+        if (gen && typeof gen === 'object') {
+          setSettings(prev => ({ ...prev, ...gen }));
+        } else {
+          const direct = data.find(s => s.name);
+          if (direct) setSettings(prev => ({ ...prev, ...direct }));
+        }
+      }
+
       else if (error && error.code !== 'PGRST116') console.error(error); // ignore 0 rows error initially
-      
+
       const { data: seqData, error: seqError } = await supabase.from('order_sequence').select('*').eq('id', 1).single();
       if (seqData) setOrderSequence(seqData);
       else if (seqError && seqError.code !== 'PGRST116') console.error(seqError);
-      
+
       setLoading(false);
     };
     fetchSettings();
@@ -2029,7 +2208,7 @@ function StoreSettings() {
 
   return (
     <div className="space-y-8 w-full">
-      
+
       {/* Moved AdminPaymentSettings to the top of StoreSettings */}
       <AdminPaymentSettings />
 
@@ -2113,11 +2292,11 @@ function ShippingSettings() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [speedConfig, setSpeedConfig] = useState({ base_weight: 250, base_price: 200, extra_weight: 250, extra_price: 50 });
-  const [normalConfig, setNormalConfig] = useState({ tiers: [{max_weight: 250, price: 150}, {max_weight: 500, price: 200}, {max_weight: 1000, price: 250}], extra_weight: 1000, extra_price: 50 });
+  const [normalConfig, setNormalConfig] = useState({ tiers: [{ max_weight: 250, price: 150 }, { max_weight: 500, price: 200 }, { max_weight: 1000, price: 250 }], extra_weight: 1000, extra_price: 50 });
   const [slPostCodConfig, setSlPostCodConfig] = useState({
     service_charge: 50, max_value_price: 130, extra_weight: 1000, extra_price: 50,
-    weight_tiers: [{max_weight: 250, price: 150}, {max_weight: 500, price: 200}, {max_weight: 1000, price: 350}],
-    value_tiers: [{max_value: 1000, price: 40}, {max_value: 2000, price: 50}, {max_value: 3000, price: 60}, {max_value: 4000, price: 70}, {max_value: 5000, price: 80}, {max_value: 10000, price: 130}]
+    weight_tiers: [{ max_weight: 250, price: 150 }, { max_weight: 500, price: 200 }, { max_weight: 1000, price: 350 }],
+    value_tiers: [{ max_value: 1000, price: 40 }, { max_value: 2000, price: 50 }, { max_value: 3000, price: 60 }, { max_value: 4000, price: 70 }, { max_value: 5000, price: 80 }, { max_value: 10000, price: 130 }]
   });
   const [notification, setNotification] = useState({ type: '', message: '' });
 
@@ -2137,8 +2316,8 @@ function ShippingSettings() {
       // Create initial rows if empty
       await supabase.from('shipping_rates').insert([
         { method_key: 'speed', method_name: 'Speed Post', config: { base_weight: 250, base_price: 200, extra_weight: 250, extra_price: 50 } },
-        { method_key: 'normal', method_name: 'Normal Post', config: { tiers: [{max_weight: 250, price: 150}, {max_weight: 500, price: 200}, {max_weight: 1000, price: 250}], extra_weight: 1000, extra_price: 50 } },
-        { method_key: 'sl_post_cod', method_name: 'SL Post COD', config: { service_charge: 50, max_value_price: 130, extra_weight: 1000, extra_price: 50, weight_tiers: [{max_weight: 250, price: 150}, {max_weight: 500, price: 200}, {max_weight: 1000, price: 350}], value_tiers: [{max_value: 1000, price: 40}, {max_value: 2000, price: 50}, {max_value: 3000, price: 60}, {max_value: 4000, price: 70}, {max_value: 5000, price: 80}, {max_value: 10000, price: 130}] } }
+        { method_key: 'normal', method_name: 'Normal Post', config: { tiers: [{ max_weight: 250, price: 150 }, { max_weight: 500, price: 200 }, { max_weight: 1000, price: 250 }], extra_weight: 1000, extra_price: 50 } },
+        { method_key: 'sl_post_cod', method_name: 'SL Post COD', config: { service_charge: 50, max_value_price: 130, extra_weight: 1000, extra_price: 50, weight_tiers: [{ max_weight: 250, price: 150 }, { max_weight: 500, price: 200 }, { max_weight: 1000, price: 350 }], value_tiers: [{ max_value: 1000, price: 40 }, { max_value: 2000, price: 50 }, { max_value: 3000, price: 60 }, { max_value: 4000, price: 70 }, { max_value: 5000, price: 80 }, { max_value: 10000, price: 130 }] } }
       ]);
     }
     setLoading(false);
@@ -2167,7 +2346,7 @@ function ShippingSettings() {
       <div className="p-4 md:p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
         <h2 className="text-xl font-bold text-brand-blue">Shipping Rates Configuration</h2>
       </div>
-      
+
       {notification.message && (
         <div className={`p-4 ${notification.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
           {notification.message}
@@ -2179,10 +2358,10 @@ function ShippingSettings() {
         <div className="border rounded-lg p-6 bg-slate-50">
           <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-theme-deep">Speed Post</h3>
           <div className="space-y-4">
-            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Base Weight (g)</label><input type="number" value={speedConfig.base_weight} onChange={e => setSpeedConfig({...speedConfig, base_weight: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
-            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Base Price (Rs)</label><input type="number" value={speedConfig.base_price} onChange={e => setSpeedConfig({...speedConfig, base_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
-            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Weight Step (g)</label><input type="number" value={speedConfig.extra_weight} onChange={e => setSpeedConfig({...speedConfig, extra_weight: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
-            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Price (Rs)</label><input type="number" value={speedConfig.extra_price} onChange={e => setSpeedConfig({...speedConfig, extra_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Base Weight (g)</label><input type="number" value={speedConfig.base_weight} onChange={e => setSpeedConfig({ ...speedConfig, base_weight: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
+            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Base Price (Rs)</label><input type="number" value={speedConfig.base_price} onChange={e => setSpeedConfig({ ...speedConfig, base_price: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
+            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Weight Step (g)</label><input type="number" value={speedConfig.extra_weight} onChange={e => setSpeedConfig({ ...speedConfig, extra_weight: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
+            <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Price (Rs)</label><input type="number" value={speedConfig.extra_price} onChange={e => setSpeedConfig({ ...speedConfig, extra_price: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
             <button onClick={() => handleSave('speed', speedConfig)} disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-2 rounded mt-4 hover:bg-theme-darkest uppercase tracking-widest text-sm">Save Speed Post</button>
           </div>
         </div>
@@ -2196,19 +2375,19 @@ function ShippingSettings() {
                 <div className="flex-1"><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Max Weight (g)</label><input type="number" value={tier.max_weight} onChange={e => {
                   const newTiers = [...normalConfig.tiers];
                   newTiers[idx].max_weight = Number(e.target.value);
-                  setNormalConfig({...normalConfig, tiers: newTiers});
+                  setNormalConfig({ ...normalConfig, tiers: newTiers });
                 }} className="w-full border border-gray-300 p-2 rounded" /></div>
                 <div className="flex-1"><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Price (Rs)</label><input type="number" value={tier.price} onChange={e => {
                   const newTiers = [...normalConfig.tiers];
                   newTiers[idx].price = Number(e.target.value);
-                  setNormalConfig({...normalConfig, tiers: newTiers});
+                  setNormalConfig({ ...normalConfig, tiers: newTiers });
                 }} className="w-full border border-gray-300 p-2 rounded" /></div>
               </div>
             ))}
             <div className="pt-4 border-t border-gray-200">
               <h4 className="font-bold text-sm mb-2 text-gray-600 uppercase tracking-widest">Beyond Max Tier</h4>
-              <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Weight Step (g)</label><input type="number" value={normalConfig.extra_weight} onChange={e => setNormalConfig({...normalConfig, extra_weight: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
-              <div className="mt-4"><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Price (Rs)</label><input type="number" value={normalConfig.extra_price} onChange={e => setNormalConfig({...normalConfig, extra_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
+              <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Weight Step (g)</label><input type="number" value={normalConfig.extra_weight} onChange={e => setNormalConfig({ ...normalConfig, extra_weight: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
+              <div className="mt-4"><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Price (Rs)</label><input type="number" value={normalConfig.extra_price} onChange={e => setNormalConfig({ ...normalConfig, extra_price: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
             </div>
             <button onClick={() => handleSave('normal', normalConfig)} disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-2 rounded mt-4 hover:bg-theme-darkest uppercase tracking-widest text-sm">Save Normal Post</button>
           </div>
@@ -2219,56 +2398,56 @@ function ShippingSettings() {
         <div className="border rounded-lg p-6 bg-slate-50">
           <h3 className="text-lg font-bold mb-4 uppercase tracking-wider text-theme-deep">SL Post COD</h3>
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-             {/* General */}
-             <div className="space-y-4">
-                <h4 className="font-bold text-sm text-gray-600 uppercase tracking-widest">Base Fees & Limits</h4>
-                <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Service Charge (Rs)</label><input type="number" value={slPostCodConfig.service_charge} onChange={e => setSlPostCodConfig({...slPostCodConfig, service_charge: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
-                <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Max Value Price (Rs) {'>'}10k</label><input type="number" value={slPostCodConfig.max_value_price} onChange={e => setSlPostCodConfig({...slPostCodConfig, max_value_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
-                <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Wt Step (g)</label><input type="number" value={slPostCodConfig.extra_weight} onChange={e => setSlPostCodConfig({...slPostCodConfig, extra_weight: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
-                <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Wt Price (Rs)</label><input type="number" value={slPostCodConfig.extra_price} onChange={e => setSlPostCodConfig({...slPostCodConfig, extra_price: Number(e.target.value)})} className="w-full border border-gray-300 p-2 rounded" /></div>
-             </div>
+            {/* General */}
+            <div className="space-y-4">
+              <h4 className="font-bold text-sm text-gray-600 uppercase tracking-widest">Base Fees & Limits</h4>
+              <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Service Charge (Rs)</label><input type="number" value={slPostCodConfig.service_charge} onChange={e => setSlPostCodConfig({ ...slPostCodConfig, service_charge: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
+              <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Max Value Price (Rs) {'>'}10k</label><input type="number" value={slPostCodConfig.max_value_price} onChange={e => setSlPostCodConfig({ ...slPostCodConfig, max_value_price: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
+              <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Wt Step (g)</label><input type="number" value={slPostCodConfig.extra_weight} onChange={e => setSlPostCodConfig({ ...slPostCodConfig, extra_weight: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
+              <div><label className="block text-xs font-bold mb-1 uppercase tracking-widest text-gray-500">Extra Wt Price (Rs)</label><input type="number" value={slPostCodConfig.extra_price} onChange={e => setSlPostCodConfig({ ...slPostCodConfig, extra_price: Number(e.target.value) })} className="w-full border border-gray-300 p-2 rounded" /></div>
+            </div>
 
-             {/* Weight Tiers */}
-             <div className="space-y-4">
-                <div className="flex justify-between items-center"><h4 className="font-bold text-sm text-gray-600 uppercase tracking-widest">Weight Tiers</h4>
-                <button onClick={() => setSlPostCodConfig({...slPostCodConfig, weight_tiers: [...slPostCodConfig.weight_tiers, {max_weight: 0, price: 0}]})} className="text-xs bg-theme-medium text-white px-3 py-1 rounded font-bold hover:bg-theme-darkest transition-colors">+ Add</button></div>
-                <div className="space-y-2">
-                  {slPostCodConfig.weight_tiers.map((tier, idx) => (
-                    <div key={`w-${idx}`} className="flex gap-2 items-end bg-white p-2 rounded border shadow-sm">
-                      <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Max Wt (g)</label><input type="number" value={tier.max_weight} onChange={e => {
-                        const nt = [...slPostCodConfig.weight_tiers]; nt[idx].max_weight = Number(e.target.value); setSlPostCodConfig({...slPostCodConfig, weight_tiers: nt});
-                      }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
-                      <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Price (Rs)</label><input type="number" value={tier.price} onChange={e => {
-                        const nt = [...slPostCodConfig.weight_tiers]; nt[idx].price = Number(e.target.value); setSlPostCodConfig({...slPostCodConfig, weight_tiers: nt});
-                      }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
-                      <button onClick={() => {
-                        const nt = [...slPostCodConfig.weight_tiers]; nt.splice(idx, 1); setSlPostCodConfig({...slPostCodConfig, weight_tiers: nt});
-                      }} className="text-red-500 font-bold px-2 py-1.5 hover:bg-red-50 rounded transition-colors" title="Remove">X</button>
-                    </div>
-                  ))}
-                </div>
-             </div>
+            {/* Weight Tiers */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center"><h4 className="font-bold text-sm text-gray-600 uppercase tracking-widest">Weight Tiers</h4>
+                <button onClick={() => setSlPostCodConfig({ ...slPostCodConfig, weight_tiers: [...slPostCodConfig.weight_tiers, { max_weight: 0, price: 0 }] })} className="text-xs bg-theme-medium text-white px-3 py-1 rounded font-bold hover:bg-theme-darkest transition-colors">+ Add</button></div>
+              <div className="space-y-2">
+                {slPostCodConfig.weight_tiers.map((tier, idx) => (
+                  <div key={`w-${idx}`} className="flex gap-2 items-end bg-white p-2 rounded border shadow-sm">
+                    <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Max Wt (g)</label><input type="number" value={tier.max_weight} onChange={e => {
+                      const nt = [...slPostCodConfig.weight_tiers]; nt[idx].max_weight = Number(e.target.value); setSlPostCodConfig({ ...slPostCodConfig, weight_tiers: nt });
+                    }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
+                    <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Price (Rs)</label><input type="number" value={tier.price} onChange={e => {
+                      const nt = [...slPostCodConfig.weight_tiers]; nt[idx].price = Number(e.target.value); setSlPostCodConfig({ ...slPostCodConfig, weight_tiers: nt });
+                    }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
+                    <button onClick={() => {
+                      const nt = [...slPostCodConfig.weight_tiers]; nt.splice(idx, 1); setSlPostCodConfig({ ...slPostCodConfig, weight_tiers: nt });
+                    }} className="text-red-500 font-bold px-2 py-1.5 hover:bg-red-50 rounded transition-colors" title="Remove">X</button>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-             {/* Value Tiers */}
-             <div className="space-y-4">
-                <div className="flex justify-between items-center"><h4 className="font-bold text-sm text-gray-600 uppercase tracking-widest">Value Tiers</h4>
-                <button onClick={() => setSlPostCodConfig({...slPostCodConfig, value_tiers: [...slPostCodConfig.value_tiers, {max_value: 0, price: 0}]})} className="text-xs bg-theme-medium text-white px-3 py-1 rounded font-bold hover:bg-theme-darkest transition-colors">+ Add</button></div>
-                <div className="max-h-64 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
-                  {slPostCodConfig.value_tiers.map((tier, idx) => (
-                    <div key={`v-${idx}`} className="flex gap-2 items-end bg-white p-2 rounded border shadow-sm">
-                      <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Max Val (Rs)</label><input type="number" value={tier.max_value} onChange={e => {
-                        const nt = [...slPostCodConfig.value_tiers]; nt[idx].max_value = Number(e.target.value); setSlPostCodConfig({...slPostCodConfig, value_tiers: nt});
-                      }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
-                      <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Price (Rs)</label><input type="number" value={tier.price} onChange={e => {
-                        const nt = [...slPostCodConfig.value_tiers]; nt[idx].price = Number(e.target.value); setSlPostCodConfig({...slPostCodConfig, value_tiers: nt});
-                      }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
-                      <button onClick={() => {
-                        const nt = [...slPostCodConfig.value_tiers]; nt.splice(idx, 1); setSlPostCodConfig({...slPostCodConfig, value_tiers: nt});
-                      }} className="text-red-500 font-bold px-2 py-1.5 hover:bg-red-50 rounded transition-colors" title="Remove">X</button>
-                    </div>
-                  ))}
-                </div>
-             </div>
+            {/* Value Tiers */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center"><h4 className="font-bold text-sm text-gray-600 uppercase tracking-widest">Value Tiers</h4>
+                <button onClick={() => setSlPostCodConfig({ ...slPostCodConfig, value_tiers: [...slPostCodConfig.value_tiers, { max_value: 0, price: 0 }] })} className="text-xs bg-theme-medium text-white px-3 py-1 rounded font-bold hover:bg-theme-darkest transition-colors">+ Add</button></div>
+              <div className="max-h-64 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+                {slPostCodConfig.value_tiers.map((tier, idx) => (
+                  <div key={`v-${idx}`} className="flex gap-2 items-end bg-white p-2 rounded border shadow-sm">
+                    <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Max Val (Rs)</label><input type="number" value={tier.max_value} onChange={e => {
+                      const nt = [...slPostCodConfig.value_tiers]; nt[idx].max_value = Number(e.target.value); setSlPostCodConfig({ ...slPostCodConfig, value_tiers: nt });
+                    }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
+                    <div className="flex-1"><label className="block text-[10px] font-bold mb-1 uppercase text-gray-500 tracking-wider">Price (Rs)</label><input type="number" value={tier.price} onChange={e => {
+                      const nt = [...slPostCodConfig.value_tiers]; nt[idx].price = Number(e.target.value); setSlPostCodConfig({ ...slPostCodConfig, value_tiers: nt });
+                    }} className="w-full border border-gray-300 p-1.5 text-sm rounded focus:ring-1 focus:ring-theme-medium outline-none" /></div>
+                    <button onClick={() => {
+                      const nt = [...slPostCodConfig.value_tiers]; nt.splice(idx, 1); setSlPostCodConfig({ ...slPostCodConfig, value_tiers: nt });
+                    }} className="text-red-500 font-bold px-2 py-1.5 hover:bg-red-50 rounded transition-colors" title="Remove">X</button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
           <button onClick={() => handleSave('sl_post_cod', slPostCodConfig)} disabled={submitting} className="w-full bg-theme-deep text-white font-bold py-3 rounded mt-6 hover:bg-theme-darkest uppercase tracking-widest text-sm transition-colors shadow-sm">Save SL Post COD</button>
         </div>
@@ -2309,10 +2488,10 @@ function DatabaseManagement({ userRole }) {
     if (!window.confirm("Do you want to start a full system backup? This might take a few minutes.")) return;
     setLoading(true);
     setProgress('Initializing backup...');
-    
+
     try {
       const zip = new JSZip();
-      
+
       // 1. Backup Tables
       setProgress('Backing up database tables...');
       const dbData = {};
@@ -2326,7 +2505,7 @@ function DatabaseManagement({ userRole }) {
       // 2. Backup Buckets
       setProgress('Backing up storage buckets (this may take a while)...');
       const storageFolder = zip.folder('storage');
-      
+
       for (const bucket of bucketsToBackup) {
         const { data: files, error } = await supabase.storage.from(bucket).list();
         if (error) {
@@ -2351,7 +2530,7 @@ function DatabaseManagement({ userRole }) {
       const content = await zip.generateAsync({ type: 'blob' });
       const dateStr = new Date().toISOString().split('T')[0];
       saveAs(content, `bookstore_full_backup_${dateStr}.zip`);
-      
+
       showNotification('success', 'Backup completed successfully!');
     } catch (err) {
       console.error(err);
@@ -2365,7 +2544,7 @@ function DatabaseManagement({ userRole }) {
   const handleRestore = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     if (!window.confirm(`WARNING: You selected ${restoreMode.toUpperCase()} mode. Are you sure you want to proceed?`)) {
       e.target.value = null;
       return;
@@ -2373,28 +2552,28 @@ function DatabaseManagement({ userRole }) {
 
     setLoading(true);
     setProgress('Reading ZIP file...');
-    
+
     try {
       const zip = await JSZip.loadAsync(file);
-      
+
       // 1. Restore Database Tables
       if (zip.file('database_backup.json')) {
         setProgress('Restoring database tables...');
         const dbDataRaw = await zip.file('database_backup.json').async('string');
         const dbData = JSON.parse(dbDataRaw);
-        
+
         if (restoreMode === 'overwrite') {
-           setProgress('Wiping current database tables (Overwrite mode)...');
-           const deleteOrder = ['order_items', 'orders', 'books', 'publishers', 'contributors', 'categories', 'store_settings', 'staff_sessions', 'user_profiles'];
-           for (const table of deleteOrder) {
-             const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-             if (error) console.warn(`Wipe warning on ${table}:`, error);
-           }
+          setProgress('Wiping current database tables (Overwrite mode)...');
+          const deleteOrder = ['order_items', 'orders', 'books', 'publishers', 'contributors', 'categories', 'store_settings', 'staff_sessions', 'user_profiles'];
+          for (const table of deleteOrder) {
+            const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            if (error) console.warn(`Wipe warning on ${table}:`, error);
+          }
         }
-        
+
         // Disable foreign key checks is tricky via REST API, we rely on upsert and order
         const insertOrder = ['user_profiles', 'staff_sessions', 'categories', 'contributors', 'publishers', 'store_settings', 'books', 'orders', 'order_items'];
-        
+
         for (const table of insertOrder) {
           if (dbData[table] && dbData[table].length > 0) {
             setProgress(`Restoring table: ${table}...`);
@@ -2414,7 +2593,7 @@ function DatabaseManagement({ userRole }) {
             const pathKey = files[i];
             const fileName = pathKey.split('/').pop();
             setProgress(`Uploading ${bucket}/${fileName} (${i + 1}/${files.length})...`);
-            
+
             const fileObj = folder.files[pathKey];
             const fileData = await fileObj.async('blob');
             const { error } = await supabase.storage.from(bucket).upload(fileName, fileData, {
@@ -2438,24 +2617,24 @@ function DatabaseManagement({ userRole }) {
 
   const handleWipeData = async () => {
     if (userRole !== 'OWNER') return;
-    
+
     const confirm1 = window.prompt("DANGER ZONE: Type 'DELETE ALL' to confirm you want to wipe all store data (books, orders, etc.). This cannot be undone.");
     if (confirm1 !== 'DELETE ALL') return;
 
     setLoading(true);
     setProgress('Wiping database...');
-    
+
     try {
       // Order matters to avoid foreign key violations
       const deleteOrder = ['order_items', 'orders', 'books', 'publishers', 'contributors', 'categories', 'staff_sessions', 'user_profiles'];
-      
+
       for (const table of deleteOrder) {
         setProgress(`Wiping table: ${table}...`);
         // Note: To delete all rows safely using Supabase JS without equality filters, we use not('id', 'is', null) or similar.
         const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Hack to delete all rows
         if (error) throw error;
       }
-      
+
       showNotification('success', 'All store data has been wiped.');
     } catch (err) {
       console.error(err);
@@ -2475,7 +2654,7 @@ function DatabaseManagement({ userRole }) {
           <p className="text-sm text-gray-500">Backup your entire database and uploaded files to a ZIP file.</p>
         </div>
       </div>
-      
+
       <div className="p-6 space-y-8">
         {notification.message && (
           <div className={`p-4 rounded-lg border flex items-center gap-3 ${notification.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
@@ -2503,8 +2682,8 @@ function DatabaseManagement({ userRole }) {
                 Downloads all database tables (books, orders, etc.) and all uploaded files (images, logos) into a single ZIP archive.
               </p>
             </div>
-            <button 
-              disabled={loading} 
+            <button
+              disabled={loading}
               onClick={handleBackup}
               className="w-full bg-theme-deep text-white font-bold py-3 rounded-lg hover:bg-theme-darkest transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
@@ -2522,7 +2701,7 @@ function DatabaseManagement({ userRole }) {
               <p className="text-sm text-slate-600 mb-4">
                 Upload a `.zip` backup to restore tables and files.
               </p>
-              
+
               <div className="bg-white p-3 rounded-lg border border-slate-200 mb-6 space-y-2">
                 <label className="flex items-start gap-2 cursor-pointer">
                   <input type="radio" name="restoreMode" value="merge" checked={restoreMode === 'merge'} onChange={(e) => setRestoreMode(e.target.value)} className="mt-1 accent-green-600" />
@@ -2541,14 +2720,14 @@ function DatabaseManagement({ userRole }) {
               </div>
             </div>
             <div className="relative mt-auto">
-              <input 
-                type="file" 
-                accept=".zip" 
+              <input
+                type="file"
+                accept=".zip"
                 disabled={loading}
                 onChange={handleRestore}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed" 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
               />
-              <button 
+              <button
                 disabled={loading}
                 className="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 pointer-events-none"
               >
@@ -2570,7 +2749,7 @@ function DatabaseManagement({ userRole }) {
                 Permanently deletes all books, orders, contributors, publishers, and categories from the database. Use this to factory reset the system. This action cannot be undone.
               </p>
             </div>
-            <button 
+            <button
               disabled={loading}
               onClick={handleWipeData}
               className="bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap shrink-0"
@@ -2604,10 +2783,10 @@ function BookRequestsModal({ isOpen, onClose }) {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this request?')) return;
-    
+
     // Add .select() to verify if the row was actually deleted
     const { data, error } = await supabase.from('book_requests').delete().eq('id', id).select();
-    
+
     if (error) {
       console.error(error);
       alert('Failed to delete request. Error: ' + error.message);
@@ -2713,7 +2892,7 @@ function BookRequestsModal({ isOpen, onClose }) {
                   </div>
                   <h3 className="font-bold text-lg text-theme-darkest mb-1 pr-10">{req.book_name}</h3>
                   <div className="text-xs font-semibold text-gray-400 mb-4">{new Date(req.created_at).toLocaleString()}</div>
-                  
+
                   <div className="space-y-2 text-sm text-gray-700 bg-slate-50 p-4 rounded-lg border border-slate-100">
                     <p className="flex justify-between"><span className="font-semibold text-gray-500">Requested By:</span> <span className="font-medium">{req.user_name}</span></p>
                     <p className="flex justify-between"><span className="font-semibold text-gray-500">Email:</span> <a href={`mailto:${req.email}`} className="text-blue-600 hover:underline">{req.email}</a></p>
