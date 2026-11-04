@@ -459,15 +459,36 @@ export default function POS() {
   }, [search, books]);
 
   const fetchData = async () => {
-    const { data: booksData } = await supabase.from('books').select('*').order('title');
-    if (booksData) {
-      setBooks(booksData);
-      setFilteredBooks(booksData);
+    try {
+      const [booksRes, collectablesRes, settingsRes] = await Promise.all([
+        supabase.from('books').select('*').order('title'),
+        supabase.from('collectables').select('*').eq('is_active', true).order('title'),
+        supabase.from('store_settings').select('*').limit(1).maybeSingle()
+      ]);
+
+      const booksData = booksRes.data || [];
+      const collectablesData = (collectablesRes.data || []).map(item => ({
+        ...item,
+        is_collectable: true,
+        item_type: 'COLLECTABLE',
+        author: item.category || 'Collectable',
+        cover_url: item.image_url || '',
+        image: item.image_url || '',
+        price: Number(item.price || 0),
+        stock: Number(item.stock ?? 0)
+      }));
+
+      const mergedCatalog = [...booksData, ...collectablesData];
+      setBooks(mergedCatalog);
+      setFilteredBooks(mergedCatalog);
+
+      if (settingsRes.data) setStoreSettings(settingsRes.data);
+    } catch (err) {
+      console.error('Error fetching POS catalog:', err);
+    } finally {
+      setLoading(false);
+      if (searchInputRef.current) searchInputRef.current.focus();
     }
-    const { data: settingsData } = await supabase.from('store_settings').select('*').limit(1).single();
-    if (settingsData) setStoreSettings(settingsData);
-    setLoading(false);
-    if (searchInputRef.current) searchInputRef.current.focus();
   };
 
   useEffect(() => {
@@ -659,7 +680,17 @@ export default function POS() {
         price: item.price
       }));
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      let { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      if (itemsError && itemsError.message?.includes('foreign key')) {
+        const fallbackOrderItems = cart.map(item => ({
+          order_id: order.id,
+          book_id: (item.book?.is_collectable || item.is_collectable) ? null : item.book.id,
+          quantity: item.quantity,
+          price: item.price
+        }));
+        const retryRes = await supabase.from('order_items').insert(fallbackOrderItems);
+        itemsError = retryRes.error;
+      }
       if (itemsError) throw new Error(itemsError.message);
 
       try {
@@ -669,11 +700,24 @@ export default function POS() {
         }
       } catch (e) {}
 
-      // Deduct stock
+      // Deduct stock (Single-Bill: Books + Collectables)
       for (const item of cart) {
-        await supabase.from('books')
-          .update({ stock: item.book.stock - item.quantity, sales_count: (item.book.sales_count || 0) + item.quantity })
-          .eq('id', item.book.id);
+        if (item.book?.is_collectable || item.is_collectable || item.book?.item_type === 'COLLECTABLE') {
+          const { data: colData } = await supabase
+            .from('collectables')
+            .select('stock')
+            .eq('id', item.book.id)
+            .maybeSingle();
+          const currentStock = Number(colData?.stock ?? item.book.stock ?? 0);
+          await supabase
+            .from('collectables')
+            .update({ stock: Math.max(0, currentStock - item.quantity) })
+            .eq('id', item.book.id);
+        } else {
+          await supabase.from('books')
+            .update({ stock: item.book.stock - item.quantity, sales_count: (item.book.sales_count || 0) + item.quantity })
+            .eq('id', item.book.id);
+        }
       }
 
       const displayId = order.display_id || order.id.split('-')[0].toUpperCase();
@@ -732,17 +776,26 @@ export default function POS() {
         
       if (cancelError) throw new Error(cancelError.message);
 
-      // 2. Restock items
+      // 2. Restock items (Single-Bill: Books + Collectables)
       for (const item of completedOrder.items) {
-        // We increment stock back based on current stock in DB to avoid race conditions
-        const { data: currentBook } = await supabase.from('books').select('stock, sales_count').eq('id', item.book.id).single();
-        if (currentBook) {
-          await supabase.from('books')
-            .update({ 
-              stock: currentBook.stock + item.quantity, 
-              sales_count: Math.max(0, (currentBook.sales_count || 0) - item.quantity) 
-            })
-            .eq('id', item.book.id);
+        if (item.book?.is_collectable || item.is_collectable || item.book?.item_type === 'COLLECTABLE') {
+          const { data: currentCol } = await supabase.from('collectables').select('stock').eq('id', item.book.id).maybeSingle();
+          if (currentCol) {
+            await supabase.from('collectables')
+              .update({ stock: (currentCol.stock || 0) + item.quantity })
+              .eq('id', item.book.id);
+          }
+        } else {
+          // We increment stock back based on current stock in DB to avoid race conditions
+          const { data: currentBook } = await supabase.from('books').select('stock, sales_count').eq('id', item.book.id).single();
+          if (currentBook) {
+            await supabase.from('books')
+              .update({ 
+                stock: currentBook.stock + item.quantity, 
+                sales_count: Math.max(0, (currentBook.sales_count || 0) - item.quantity) 
+              })
+              .eq('id', item.book.id);
+          }
         }
       }
 

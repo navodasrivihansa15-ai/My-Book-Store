@@ -41,7 +41,7 @@ export default function Home() {
 
   const fetchData = async () => {
     const { data: bookData } = await supabase.from('books').select('*').or('is_special.is.null,is_special.eq.false').order('created_at', { ascending: false });
-    if (bookData) setBooks(bookData);
+    if (bookData) setBooks(bookData.filter(b => b.item_type !== 'COLLECTABLE'));
     
     const { data: catData } = await supabase.from('categories').select('*').order('name');
     if (catData) setCategories(catData.map(c => c.name));

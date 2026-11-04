@@ -50,6 +50,7 @@ export default function AddBookModal({ isOpen, onClose, initialBarcode, onSucces
     setError('');
 
     try {
+      const cleanBarcode = (formData.barcode || '').trim();
       const bookData = {
         title: formData.title,
         author: formData.author || '',
@@ -57,7 +58,8 @@ export default function AddBookModal({ isOpen, onClose, initialBarcode, onSucces
         discount_percentage: parseFloat(formData.discount_percentage) || 0,
         sale_price: parseFloat(formData.sale_price) || parseFloat(formData.price),
         stock: parseInt(formData.stock) || 0,
-        barcode: formData.barcode || null,
+        barcode: cleanBarcode || null,
+        isbn: cleanBarcode || null, // Force ISBN to exactly match Barcode
         weight_g: 250, // default
         categories: [],
         sales_count: 0
@@ -93,8 +95,19 @@ export default function AddBookModal({ isOpen, onClose, initialBarcode, onSucces
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Barcode / ISBN</label>
-                <input required type="text" value={formData.barcode} onChange={(e) => setFormData({...formData, barcode: e.target.value})} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Barcode / ISBN *</label>
+                <input 
+                  required 
+                  type="text" 
+                  placeholder="Scan or type barcode..."
+                  value={formData.barcode} 
+                  onChange={(e) => setFormData({
+                    ...formData, 
+                    barcode: e.target.value,
+                    isbn: e.target.value // Instantly syncs ISBN state with Barcode
+                  })} 
+                  className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors font-mono" 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Book Title</label>

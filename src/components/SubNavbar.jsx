@@ -1,12 +1,36 @@
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 export default function SubNavbar() {
+  const [showCollectables, setShowCollectables] = useState(false);
+
+  useEffect(() => {
+    const checkCollectablesVisibility = async () => {
+      try {
+        const { data } = await supabase
+          .from('store_settings')
+          .select('setting_value')
+          .eq('setting_key', 'show_collectables_page')
+          .maybeSingle();
+        if (data) setShowCollectables(Boolean(data.setting_value));
+      } catch (e) {}
+    };
+
+    checkCollectablesVisibility();
+
+    const handleLiveToggle = (e) => setShowCollectables(Boolean(e.detail));
+    window.addEventListener('collectables-visibility-changed', handleLiveToggle);
+    return () => window.removeEventListener('collectables-visibility-changed', handleLiveToggle);
+  }, []);
+
   const navItems = [
     { name: 'Home', path: '/' },
     { name: 'All Books', path: '/books' },
     { name: 'Publishers', path: '/publishers' },
     { name: 'Authors', path: '/authors' },
     { name: 'Offers', path: '/offers' },
+    ...(showCollectables ? [{ name: 'Collectables', path: '/collectables' }] : []),
     { name: 'Request Book', path: '/request-book' },
   ];
 

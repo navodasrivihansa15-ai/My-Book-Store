@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-export default function MobileCategoryMenu({ isOpen, setIsOpen, categories }) {
+export default function MobileCategoryMenu({ isOpen, setIsOpen, categories, showCollectables }) {
   return (
     <>
       {/* Overlay */}
@@ -18,7 +18,7 @@ export default function MobileCategoryMenu({ isOpen, setIsOpen, categories }) {
         }`}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
-          <span className="font-bold text-lg text-theme-deep tracking-tight">Categories</span>
+          <span className="font-bold text-lg text-theme-deep tracking-tight">Menu</span>
           <button 
             onClick={() => setIsOpen(false)} 
             className="p-1.5 text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
@@ -28,14 +28,69 @@ export default function MobileCategoryMenu({ isOpen, setIsOpen, categories }) {
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col">
-          {/* All Books */}
+          {/* Main Navigation Links */}
           <Link 
-            to="/?category=All"
+            to="/"
             onClick={() => setIsOpen(false)} 
-            className="py-4 px-6 border-b border-gray-100 text-gray-800 font-bold hover:bg-gray-50"
+            className="py-3 px-6 border-b border-gray-100 text-gray-800 font-bold hover:bg-gray-50"
+          >
+            Home
+          </Link>
+          <Link 
+            to="/books"
+            onClick={() => setIsOpen(false)} 
+            className="py-3 px-6 border-b border-gray-100 text-gray-800 font-bold hover:bg-gray-50"
           >
             All Books
           </Link>
+          <Link 
+            to="/publishers"
+            onClick={() => setIsOpen(false)} 
+            className="py-3 px-6 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50"
+          >
+            Publishers
+          </Link>
+          <Link 
+            to="/authors"
+            onClick={() => setIsOpen(false)} 
+            className="py-3 px-6 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50"
+          >
+            Authors
+          </Link>
+
+          {/* 1. Existing Offers Link */}
+          <Link 
+            to="/offers"
+            onClick={() => setIsOpen(false)} 
+            className="py-3 px-6 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50"
+          >
+            Offers
+          </Link>
+
+          {/* 2. NEW: Collectables Link (Strictly between Offers & Request Book, only shown when enabled in Admin!) */}
+          {showCollectables && (
+            <Link 
+              to="/collectables"
+              onClick={() => setIsOpen(false)} 
+              className="py-3 px-6 border-b border-gray-100 text-blue-600 font-bold hover:bg-blue-50 flex items-center justify-between"
+            >
+              <span>Collectables</span>
+              <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-extrabold uppercase">New</span>
+            </Link>
+          )}
+
+          {/* 3. Existing Request Book Link */}
+          <Link 
+            to="/request-book"
+            onClick={() => setIsOpen(false)} 
+            className="py-3 px-6 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50"
+          >
+            Request Book
+          </Link>
+
+          <div className="px-6 pt-4 pb-2 text-[11px] font-extrabold uppercase tracking-wider text-gray-400">
+            Categories
+          </div>
 
           {/* Categories Rendering */}
           {!categories ? (
@@ -48,7 +103,7 @@ export default function MobileCategoryMenu({ isOpen, setIsOpen, categories }) {
                 key={cat.id || cat.name} 
                 to={`/?category=${encodeURIComponent(cat.name)}`} 
                 onClick={() => setIsOpen(false)}
-                className="py-4 px-6 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                className="py-3 px-6 border-b border-gray-100 text-gray-700 font-medium hover:bg-gray-50 transition-colors text-sm"
               >
                 {cat.name}
               </Link>

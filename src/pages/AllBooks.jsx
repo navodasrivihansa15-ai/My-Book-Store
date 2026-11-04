@@ -11,7 +11,7 @@ export default function AllBooks() {
   useEffect(() => {
     const fetchBooks = async () => {
       const { data } = await supabase.from('books').select('*').or('is_special.is.null,is_special.eq.false').order('created_at', { ascending: false });
-      if (data) setBooks(data);
+      if (data) setBooks(data.filter(b => b.item_type !== 'COLLECTABLE'));
       setLoading(false);
     };
     fetchBooks();

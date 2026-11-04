@@ -20,6 +20,26 @@ export default function Navbar() {
   const [searchParams, setSearchParams] = useSearchParams();
   const cartItemCount = cart.reduce((total, item) => total + item.quantity, 0);
   const searchQuery = searchParams.get('search') || '';
+  const [showCollectables, setShowCollectables] = useState(false);
+
+  useEffect(() => {
+    const checkCollectablesVisibility = async () => {
+      try {
+        const { data } = await supabase
+          .from('store_settings')
+          .select('setting_value')
+          .eq('setting_key', 'show_collectables_page')
+          .maybeSingle();
+        if (data) setShowCollectables(Boolean(data.setting_value));
+      } catch (e) {}
+    };
+
+    checkCollectablesVisibility();
+
+    const handleLiveToggle = (e) => setShowCollectables(Boolean(e.detail));
+    window.addEventListener('collectables-visibility-changed', handleLiveToggle);
+    return () => window.removeEventListener('collectables-visibility-changed', handleLiveToggle);
+  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -190,7 +210,8 @@ export default function Navbar() {
       <MobileCategoryMenu 
         isOpen={isMobileMenuOpen} 
         setIsOpen={setIsMobileMenuOpen} 
-        categories={categories} 
+        categories={categories}
+        showCollectables={showCollectables}
       />
     </>
   );

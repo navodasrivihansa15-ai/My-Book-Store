@@ -278,9 +278,52 @@ export default function Checkout() {
         price: item.price
       }));
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      let { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      if (itemsError && itemsError.message?.includes('foreign key')) {
+        const fallbackOrderItems = cart.map(item => ({
+          order_id: order.id,
+          book_id: (item.is_collectable || item.item_type === 'COLLECTABLE') ? null : item.id,
+          quantity: item.quantity,
+          price: item.price
+        }));
+        const retryRes = await supabase.from('order_items').insert(fallbackOrderItems);
+        itemsError = retryRes.error;
+      }
 
       if (itemsError) throw new Error(itemsError.message);
+
+      // Loop over purchased cart items to deduct stock (Single-Bill: Books + Collectables)
+      for (const item of cart) {
+        const qty = item.quantity || 1;
+        if (item.is_collectable || item.item_type === 'COLLECTABLE') {
+          const { data: colData } = await supabase
+            .from('collectables')
+            .select('stock')
+            .eq('id', item.id)
+            .maybeSingle();
+          const currentStock = Number(colData?.stock ?? item.stock ?? item.quantity_in_stock ?? 0);
+          await supabase
+            .from('collectables')
+            .update({ stock: Math.max(0, currentStock - qty) })
+            .eq('id', item.id);
+        } else {
+          const { data: bookData } = await supabase
+            .from('books')
+            .select('stock, sales_count')
+            .eq('id', item.id)
+            .maybeSingle();
+          if (bookData) {
+            const currentStock = Number(bookData.stock || 0);
+            await supabase
+              .from('books')
+              .update({ 
+                stock: Math.max(0, currentStock - qty),
+                sales_count: (bookData.sales_count || 0) + qty
+              })
+              .eq('id', item.id);
+          }
+        }
+      }
 
       const displayId = order.display_id || order.id.split('-')[0].toUpperCase();
       setPlacedOrderId(displayId);

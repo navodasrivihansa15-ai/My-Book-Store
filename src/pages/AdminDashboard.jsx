@@ -11,6 +11,7 @@ import StoreCopyPrint from '../components/StoreCopyPrint';
 import { printReceipt } from '../utils/electronBridge';
 import StaffMobilePwaManager from '../components/StaffMobilePwaManager';
 import StaffActivityVault from '../components/StaffActivityVault';
+import AdminCollectables from '../components/AdminCollectables';
 import { logStaffAction } from '../utils/staffActivityTracker';
 
 export default function AdminDashboard() {
@@ -40,6 +41,9 @@ export default function AdminDashboard() {
         <div className="flex overflow-x-auto whitespace-nowrap hide-scrollbar space-x-3 pb-2 md:hidden w-full items-center">
           <button onClick={() => setActiveTab('inventory')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'inventory' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Plus size={16} /> Inventory
+          </button>
+          <button onClick={() => setActiveTab('collectables')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'collectables' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
+            <span>🎁</span> Collectables
           </button>
           <button onClick={() => setActiveTab('orders')} className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all cursor-pointer shrink-0 ${activeTab === 'orders' ? 'bg-theme-deep text-white shadow-md' : 'bg-white border border-gray-200 text-theme-medium'}`}>
             <Package size={16} /> Orders
@@ -78,6 +82,9 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('inventory')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'inventory' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Plus size={18} /> Inventory
           </button>
+          <button onClick={() => setActiveTab('collectables')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'collectables' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
+            <span>🎁</span> Collectables
+          </button>
           <button onClick={() => setActiveTab('orders')} className={`shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold tracking-wider uppercase transition-all cursor-pointer ${activeTab === 'orders' ? 'bg-theme-deep text-theme-bg shadow' : 'text-theme-medium hover:text-theme-deep'}`}>
             <Package size={18} /> Orders
           </button>
@@ -113,6 +120,11 @@ export default function AdminDashboard() {
 
       <AnimatePresence mode="wait">
         {activeTab === 'inventory' && <motion.div key="inventory" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><InventoryManagement currentUser={currentUser} /></motion.div>}
+        {activeTab === 'collectables' && (
+          <motion.div key="collectables" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print">
+            <AdminCollectables currentUser={currentUser} />
+          </motion.div>
+        )}
         {activeTab === 'banners' && <motion.div key="banners" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><BannerManagement /></motion.div>}
         {activeTab === 'orders' && <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><OrderManagement currentUser={currentUser} /></motion.div>}
         {activeTab === 'store' && <motion.div key="store" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="no-print"><StoreSettings /></motion.div>}
@@ -163,7 +175,7 @@ function InventoryManagement({ currentUser }) {
 
   const [formData, setFormData] = useState({
     title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false,
-    translator: '', publisher: '', weight_g: 250, page_count: '', barcode: '', discount_percentage: '', sale_price: ''
+    translator: '', publisher: '', weight_g: 250, page_count: '', barcode: '', isbn: '', discount_percentage: '', sale_price: ''
   });
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -208,7 +220,7 @@ function InventoryManagement({ currentUser }) {
           const target = payload.payload.target;
           
           if (target === 'Inventory' && scannedBarcode) {
-            setFormData(prev => ({ ...prev, barcode: scannedBarcode }));
+            setFormData(prev => ({ ...prev, barcode: scannedBarcode, isbn: scannedBarcode }));
             showNotification('success', `Barcode ${scannedBarcode} loaded from Scanner!`);
           }
         }
@@ -228,6 +240,10 @@ function InventoryManagement({ currentUser }) {
 
     let newData = isEdit ? { ...editingBook } : { ...formData };
     newData[name] = finalValue;
+
+    if (name === 'barcode') {
+      newData.isbn = finalValue;
+    }
 
     // Auto-calculate sale_price
     if (name === 'price' || name === 'discount_percentage') {
@@ -282,13 +298,15 @@ function InventoryManagement({ currentUser }) {
       let cover_image_url = null;
       if (file) cover_image_url = await handleUploadImage(file, 'book-covers');
 
+      const cleanBarcode = (formData.barcode || '').trim();
       const { data: insertedBook, error } = await supabase.from('books').insert({
         title: formData.title, author: formData.author || '', price: parseFloat(formData.price),
         description: formData.description || '', stock: parseInt(formData.stock) || 0,
         categories: formData.categories, is_featured: formData.is_featured, is_offer: formData.is_offer, is_special: formData.is_special, sales_count: 0,
         translator: formData.translator || null, publisher: formData.publisher || null, weight_g: parseInt(formData.weight_g) || 250,
         page_count: parseInt(formData.page_count) || null,
-        barcode: formData.barcode || null,
+        barcode: cleanBarcode || null,
+        isbn: cleanBarcode || null, // Force ISBN to exactly match Barcode
         discount_percentage: formData.discount_percentage ? parseFloat(formData.discount_percentage) : 0,
         sale_price: formData.sale_price ? parseFloat(formData.sale_price) : parseFloat(formData.price),
         cover_image_url
@@ -297,7 +315,7 @@ function InventoryManagement({ currentUser }) {
       if (error) throw new Error(error.message);
       logStaffAction('BOOK_CREATED', `Added book "${formData.title}"`, { bookId: insertedBook?.id }, activeUser);
       showNotification('success', 'Book added successfully.');
-      setFormData({ title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false, translator: '', publisher: '', weight_g: 250, page_count: '', barcode: '', discount_percentage: '', sale_price: '' });
+      setFormData({ title: '', author: '', price: '', description: '', stock: '', categories: [], is_featured: false, is_offer: false, is_special: false, translator: '', publisher: '', weight_g: 250, page_count: '', barcode: '', isbn: '', discount_percentage: '', sale_price: '' });
       setFile(null); setPreview(null); fetchBooks();
     } catch (err) {
       showNotification('error', err.message);
@@ -334,50 +352,48 @@ function InventoryManagement({ currentUser }) {
 
   const handleAddContributor = async (e, role) => {
     e.preventDefault();
-    const formData = role === 'AUTHOR' ? authorFormData : translatorFormData;
-    if (!formData.name_en || !formData.name_si) {
+    const currentForm = role === 'AUTHOR' ? authorFormData : translatorFormData;
+    if (!currentForm.name_en?.trim() || !currentForm.name_si?.trim()) {
       showNotification('error', 'Both English and Sinhala names are required.');
       return;
     }
     setLoading(true);
     try {
-      // Check if contributor already exists
-      const { data: existing } = await supabase.from('contributors').select('*').ilike('name_en', formData.name_en).single();
-      
-      let finalData;
-      if (existing) {
-         if (existing.role !== 'BOTH' && existing.role !== role) {
-            const { data } = await supabase.from('contributors').update({ role: 'BOTH' }).eq('id', existing.id).select().single();
-            finalData = data;
-         } else {
-            finalData = existing;
-         }
-      } else {
-         const { data, error } = await supabase.from('contributors').insert({
-           name_en: formData.name_en,
-           name_si: formData.name_si,
-           role: role
-         }).select().single();
-         if (error) throw new Error(error.message);
-         finalData = data;
-         setContributors([...contributors, finalData]);
-      }
+      const payload = {
+        name_en: currentForm.name_en.trim(),
+        name_si: currentForm.name_si.trim(),
+        role: role
+      };
+
+      const { data, error } = await supabase
+        .from('contributors')
+        .insert([payload])
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
 
       showNotification('success', `${role === 'AUTHOR' ? 'Author' : 'Translator'} added successfully.`);
-      logStaffAction('INVENTORY_UPDATED', `Updated catalog entity: ${role === 'AUTHOR' ? 'Author' : 'Translator'} "${formData.name_en}"`, {}, activeUser);
+      logStaffAction('INVENTORY_UPDATED', `Added ${role === 'AUTHOR' ? 'Author' : 'Translator'} "${payload.name_en}"`, {}, activeUser);
+      setContributors(prev => [...prev, data]);
+
       if (role === 'AUTHOR') {
-        setFormData(prev => ({ ...prev, author: finalData.name_en }));
+        setFormData(prev => ({ ...prev, author: data.name_en }));
         setIsAuthorModalOpen(false);
         setAuthorFormData({ name_en: '', name_si: '' });
       } else {
-        setFormData(prev => ({ ...prev, translator: finalData.name_en }));
+        setFormData(prev => ({ ...prev, translator: data.name_en }));
         setIsTranslatorModalOpen(false);
         setTranslatorFormData({ name_en: '', name_si: '' });
       }
     } catch (err) {
       showNotification('error', err.message);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleAddAuthor = (e) => handleAddContributor(e, 'AUTHOR');
+  const handleAddTranslator = (e) => handleAddContributor(e, 'TRANSLATOR');
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
@@ -386,13 +402,15 @@ function InventoryManagement({ currentUser }) {
       let cover_image_url = editingBook.cover_image_url;
       if (file) cover_image_url = await handleUploadImage(file, 'book-covers');
 
+      const cleanBarcode = (editingBook.barcode || '').trim();
       const { error } = await supabase.from('books').update({
         title: editingBook.title, author: editingBook.author || '', price: parseFloat(editingBook.price),
         description: editingBook.description || '', stock: parseInt(editingBook.stock) || 0,
         categories: editingBook.categories || [], is_featured: editingBook.is_featured, is_offer: editingBook.is_offer, is_special: editingBook.is_special,
         translator: editingBook.translator || null, publisher: editingBook.publisher || null, weight_g: parseInt(editingBook.weight_g) || 250,
         page_count: parseInt(editingBook.page_count) || null,
-        barcode: editingBook.barcode || null,
+        barcode: cleanBarcode || null,
+        isbn: cleanBarcode || null, // Force ISBN to exactly match Barcode
         discount_percentage: editingBook.discount_percentage ? parseFloat(editingBook.discount_percentage) : 0,
         sale_price: editingBook.sale_price ? parseFloat(editingBook.sale_price) : parseFloat(editingBook.price),
         cover_image_url
@@ -425,7 +443,21 @@ function InventoryManagement({ currentUser }) {
           <div className="lg:col-span-2 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input required type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Book Title" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2.5 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
-              <input type="text" name="barcode" value={formData.barcode || ''} onChange={handleChange} placeholder="Barcode / ISBN" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2.5 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-theme-medium mb-1 font-bold">Barcode / ISBN *</label>
+                <input 
+                  type="text" 
+                  name="barcode" 
+                  placeholder="Scan or type barcode..." 
+                  value={formData.barcode || ''} 
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    barcode: e.target.value, 
+                    isbn: e.target.value 
+                  })} 
+                  className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2.5 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50 font-mono" 
+                />
+              </div>
 
               <div className="flex gap-2">
                 <select name="author" value={formData.author || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2.5 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
@@ -577,7 +609,21 @@ function InventoryManagement({ currentUser }) {
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
                   <input required type="text" name="title" value={editingBook.title} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
-                  <input type="text" name="barcode" value={editingBook.barcode || ''} onChange={(e) => handleChange(e, true)} placeholder="Barcode / ISBN" className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50" />
+                  <div>
+                    <label className="block text-xs uppercase tracking-widest text-theme-medium mb-1 font-bold">Barcode / ISBN *</label>
+                    <input 
+                      type="text" 
+                      name="barcode" 
+                      placeholder="Scan or type barcode..." 
+                      value={editingBook.barcode || ''} 
+                      onChange={(e) => setEditingBook({ 
+                        ...editingBook, 
+                        barcode: e.target.value, 
+                        isbn: e.target.value 
+                      })} 
+                      className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-3 md:py-2 rounded-lg md:rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50 font-mono" 
+                    />
+                  </div>
 
                   <select name="author" value={editingBook.author || ''} onChange={(e) => handleChange(e, true)} className="w-full bg-slate-50 border border-slate-300 focus:bg-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-theme-medium transition-colors text-theme-darkest placeholder-theme-darkest/50">
                     <option value="">Select Author (Optional)</option>

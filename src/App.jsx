@@ -23,10 +23,12 @@ import POS from './pages/POS';
 import Scanner from './pages/Scanner';
 import AdminUsers from './pages/AdminUsers';
 import RequestBook from './pages/RequestBook';
+import Collectables from './pages/Collectables';
 import AdminRoute from './components/AdminRoute';
 import GlobalBuyNowModal from './components/GlobalBuyNowModal';
 import StaffActivityVault from './components/StaffActivityVault';
 import { useAuth } from './context/AuthContext';
+import { useCart } from './context/CartContext';
 import { initGlobalSessionLifecycle } from './utils/staffActivityTracker';
 
 function StaffActivityVaultRoute() {
@@ -44,6 +46,7 @@ function PrivateRoute({ children }) {
 
 function AnimatedRoutes() {
   const location = useLocation();
+  const { addToCart } = useCart();
   
   return (
     <AnimatePresence mode="wait">
@@ -53,6 +56,7 @@ function AnimatedRoutes() {
         <Route path="/publishers" element={<Publishers />} />
         <Route path="/authors" element={<Authors />} />
         <Route path="/offers" element={<Offers />} />
+        <Route path="/collectables" element={<Collectables onAddToCart={addToCart} />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<PrivateRoute><Checkout /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><MyAccount /></PrivateRoute>} />
